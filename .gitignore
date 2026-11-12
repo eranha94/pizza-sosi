@@ -1,6 +1,7 @@
 node_modules/
 dist/
-lib/
+# build output of the functions bundle only (frontend/*/src/lib is source code)
+/backend/functions/lib/
 coverage/
 .env
 .env.*
