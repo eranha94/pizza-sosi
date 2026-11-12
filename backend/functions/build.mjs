@@ -22,3 +22,13 @@ writeFileSync(
   'lib/package.json',
   JSON.stringify({ type: 'module', main: 'index.js', engines: pkg.engines, dependencies: pkg.dependencies }, null, 2),
 );
+
+// firebase-tools loads the bundle locally to discover the functions, so the runtime deps
+// must sit next to it. node_modules itself is not uploaded (see firebase.json "ignore").
+if (process.argv.includes('--with-deps')) {
+  const { execFileSync } = await import('node:child_process');
+  const { existsSync } = await import('node:fs');
+  execFileSync('npm', ['install', '--omit=dev', '--no-audit', '--no-fund', '--no-package-lock'], { cwd: 'lib', stdio: 'inherit' });
+  if (!existsSync('lib/node_modules/.bin/firebase-functions')) throw new Error('firebase-functions was not installed into lib/');
+  console.log('✓ runtime dependencies installed in lib/');
+}

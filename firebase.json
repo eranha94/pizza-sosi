@@ -12,8 +12,7 @@
       "codebase": "default",
       "runtime": "nodejs24",
       "predeploy": [
-        "pnpm --filter ./backend/functions run build",
-        "npm --prefix \"$RESOURCE_DIR\" install --omit=dev --no-audit --no-fund --no-package-lock"
+        "pnpm --filter ./backend/functions run build:deploy"
       ],
       "ignore": [
         "node_modules",

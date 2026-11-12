@@ -10,7 +10,8 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:deploy": "node build.mjs --with-deps"
   },
   "dependencies": {
     "firebase-admin": "^14.5.1",
