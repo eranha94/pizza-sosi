@@ -3,8 +3,10 @@
  */
 export type Agorot = number;
 
-const formatter = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
+const whole = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 });
+const cents = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** "18 ₪", or "7.50 ₪" when there are agorot. */
 export function formatAgorot(value: Agorot): string {
-  return formatter.format(value / 100);
+  return (value % 100 === 0 ? whole : cents).format(value / 100);
 }

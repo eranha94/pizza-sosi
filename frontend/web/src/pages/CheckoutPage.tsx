@@ -37,7 +37,7 @@ export default function CheckoutPage() {
     try {
       const res = await createOrder({
         idempotencyKey,
-        lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, addOnIds: l.addOnIds, note: l.note })),
+        lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, addOns: l.addOns, note: l.note })),
         fulfillment,
         paymentMethod,
         customer: { name: get('name'), phone: get('phone'), email: get('email') },

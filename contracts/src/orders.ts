@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-import { ORDER_STATUSES } from './constants.js';
+import { ORDER_STATUSES, COVERAGES } from './constants.js';
 export const OrderStatus = z.enum(ORDER_STATUSES);
 export type OrderStatus = z.infer<typeof OrderStatus>;
 
@@ -19,7 +19,11 @@ const phone = z
 export const CartLineInput = z.object({
   itemId: id,
   quantity: z.number().int().min(1).max(20),
-  addOnIds: z.array(id).max(20).default([]),
+  /** Chosen toppings. `coverage` matters only for toppings that offer half/whole. */
+  addOns: z
+    .array(z.object({ id, coverage: z.enum(COVERAGES).default('whole') }).strict())
+    .max(30)
+    .default([]),
   note: z.string().trim().max(200).default(''),
 });
 export type CartLineInput = z.infer<typeof CartLineInput>;
@@ -72,7 +76,9 @@ export const PricedLine = z.object({
   name: z.string(),
   quantity: z.number().int(),
   unitPriceAgorot: z.number().int(),
-  addOns: z.array(z.object({ id, name: z.string(), priceAgorot: z.number().int() })),
+  addOns: z.array(
+    z.object({ id, name: z.string(), priceAgorot: z.number().int(), coverage: z.enum(COVERAGES).nullable() }),
+  ),
   note: z.string(),
   lineTotalAgorot: z.number().int(),
 });

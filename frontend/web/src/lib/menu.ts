@@ -8,7 +8,7 @@ import { menuDb, firebaseApp } from './firebase';
  * No validation library here on purpose (smaller first load); the server validates every order.
  */
 
-const CACHE_KEY = 'pizza-sosi-menu-v1';
+const CACHE_KEY = 'pizza-sosi-menu-v2';
 
 function readCache<T>(key: string): T | undefined {
   try {
@@ -37,7 +37,7 @@ function toMenuItem(id: string, d: Record<string, unknown>): MenuItem | null {
     imagePath: typeof d.imagePath === 'string' ? d.imagePath : null,
     order: typeof d.order === 'number' ? d.order : 0,
     active: d.active === true,
-    addOns: Array.isArray(d.addOns) ? (d.addOns as MenuItem['addOns']) : [],
+    addOnGroups: Array.isArray(d.addOnGroups) ? (d.addOnGroups as MenuItem['addOnGroups']) : [],
   };
 }
 
