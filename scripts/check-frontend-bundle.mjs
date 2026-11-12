@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fails the build if anything server-side or secret ended up in the browser bundles.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIRS = ['frontend/web/dist', 'frontend/admin/dist'];
@@ -17,9 +17,10 @@ const FORBIDDEN = [
 
 let failures = 0;
 function walk(dir) {
-  for (const name of readdirSync(dir)) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const name = entry.name;
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p);
+    if (entry.isDirectory()) walk(p);
     else if (/\.(js|mjs|css|html|json|map|txt)$/.test(name)) {
       const text = readFileSync(p, 'utf8');
       for (const [re, label] of FORBIDDEN) {
