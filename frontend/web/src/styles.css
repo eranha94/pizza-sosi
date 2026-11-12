@@ -113,6 +113,14 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .addons { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); align-items: start; }
 .addons legend { grid-column: 1 / -1; }
 .addons legend { font-weight: 700; margin-bottom: 8px; }
+.choice { border: 0; padding: 0; margin: 0; }
+.choice legend { font-weight: 700; margin-bottom: 8px; }
+.choice__required { color: var(--danger); font-weight: 600; font-size: 0.9rem; }
+.choice__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice__row label { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--paper); cursor: pointer; }
+.choice__row label.is-on { border-color: var(--ink); background: var(--yellow); font-weight: 700; }
+.choice__row input { position: absolute; opacity: 0; pointer-events: none; }
+.choice__row label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 .addons__hint { font-weight: 400; color: var(--ink-soft); font-size: 0.9rem; }
 .addon { border: 1.5px solid var(--line); border-radius: 14px; }
 .addon.is-on { border-color: var(--ink); background: var(--cream); }

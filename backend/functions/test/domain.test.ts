@@ -9,13 +9,20 @@ const pizza: MenuItem = {
   imagePath: null, order: 1, active: true,
   addOnGroups: [
     {
-      id: 'g1', name: 'מיוחדות', order: 1,
+      id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std',
+      options: [
+        { id: 'std', name: 'סטנדרט', wholeAgorot: 0, halfAgorot: null, active: true },
+        { id: 'thin', name: 'דק', wholeAgorot: 0, halfAgorot: null, active: true },
+      ],
+    },
+    {
+      id: 'g1', name: 'מיוחדות', order: 1, selection: 'multi', defaultOptionId: null,
       options: [
         { id: 'tuna', name: 'טונה', wholeAgorot: 1800, halfAgorot: 1300, active: true },
         { id: 'pine', name: 'אננס', wholeAgorot: 1800, halfAgorot: 1300, active: false },
       ],
     },
-    { id: 'g2', name: 'תוספות', order: 2, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
+    { id: 'g2', name: 'תוספות', order: 2, selection: 'multi', defaultOptionId: null, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
   ],
 };
 const menu = new Map([[pizza.id, pizza]]);
@@ -24,7 +31,7 @@ describe('priceCart', () => {
   it('charges each topping by coverage: whole or half', () => {
     const r = priceCart([{ itemId: 'p1', quantity: 2, addOns: [{ id: 'tuna', coverage: 'half' }], note: '' }], menu, 1500);
     expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 1300);
-    expect(r.lines[0]!.addOns[0]!.coverage).toBe('half');
+    expect(r.lines[0]!.addOns.find((a) => a.id === 'tuna')!.coverage).toBe('half');
     expect(r.subtotalAgorot).toBe(2 * 7200);
     expect(r.totalAgorot).toBe(2 * 7200 + 1500);
     const whole = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'tuna', coverage: 'whole' }], note: '' }], menu, 0);
@@ -33,8 +40,16 @@ describe('priceCart', () => {
   it('ignores "half" on toppings with one price, and duplicates', () => {
     const r = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'gouda', coverage: 'half' }, { id: 'gouda', coverage: 'whole' }], note: '' }], menu, 0);
     expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 600);
-    expect(r.lines[0]!.addOns).toHaveLength(1);
-    expect(r.lines[0]!.addOns[0]!.coverage).toBeNull();
+    const gouda = r.lines[0]!.addOns.filter((a) => a.id === 'gouda');
+    expect(gouda).toHaveLength(1);
+    expect(gouda[0]!.coverage).toBeNull();
+  });
+  it('single-choice groups: default when not sent, chosen when sent, never two', () => {
+    const d = priceCart([{ itemId: 'p1', quantity: 1, addOns: [], note: '' }], menu, 0);
+    expect(d.lines[0]!.addOns.map((a) => a.name)).toEqual(['סטנדרט']);
+    const t = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'thin', coverage: 'whole' }], note: '' }], menu, 0);
+    expect(t.lines[0]!.addOns.map((a) => a.name)).toEqual(['דק']);
+    expect(() => priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'thin', coverage: 'whole' }, { id: 'std', coverage: 'whole' }], note: '' }], menu, 0)).toThrow(PricingError);
   });
   it('rejects unknown items and inactive toppings', () => {
     expect(() => priceCart([{ itemId: 'nope', quantity: 1, addOns: [], note: '' }], menu, 0)).toThrow(PricingError);

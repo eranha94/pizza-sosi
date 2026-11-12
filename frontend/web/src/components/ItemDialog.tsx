@@ -28,7 +28,10 @@ function priceLabel(o: AddOnOption) {
 
 function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
   const add = useCart((s) => s.add);
-  const [chosen, setChosen] = useState<Map<string, Coverage>>(new Map());
+  // Single-choice groups (dough, cheese…) start on their default option.
+  const [chosen, setChosen] = useState<Map<string, Coverage>>(
+    () => new Map(item.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => [g.defaultOptionId!, 'whole'])),
+  );
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
 
@@ -37,6 +40,14 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
     .filter((g) => g.options.length > 0)
     .toSorted((a, b) => a.order - b.order);
   const chosenList = [...chosen].map(([id, coverage]) => ({ id, coverage }));
+  const missing = groups.filter((g) => g.selection === 'single' && !g.options.some((o) => chosen.has(o.id)));
+  const pickOne = (groupOptionIds: string[], id: string) =>
+    setChosen((m) => {
+      const next = new Map(m);
+      for (const other of groupOptionIds) next.delete(other);
+      next.set(id, 'whole');
+      return next;
+    });
   const unit = item.priceAgorot + addOnsPrice(item, chosenList).total;
 
   const toggle = (id: string) =>
@@ -57,6 +68,26 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
       {item.description && <p className="sheet__desc">{item.description}</p>}
 
       {groups.map((g) => {
+        if (g.selection === 'single') {
+          const ids = g.options.map((o) => o.id);
+          return (
+            <fieldset key={g.id} className="choice">
+              <legend>
+                {g.name}
+                {!g.options.some((o) => chosen.has(o.id)) && <span className="choice__required"> · חובה לבחור</span>}
+              </legend>
+              <div className="choice__row" role="radiogroup">
+                {g.options.map((o) => (
+                  <label key={o.id} className={chosen.has(o.id) ? 'is-on' : ''}>
+                    <input type="radio" name={`g-${g.id}`} checked={chosen.has(o.id)} onChange={() => pickOne(ids, o.id)} />
+                    {o.name}
+                    {o.wholeAgorot > 0 && ` · +${formatAgorot(o.wholeAgorot)}`}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          );
+        }
         const half = g.options.find((o) => o.halfAgorot !== null);
         return (
           <fieldset key={g.id} className="addons">
@@ -105,8 +136,8 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
           <output aria-live="polite">{quantity}</output>
           <button type="button" aria-label="הוספה" onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</button>
         </div>
-        <button type="submit" className="button button--primary">
-          הוספה לסל · {formatAgorot(unit * quantity)}
+        <button type="submit" className="button button--primary" disabled={missing.length > 0}>
+          {missing.length > 0 ? `בחרו ${missing[0]!.name}` : `הוספה לסל · ${formatAgorot(unit * quantity)}`}
         </button>
       </div>
     </form>
