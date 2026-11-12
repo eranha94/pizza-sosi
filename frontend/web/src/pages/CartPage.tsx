@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { formatAgorot } from '@pizza-sosi/contracts';
+import { formatAgorot } from '@pizza-sosi/contracts/constants';
 import { useCart, cartTotal } from '../store/cart';
 
 export default function CartPage() {

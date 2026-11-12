@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { CATEGORY_IDS, CATEGORY_LABELS, formatAgorot, type CategoryId, type MenuItem } from '@pizza-sosi/contracts';
+import { useEffect, useMemo, useState } from 'react';
+import { CATEGORY_IDS, CATEGORY_LABELS, formatAgorot } from '@pizza-sosi/contracts/constants';
+import type { CategoryId, MenuItem } from '@pizza-sosi/contracts';
 import { useMenu, useBucket, useStoreSettings } from '../lib/menu';
-import { imageUrl } from '../lib/firebase';
+import { imageUrl, thumbSrcSet, prefetchOrdering } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
 
 export function HomePage() {
@@ -9,6 +10,9 @@ export function HomePage() {
   const store = useStoreSettings();
   const bucket = useBucket();
   const [selected, setSelected] = useState<MenuItem | null>(null);
+
+  // Load the ordering code in idle time so checkout opens instantly.
+  useEffect(() => prefetchOrdering(), []);
 
   const byCategory = useMemo(() => {
     const map = new Map<CategoryId, MenuItem[]>();
@@ -50,11 +54,12 @@ export function HomePage() {
             <ul className="menu__grid">
               {c.items.map((item) => {
                 const src = imageUrl(bucket.data ?? '', item.imagePath);
+                const srcSet = thumbSrcSet(bucket.data ?? '', item.imagePath);
                 return (
                   <li key={item.id}>
                     <button type="button" className="item-card" onClick={() => setSelected(item)}>
                       {src ? (
-                        <img className="item-card__img" src={src} alt="" width="320" height="240" loading="lazy" decoding="async" />
+                        <MenuImage src={src} srcSet={srcSet} />
                       ) : (
                         <span className="item-card__img item-card__img--empty" aria-hidden="true" />
                       )}
@@ -74,5 +79,24 @@ export function HomePage() {
       </section>
       <ItemDialog item={selected} onClose={() => setSelected(null)} />
     </>
+  );
+}
+
+/** Small WebP thumbnail (112px shown → 320/640 for retina); falls back to the original if missing. */
+function MenuImage({ src, srcSet }: { src: string; srcSet: string | null }) {
+  const [useOriginal, setUseOriginal] = useState(!srcSet);
+  return (
+    <img
+      className="item-card__img"
+      src={useOriginal ? src : srcSet!.split(' ')[0]}
+      srcSet={useOriginal ? undefined : srcSet!}
+      sizes="112px"
+      alt=""
+      width="112"
+      height="112"
+      loading="lazy"
+      decoding="async"
+      onError={() => setUseOriginal(true)}
+    />
   );
 }

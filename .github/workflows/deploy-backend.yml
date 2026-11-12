@@ -30,8 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     # GitHub Environments hold the per-project variables; "prod" requires manual approval.
     environment: ${{ inputs.target || 'dev' }}
-    if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
     steps:
+      # Environment variables are only available inside steps, not in a job-level `if`.
+      - name: Check deploy configuration
+        run: |
+          if [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || [ -z "${{ vars.FIREBASE_PROJECT_ID }}" ]; then
+            echo "::error::Environment '${{ inputs.target || 'dev' }}' is missing deploy variables (see README)."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4

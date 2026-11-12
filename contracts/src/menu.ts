@@ -1,17 +1,9 @@
 import { z } from 'zod';
 
-export const CATEGORY_IDS = ['pizzas', 'specials', 'toasts', 'burgers', 'salads', 'drinks'] as const;
+import { CATEGORY_IDS } from './constants.js';
+
 export const CategoryId = z.enum(CATEGORY_IDS);
 export type CategoryId = z.infer<typeof CategoryId>;
-
-export const CATEGORY_LABELS: Record<CategoryId, string> = {
-  pizzas: 'פיצות',
-  specials: 'מבצעים',
-  toasts: 'טוסטים',
-  burgers: 'המבורגרים',
-  salads: 'סלטים',
-  drinks: 'שתייה',
-};
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
