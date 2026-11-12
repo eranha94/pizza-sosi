@@ -1,0 +1,38 @@
+{
+  "name": "pizza-sosi",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --parallel run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "build": "pnpm -r --if-present run build",
+    "build:frontend": "pnpm --filter @pizza-sosi/web --filter @pizza-sosi/admin run build && node scripts/check-frontend-bundle.mjs",
+    "build:backend": "pnpm --filter ./backend/functions run build",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-pizza-sosi \"pnpm --filter ./tests/rules run test\"",
+    "dev:web": "pnpm --filter ./frontend/web run dev",
+    "dev:admin": "pnpm --filter ./frontend/admin run dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "firebase-tools": "^15.36.0",
+    "globals": "^17.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "firebase-admin": "^14.5.1"
+  },
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "overrides": {
+      "@grpc/grpc-js": ">=1.13.6"
+    }
+  }
+}

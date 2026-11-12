@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "pizza-sosi-dev",
+    "dev": "pizza-sosi-dev",
+    "prod": "pizza-sosi"
+  },
+  "targets": {
+    "pizza-sosi": {
+      "hosting": { "web": ["pizza-sosi-next"], "admin": ["pizza-sosi-admin"] }
+    },
+    "pizza-sosi-dev": {
+      "hosting": { "web": ["pizza-sosi-dev"], "admin": ["pizza-sosi-dev-admin"] }
+    }
+  }
+}
