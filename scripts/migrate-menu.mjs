@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 // Copies the menu from the old site's structure (settings/admin/menu_items + add_ons, prices in shekels)
 // to the new `menuItems` collection (prices in agorot). Read-only on the old data. Dry run by default.
-//   node scripts/migrate-menu.mjs --project pizza-sosi-dev            (dry run, prints what it would write)
-//   node scripts/migrate-menu.mjs --project pizza-sosi-dev --write
+//   node scripts/migrate-menu.mjs --from pizza-sosi --to pizza-sosi-dev            (dry run)
+//   node scripts/migrate-menu.mjs --from pizza-sosi --to pizza-sosi-dev --write
+// --from defaults to --to (migrate inside the same project).
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { parseArgs } from 'node:util';
 
-const { values } = parseArgs({ options: { project: { type: 'string' }, write: { type: 'boolean', default: false } } });
-if (!values.project) {
-  console.error('usage: --project <id> [--write]');
+const { values } = parseArgs({
+  options: { from: { type: 'string' }, to: { type: 'string' }, write: { type: 'boolean', default: false } },
+});
+if (!values.to) {
+  console.error('usage: --to <project> [--from <project>] [--write]');
   process.exit(1);
 }
-initializeApp({ credential: applicationDefault(), projectId: values.project });
-const db = getFirestore();
+const source = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.from ?? values.to }, 'source'));
+const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.to }, 'target'));
 const toAgorot = (shekels) => Math.round(Number(shekels) * 100);
 
-const itemsSnap = await db.collection('settings/admin/menu_items').get();
-const addOnsSnap = await db.collection('settings/admin/add_ons').get();
+// Read-only on the source.
+const itemsSnap = await source.collection('settings/admin/menu_items').get();
+const addOnsSnap = await source.collection('settings/admin/add_ons').get();
 const globalAddOns = addOnsSnap.docs.map((d) => ({
   id: d.id,
   name: String(d.data().name ?? ''),
@@ -47,7 +51,7 @@ for (const d of itemsSnap.docs) {
 }
 if (values.write) {
   await batch.commit();
-  console.log(`✓ wrote ${itemsSnap.size} items to menuItems`);
+  console.log(`✓ wrote ${itemsSnap.size} items to ${values.to}/menuItems`);
 } else {
   console.log(`(dry run – ${itemsSnap.size} items. add --write to apply)`);
 }
