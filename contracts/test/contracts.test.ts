@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CreateOrderRequest, formatAgorot } from '../src/index.js';
 
 const base = {
-  idempotencyKey: '3f1c2a4e-8b7d-4c1a-9e2f-5a6b7c8d9e0f',
+  idempotencyKey: crypto.randomUUID(),
   lines: [{ itemId: 'p1', quantity: 1 }],
   fulfillment: 'pickup',
   paymentMethod: 'on_site',
