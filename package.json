@@ -30,6 +30,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "@grpc/grpc-js": ">=1.13.6"
+    }
   }
 }
