@@ -1,0 +1,47 @@
+name: Deploy frontend
+
+# Deploys ONLY the frontend. Automatic to the dev project on main; production is manual.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'contracts/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'dev or prod'
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+
+permissions:
+  contents: read
+  id-token: write   # keyless auth to Google Cloud (Workload Identity Federation)
+
+concurrency:
+  group: deploy-frontend-${{ inputs.target || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # GitHub Environments hold the per-project variables; "prod" requires manual approval.
+    environment: ${{ inputs.target || 'dev' }}
+    if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:frontend
+        env:
+          VITE_PUBLIC_RECAPTCHA_ENTERPRISE_KEY: ${{ vars.RECAPTCHA_ENTERPRISE_KEY }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT_FRONTEND }}
+      - name: Deploy
+        run: pnpm exec firebase deploy --only hosting:web,hosting:admin --project ${{ vars.FIREBASE_PROJECT_ID }} --non-interactive

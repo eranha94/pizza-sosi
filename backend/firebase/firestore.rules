@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Default: everything denied. The browser can only READ what is listed here.
+// Every WRITE goes through Cloud Functions (Admin SDK bypasses these rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isStaff() {
+      return signedIn()
+        && request.auth.token.role in ['owner', 'staff']
+        && request.auth.token.firebase.sign_in_second_factor != null;
+    }
+
+    // Public menu
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Public store settings (hours, delivery on/off)
+    match /settings/store {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Orders: the customer who created it, or staff
+    match /orders/{orderId} {
+      allow get: if signedIn() && (resource.data.uid == request.auth.uid || isStaff());
+      allow list: if isStaff()
+        || (signedIn() && resource.data.uid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Staff-only read of the audit log
+    match /auditLog/{entry} {
+      allow read: if isStaff() && request.auth.token.role == 'owner';
+      allow write: if false;
+    }
+
+    // Everything else (counters, idempotency, rateLimits, legacy settings/admin ...) is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

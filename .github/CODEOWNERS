@@ -1,0 +1,6 @@
+# Security-sensitive paths need review by the repo owner.
+/backend/                 @eranha94
+/backend/firebase/        @eranha94
+/contracts/               @eranha94
+/.github/                 @eranha94
+/firebase.json            @eranha94
