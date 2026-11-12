@@ -1,2 +1,9 @@
 [extend]
 useDefault = true
+
+# Reviewed false positives. Each entry needs a reason.
+[allowlist]
+description = "Reviewed false positives"
+# 7c61313: a hard-coded test UUID (idempotency key) in contracts/test was flagged as generic-api-key.
+# The test now generates the UUID at runtime; the old commit stays in history.
+commits = ["7c6131316d2a4a78120f96c262e98528b44775c1"]
