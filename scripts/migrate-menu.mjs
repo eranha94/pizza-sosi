@@ -18,6 +18,12 @@ if (!values.to) {
 const source = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.from ?? values.to }, 'source'));
 const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.to }, 'target'));
 const toAgorot = (shekels) => Math.round(Number(shekels) * 100);
+// Old docs stored a full download URL; the new model stores the Storage path.
+const toImagePath = (x) => {
+  if (x.imagePath) return String(x.imagePath);
+  const m = /\/o\/([^?]+)/.exec(String(x.imageUrl ?? ''));
+  return m ? decodeURIComponent(m[1]) : null;
+};
 
 // Read-only on the source.
 const itemsSnap = await source.collection('settings/admin/menu_items').get();
@@ -39,7 +45,7 @@ for (const d of itemsSnap.docs) {
     description: String(x.desc ?? '').trim(),
     category,
     priceAgorot: toAgorot(x.price ?? 0),
-    imagePath: x.imagePath ?? null,
+    imagePath: toImagePath(x),
     order: Number(x.order ?? 0),
     active: true,
     // On the old site the add-ons applied to pizzas; keep that until the owner edits them per item.
