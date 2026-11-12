@@ -1,0 +1,24 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.role == 'owner'
+        && request.auth.token.firebase.sign_in_second_factor != null;
+    }
+
+    // Menu images: public read, upload only by the owner, images only, max 5 MB
+    match /menu_images/{file} {
+      allow read: if true;
+      allow create, update: if isOwner()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
+      allow delete: if isOwner();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
