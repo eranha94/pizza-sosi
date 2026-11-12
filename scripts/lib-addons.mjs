@@ -52,8 +52,12 @@ export function toAddOnGroups(rows) {
     }));
 }
 
+/** options: names, or [name, priceAgorot] for a paid choice (e.g. thick dough). */
 const single = (name, options, defaultName, order) => {
-  const opts = options.map((o) => ({ id: stableId('opt', name, o), name: o, wholeAgorot: 0, halfAgorot: null, active: true }));
+  const opts = options.map((entry) => {
+    const [o, price = 0] = Array.isArray(entry) ? entry : [entry];
+    return { id: stableId('opt', name, o), name: o, wholeAgorot: price, halfAgorot: null, active: true };
+  });
   return {
     id: stableId('group', name),
     name,
@@ -65,14 +69,14 @@ const single = (name, options, defaultName, order) => {
 };
 
 /**
- * Free required choices (pick exactly one). Returns the groups and the description without
+ * Required choices (pick exactly one). Thick dough costs 5 ₪. Returns the groups and the description without
  * the lines that are now real choices.
  */
 export function choiceGroupsFor({ name, category, description }) {
   const groups = [];
   const drop = [];
   if (category === 'pizzas') {
-    groups.push(single('עובי בצק', ['סטנדרט', 'דק', 'עבה'], 'סטנדרט', 1));
+    groups.push(single('עובי בצק', ['סטנדרט', 'דק', ['עבה', 500]], 'סטנדרט', 1));
     groups.push(single('גבינה', ['גבינת הבית', 'גבינת מוצרלה'], 'גבינת הבית', 2));
     drop.push(/ניתן לבחור עובי בצק/, /גבינה לבחירה/);
   }
