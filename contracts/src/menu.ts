@@ -7,14 +7,30 @@ export type CategoryId = z.infer<typeof CategoryId>;
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-export const AddOn = z.object({
+const price = z.number().int().min(0).max(100_000);
+
+/**
+ * One topping the customer can pick, e.g. "טונה".
+ * `halfAgorot` set → the customer chooses "כל הפיצה" (wholeAgorot) or "חצי פיצה" (halfAgorot).
+ * `halfAgorot` null → one price only (personal pizza, toast, burger extras).
+ */
+export const AddOnOption = z.object({
   id,
-  name: z.string().min(1).max(300),
-  priceAgorot: z.number().int().min(0).max(100_000),
+  name: z.string().min(1).max(80),
+  wholeAgorot: price,
+  halfAgorot: price.nullable(),
   active: z.boolean(),
-  order: z.number().int(),
 });
-export type AddOn = z.infer<typeof AddOn>;
+export type AddOnOption = z.infer<typeof AddOnOption>;
+
+/** A heading that groups toppings with the same price, e.g. "מיוחדות". */
+export const AddOnGroup = z.object({
+  id,
+  name: z.string().min(1).max(60),
+  order: z.number().int(),
+  options: z.array(AddOnOption).max(40),
+});
+export type AddOnGroup = z.infer<typeof AddOnGroup>;
 
 /** Public shape of a menu item, as stored in `menuItems/{id}` and readable by anyone. */
 export const MenuItem = z.object({
@@ -26,7 +42,7 @@ export const MenuItem = z.object({
   imagePath: z.string().max(300).nullable(),
   order: z.number().int(),
   active: z.boolean(),
-  addOns: z.array(AddOn).max(50).default([]),
+  addOnGroups: z.array(AddOnGroup).max(10).default([]),
 });
 export type MenuItem = z.infer<typeof MenuItem>;
 

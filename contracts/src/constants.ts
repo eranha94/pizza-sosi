@@ -48,3 +48,6 @@ export const API = {
 } as const;
 
 export const FUNCTIONS_REGION = 'europe-west1';
+
+export const COVERAGES = ['whole', 'half'] as const;
+export const COVERAGE_LABELS: Record<(typeof COVERAGES)[number], string> = { whole: 'כל הפיצה', half: 'חצי פיצה' };

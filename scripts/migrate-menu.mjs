@@ -7,6 +7,7 @@
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { parseArgs } from 'node:util';
+import { toAddOnGroups } from './lib-addons.mjs';
 
 const { values } = parseArgs({
   options: { from: { type: 'string' }, to: { type: 'string' }, write: { type: 'boolean', default: false } },
@@ -27,21 +28,20 @@ const toImagePath = (x) => {
 
 // Read-only on the source.
 const itemsSnap = await source.collection('settings/admin/menu_items').get();
-const toAddOn = (d) => ({
-  id: d.id,
+const toRow = (d) => ({
   name: String(d.data().name ?? ''),
   priceAgorot: toAgorot(d.data().price ?? 0),
   active: d.data().active !== false,
   order: Number(d.data().order ?? 0),
 });
 // Old site: add-ons live under each item (menu_items/{id}/add_ons); a global list is a fallback.
-const globalAddOns = (await source.collection('settings/admin/add_ons').get()).docs.map(toAddOn);
+const globalRows = (await source.collection('settings/admin/add_ons').get()).docs.map(toRow);
 
 const batch = db.batch();
 for (const d of itemsSnap.docs) {
   const x = d.data();
   const category = String(x.category ?? 'pizzas');
-  const own = (await d.ref.collection('add_ons').get()).docs.map(toAddOn);
+  const own = (await d.ref.collection('add_ons').get()).docs.map(toRow).sort((a, b) => a.order - b.order);
   const item = {
     name: String(x.name ?? '').trim(),
     description: String(x.desc ?? '').trim(),
@@ -50,10 +50,14 @@ for (const d of itemsSnap.docs) {
     imagePath: toImagePath(x),
     order: Number(x.order ?? 0),
     active: true,
-    addOns: own.length ? own : category === 'pizzas' ? globalAddOns : [],
+    addOnGroups: toAddOnGroups(own.length ? own : category === 'pizzas' ? globalRows : []),
     migratedFrom: `settings/admin/menu_items/${d.id}`,
   };
-  console.log(`${d.id}: ${item.name} – ${item.priceAgorot / 100} ₪ – ${item.addOns.length} add-ons`);
+  console.log(`${d.id}: ${item.name} – ${item.priceAgorot / 100} ₪`);
+  for (const g of item.addOnGroups) {
+    const p = [...new Set(g.options.map((o) => `${o.wholeAgorot / 100}${o.halfAgorot !== null ? `/half ${o.halfAgorot / 100}` : ''}`))];
+    console.log(`    ${g.name} [${p.join(' | ')}]: ${g.options.length} options`);
+  }
   batch.set(db.collection('menuItems').doc(d.id), item);
 }
 if (values.write) {

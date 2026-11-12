@@ -2,13 +2,20 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import type { MenuItem } from '@pizza-sosi/contracts';
 
+export type Coverage = 'whole' | 'half';
+export interface ChosenAddOn {
+  id: string;
+  coverage: Coverage;
+}
+
 export interface CartLine {
   key: string;
   itemId: string;
   name: string;
   quantity: number;
-  addOnIds: string[];
-  addOnNames: string[];
+  addOns: ChosenAddOn[];
+  /** For display, e.g. "טונה (חצי)". */
+  addOnLabels: string[];
   note: string;
   /** Display only. The server prices the order again from the menu. */
   unitPriceAgorot: number;
@@ -16,7 +23,7 @@ export interface CartLine {
 
 interface CartState {
   lines: CartLine[];
-  add(item: MenuItem, addOnIds: string[], quantity: number, note: string): void;
+  add(item: MenuItem, addOns: ChosenAddOn[], quantity: number, note: string): void;
   setQuantity(key: string, quantity: number): void;
   remove(key: string): void;
   clear(): void;
@@ -35,26 +42,40 @@ const safeStorage: StateStorage = {
   },
 };
 
+/** Price of the chosen toppings for one unit, the same rule the server applies. */
+export function addOnsPrice(item: MenuItem, chosen: ChosenAddOn[]): { total: number; labels: string[] } {
+  const options = new Map(item.addOnGroups.flatMap((g) => g.options.map((o) => [o.id, o] as const)));
+  let total = 0;
+  const labels: string[] = [];
+  for (const c of chosen) {
+    const o = options.get(c.id);
+    if (!o) continue;
+    const half = c.coverage === 'half' && o.halfAgorot !== null;
+    total += half ? o.halfAgorot! : o.wholeAgorot;
+    labels.push(o.halfAgorot === null ? o.name : `${o.name} (${half ? 'חצי' : 'כל הפיצה'})`);
+  }
+  return { total, labels };
+}
+
 export const useCart = create<CartState>()(
   persist(
     (set) => ({
       lines: [],
-      add: (item, addOnIds, quantity, note) =>
+      add: (item, addOns, quantity, note) =>
         set((s) => {
-          const ids = [...new Set(addOnIds)].sort();
-          const key = `${item.id}|${ids.join(',')}|${note}`;
+          const chosen = [...addOns].sort((a, b) => a.id.localeCompare(b.id));
+          const key = `${item.id}|${chosen.map((c) => `${c.id}:${c.coverage}`).join(',')}|${note}`;
           const existing = s.lines.find((l) => l.key === key);
           if (existing) {
             return { lines: s.lines.map((l) => (l.key === key ? { ...l, quantity: Math.min(20, l.quantity + quantity) } : l)) };
           }
-          const addOns = item.addOns.filter((a) => ids.includes(a.id));
+          const { total, labels } = addOnsPrice(item, chosen);
           return {
             lines: [
               ...s.lines,
               {
-                key, itemId: item.id, name: item.name, quantity, addOnIds: ids,
-                addOnNames: addOns.map((a) => a.name), note,
-                unitPriceAgorot: item.priceAgorot + addOns.reduce((t, a) => t + a.priceAgorot, 0),
+                key, itemId: item.id, name: item.name, quantity, addOns: chosen, addOnLabels: labels, note,
+                unitPriceAgorot: item.priceAgorot + total,
               },
             ],
           };
@@ -64,7 +85,8 @@ export const useCart = create<CartState>()(
       remove: (key) => set((s) => ({ lines: s.lines.filter((l) => l.key !== key) })),
       clear: () => set({ lines: [] }),
     }),
-    { name: 'pizza-sosi-cart', version: 1, storage: createJSONStorage(() => safeStorage) },
+    // v2: toppings now have whole/half choices; older carts are dropped.
+    { name: 'pizza-sosi-cart', version: 2, migrate: () => ({ lines: [] }), storage: createJSONStorage(() => safeStorage) },
   ),
 );
 

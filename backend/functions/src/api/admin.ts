@@ -45,9 +45,14 @@ export const adminUpsertMenuItem = secureCall<{ id: string }>(async (req) => {
   const { uid } = requireStaff(req, ['owner']);
   const input = validate(UpsertMenuItemRequest, req.data);
   const ref = input.id ? db.collection(COL.menuItems).doc(input.id) : db.collection(COL.menuItems).doc();
-  const addOns = input.addOns.map((a) => ({ ...a, id: a.id ?? db.collection('_').doc().id }));
+  const newId = () => db.collection('_').doc().id;
+  const addOnGroups = input.addOnGroups.map((g) => ({
+    ...g,
+    id: g.id ?? newId(),
+    options: g.options.map((o) => ({ ...o, id: o.id ?? newId() })),
+  }));
   const { id: _ignored, ...rest } = input;
-  await ref.set({ ...rest, addOns, updatedAt: FieldValue.serverTimestamp() }, { merge: false });
+  await ref.set({ ...rest, addOnGroups, updatedAt: FieldValue.serverTimestamp() }, { merge: false });
   await audit(uid, input.id ? 'menu.update' : 'menu.create', ref.id, { name: input.name, priceAgorot: input.priceAgorot });
   return { id: ref.id };
 });

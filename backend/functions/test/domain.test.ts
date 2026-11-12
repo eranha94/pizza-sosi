@@ -7,23 +7,38 @@ import { isOpen } from '../src/domain/hours.js';
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
   imagePath: null, order: 1, active: true,
-  addOns: [
-    { id: 'a1', name: 'זיתים', priceAgorot: 500, active: true, order: 1 },
-    { id: 'a2', name: 'טונה', priceAgorot: 800, active: false, order: 2 },
+  addOnGroups: [
+    {
+      id: 'g1', name: 'מיוחדות', order: 1,
+      options: [
+        { id: 'tuna', name: 'טונה', wholeAgorot: 1800, halfAgorot: 1300, active: true },
+        { id: 'pine', name: 'אננס', wholeAgorot: 1800, halfAgorot: 1300, active: false },
+      ],
+    },
+    { id: 'g2', name: 'תוספות', order: 2, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
   ],
 };
 const menu = new Map([[pizza.id, pizza]]);
 
 describe('priceCart', () => {
-  it('prices from the menu and add-ons, ignoring duplicates', () => {
-    const r = priceCart([{ itemId: 'p1', quantity: 2, addOnIds: ['a1', 'a1'], note: '' }], menu, 1500);
-    expect(r.lines[0]!.unitPriceAgorot).toBe(6400);
-    expect(r.subtotalAgorot).toBe(12800);
-    expect(r.totalAgorot).toBe(14300);
+  it('charges each topping by coverage: whole or half', () => {
+    const r = priceCart([{ itemId: 'p1', quantity: 2, addOns: [{ id: 'tuna', coverage: 'half' }], note: '' }], menu, 1500);
+    expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 1300);
+    expect(r.lines[0]!.addOns[0]!.coverage).toBe('half');
+    expect(r.subtotalAgorot).toBe(2 * 7200);
+    expect(r.totalAgorot).toBe(2 * 7200 + 1500);
+    const whole = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'tuna', coverage: 'whole' }], note: '' }], menu, 0);
+    expect(whole.lines[0]!.unitPriceAgorot).toBe(5900 + 1800);
   });
-  it('rejects unknown items and inactive add-ons', () => {
-    expect(() => priceCart([{ itemId: 'nope', quantity: 1, addOnIds: [], note: '' }], menu, 0)).toThrow(PricingError);
-    expect(() => priceCart([{ itemId: 'p1', quantity: 1, addOnIds: ['a2'], note: '' }], menu, 0)).toThrow(PricingError);
+  it('ignores "half" on toppings with one price, and duplicates', () => {
+    const r = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'gouda', coverage: 'half' }, { id: 'gouda', coverage: 'whole' }], note: '' }], menu, 0);
+    expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 600);
+    expect(r.lines[0]!.addOns).toHaveLength(1);
+    expect(r.lines[0]!.addOns[0]!.coverage).toBeNull();
+  });
+  it('rejects unknown items and inactive toppings', () => {
+    expect(() => priceCart([{ itemId: 'nope', quantity: 1, addOns: [], note: '' }], menu, 0)).toThrow(PricingError);
+    expect(() => priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'pine', coverage: 'whole' }], note: '' }], menu, 0)).toThrow(PricingError);
   });
   it('rejects an empty cart', () => {
     expect(() => priceCart([], menu, 0)).toThrow(PricingError);

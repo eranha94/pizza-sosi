@@ -110,11 +110,19 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .sheet__head h2 { margin: 0; font-size: 1.4rem; }
 .sheet__desc { margin: 0; color: var(--ink-soft); white-space: pre-line; }
 .sheet__foot { position: sticky; bottom: 0; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding-top: 8px; background: var(--paper); }
-.addons { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.addons { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); align-items: start; }
+.addons legend { grid-column: 1 / -1; }
 .addons legend { font-weight: 700; margin-bottom: 8px; }
-.addon { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 14px; cursor: pointer; }
-.addon:has(input:checked) { border-color: var(--ink); background: var(--cream); }
+.addons__hint { font-weight: 400; color: var(--ink-soft); font-size: 0.9rem; }
+.addon { border: 1.5px solid var(--line); border-radius: 14px; }
+.addon.is-on { border-color: var(--ink); background: var(--cream); }
+.addon__main { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; min-height: 44px; cursor: pointer; }
 .addon input { width: 20px; height: 20px; accent-color: var(--ink); }
+.coverage { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 10px 10px; }
+.coverage label { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; white-space: nowrap; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); font-size: 0.9rem; cursor: pointer; }
+.coverage label.is-on { border-color: var(--ink); background: var(--yellow); font-weight: 700; }
+.coverage input { position: absolute; opacity: 0; pointer-events: none; }
+.coverage label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 .addon__price { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 
 .stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--line); border-radius: 999px; }

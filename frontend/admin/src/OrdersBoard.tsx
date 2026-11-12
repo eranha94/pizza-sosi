@@ -12,7 +12,7 @@ interface AdminOrder {
   fulfillment: 'pickup' | 'delivery';
   paymentMethod: 'card' | 'on_site';
   totalAgorot: number;
-  lines: { name: string; quantity: number; addOns: { name: string }[]; note: string }[];
+  lines: { name: string; quantity: number; addOns: { name: string; coverage?: 'whole' | 'half' | null }[]; note: string }[];
   address?: { street: string; houseNumber: string; apartment: string; notes: string } | null;
   note?: string;
   refundRequired?: boolean;
@@ -69,7 +69,7 @@ export function OrdersBoard() {
               {o.lines.map((l, i) => (
                 <li key={i}>
                   {l.quantity} × {l.name}
-                  {l.addOns.length > 0 && <span className="muted"> ({l.addOns.map((a) => a.name).join(', ')})</span>}
+                  {l.addOns.length > 0 && <span className="muted"> ({l.addOns.map((a) => (a.coverage === 'half' ? `${a.name} – חצי` : a.coverage === 'whole' ? `${a.name} – כל הפיצה` : a.name)).join(', ')})</span>}
                   {l.note && <em> – {l.note}</em>}
                 </li>
               ))}

@@ -24,7 +24,7 @@ export default function CartPage() {
           <li key={l.key} className="cart-line">
             <div className="cart-line__info">
               <strong>{l.name}</strong>
-              {l.addOnNames.length > 0 && <span className="muted">{l.addOnNames.join(', ')}</span>}
+              {l.addOnLabels.length > 0 && <span className="muted">{l.addOnLabels.join(', ')}</span>}
               {l.note && <span className="muted">הערה: {l.note}</span>}
             </div>
             <div className="stepper" role="group" aria-label={`כמות של ${l.name}`}>

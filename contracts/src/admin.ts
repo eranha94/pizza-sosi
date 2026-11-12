@@ -34,17 +34,26 @@ export const UpsertMenuItemRequest = z
     imagePath: z.string().max(300).regex(/^menu_images\/[^/]+$/).nullable(),
     order: z.number().int().min(0).max(10_000),
     active: z.boolean(),
-    addOns: z
+    addOnGroups: z
       .array(
         z.object({
           id: id.optional(),
-          name: z.string().trim().min(1).max(300),
-          priceAgorot: z.number().int().min(0).max(100_000),
-          active: z.boolean(),
-          order: z.number().int().min(0).max(1000),
+          name: z.string().trim().min(1).max(60),
+          order: z.number().int().min(0).max(100),
+          options: z
+            .array(
+              z.object({
+                id: id.optional(),
+                name: z.string().trim().min(1).max(80),
+                wholeAgorot: z.number().int().min(0).max(100_000),
+                halfAgorot: z.number().int().min(0).max(100_000).nullable(),
+                active: z.boolean(),
+              }),
+            )
+            .max(40),
         }),
       )
-      .max(50)
+      .max(10)
       .default([]),
   })
   .strict();
