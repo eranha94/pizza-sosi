@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatAgorot, type MenuItem } from '@pizza-sosi/contracts';
+import { formatAgorot } from '@pizza-sosi/contracts/constants';
+import type { MenuItem } from '@pizza-sosi/contracts';
 import { useCart } from '../store/cart';
 
 export function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: () => void }) {

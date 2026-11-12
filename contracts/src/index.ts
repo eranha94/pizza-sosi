@@ -5,19 +5,8 @@
  *   - no Firebase / database access
  *   - no secrets, URLs of internal services or environment values
  */
-export * from './money.js';
+export * from './constants.js';
 export * from './menu.js';
 export * from './orders.js';
 export * from './admin.js';
 
-/** Names of the callable functions – the API surface. */
-export const API = {
-  createOrder: 'createOrder',
-  cancelOrder: 'cancelOrder',
-  adminSetOrderStatus: 'adminSetOrderStatus',
-  adminUpdateStoreSettings: 'adminUpdateStoreSettings',
-  adminUpsertMenuItem: 'adminUpsertMenuItem',
-  adminDeleteMenuItem: 'adminDeleteMenuItem',
-} as const;
-
-export const FUNCTIONS_REGION = 'europe-west1';

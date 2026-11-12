@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatAgorot } from '@pizza-sosi/contracts';
+import { formatAgorot } from '@pizza-sosi/contracts/constants';
 import { useCart, cartTotal } from '../store/cart';
 import { useStoreSettings } from '../lib/menu';
 import { createOrder, errorMessage } from '../lib/api';

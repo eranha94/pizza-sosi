@@ -2,29 +2,9 @@ import { z } from 'zod';
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
-export const ORDER_STATUSES = [
-  'pending_payment',
-  'paid',
-  'accepted',
-  'preparing',
-  'ready',
-  'out_for_delivery',
-  'completed',
-  'cancelled',
-] as const;
+import { ORDER_STATUSES } from './constants.js';
 export const OrderStatus = z.enum(ORDER_STATUSES);
 export type OrderStatus = z.infer<typeof OrderStatus>;
-
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending_payment: 'ממתינה לתשלום',
-  paid: 'שולמה',
-  accepted: 'התקבלה',
-  preparing: 'בהכנה',
-  ready: 'מוכנה',
-  out_for_delivery: 'בדרך אליך',
-  completed: 'הושלמה',
-  cancelled: 'בוטלה',
-};
 
 export const Fulfillment = z.enum(['pickup', 'delivery']);
 export const PaymentMethod = z.enum(['card', 'on_site']);

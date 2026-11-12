@@ -37,7 +37,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['backend/**/*.ts', 'scripts/**/*.mjs'],
+    files: ['backend/**/*.ts', 'backend/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ group: ['**/frontend/**', 'firebase', 'firebase/*'], message: 'Backend uses the Admin SDK, never frontend code.' }] }],
