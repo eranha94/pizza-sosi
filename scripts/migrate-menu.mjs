@@ -27,19 +27,21 @@ const toImagePath = (x) => {
 
 // Read-only on the source.
 const itemsSnap = await source.collection('settings/admin/menu_items').get();
-const addOnsSnap = await source.collection('settings/admin/add_ons').get();
-const globalAddOns = addOnsSnap.docs.map((d) => ({
+const toAddOn = (d) => ({
   id: d.id,
   name: String(d.data().name ?? ''),
   priceAgorot: toAgorot(d.data().price ?? 0),
   active: d.data().active !== false,
   order: Number(d.data().order ?? 0),
-}));
+});
+// Old site: add-ons live under each item (menu_items/{id}/add_ons); a global list is a fallback.
+const globalAddOns = (await source.collection('settings/admin/add_ons').get()).docs.map(toAddOn);
 
 const batch = db.batch();
 for (const d of itemsSnap.docs) {
   const x = d.data();
   const category = String(x.category ?? 'pizzas');
+  const own = (await d.ref.collection('add_ons').get()).docs.map(toAddOn);
   const item = {
     name: String(x.name ?? '').trim(),
     description: String(x.desc ?? '').trim(),
@@ -48,8 +50,7 @@ for (const d of itemsSnap.docs) {
     imagePath: toImagePath(x),
     order: Number(x.order ?? 0),
     active: true,
-    // On the old site the add-ons applied to pizzas; keep that until the owner edits them per item.
-    addOns: category === 'pizzas' ? globalAddOns : [],
+    addOns: own.length ? own : category === 'pizzas' ? globalAddOns : [],
     migratedFrom: `settings/admin/menu_items/${d.id}`,
   };
   console.log(`${d.id}: ${item.name} – ${item.priceAgorot / 100} ₪ – ${item.addOns.length} add-ons`);
