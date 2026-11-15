@@ -1,7 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { FieldValue } from 'firebase-admin/firestore';
-import { CreateOrderRequest, type CreateOrderResponse } from '@pizza-sosi/contracts';
+import { CreateOrderRequest, storeStatus, isValidScheduledTime, type CreateOrderResponse } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
 import { secureCall } from '../security/callable.js';
 import { requireAuth } from '../security/auth.js';
@@ -9,7 +9,6 @@ import { validate } from '../security/errors.js';
 import { rateLimit } from '../security/rateLimit.js';
 import { priceCart, PricingError } from '../domain/pricing.js';
 import { initialStatus } from '../domain/orderState.js';
-import { isOpen } from '../domain/hours.js';
 import { loadMenuItems, loadStoreSettings } from '../domain/store.js';
 import { getPaymentProvider } from '../payments/provider.js';
 
@@ -26,7 +25,17 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
   await rateLimit(`order:phone:${input.customer.phone}`, 8, 60 * 60);
 
   const settings = await loadStoreSettings();
-  if (!isOpen(settings, new Date())) throw new HttpsError('failed-precondition', 'הפיצריה סגורה כרגע להזמנות');
+  const now = new Date();
+  // When: "asap" needs the store open now; a scheduled time must be one we could have offered.
+  let readyAt: number;
+  if (input.when === 'asap') {
+    const status = storeStatus(settings, now);
+    if (status.state !== 'open') throw new HttpsError('failed-precondition', 'הפיצריה סגורה כרגע. אפשר להזמין מראש לשעה שבה אנחנו פתוחים');
+    readyAt = now.getTime() + settings.prepMinutes * 60000;
+  } else {
+    if (!isValidScheduledTime(settings, now, input.when.at)) throw new HttpsError('failed-precondition', 'השעה שנבחרה כבר לא זמינה. בחרו שעה אחרת');
+    readyAt = input.when.at;
+  }
   if (input.fulfillment === 'delivery' && !settings.deliveryEnabled)
     throw new HttpsError('failed-precondition', 'משלוחים לא זמינים כרגע');
 
@@ -68,6 +77,8 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
       contact: { phone: input.customer.phone, email: input.customer.email },
       address: input.address ?? null,
       note: input.note,
+      readyAt,
+      scheduled: input.when !== 'asap',
       payment: { provider: provider.name, providerRef: null, status: input.paymentMethod === 'card' ? 'pending' : 'on_site' },
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

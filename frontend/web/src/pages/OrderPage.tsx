@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { OrderView, ORDER_STATUS_LABELS, formatAgorot, type OrderView as Order } from '@pizza-sosi/contracts';
+import { OrderView, ORDER_STATUS_LABELS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
+import { useNow } from '../lib/menu';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, errorMessage } from '../lib/api';
 
@@ -43,11 +44,13 @@ export default function OrderPage() {
     );
 
   const canCancel = ['pending_payment', 'paid', 'accepted'].includes(order.status);
+  const active = !['completed', 'cancelled', 'ready', 'out_for_delivery'].includes(order.status);
 
   return (
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      {order.readyAt && active && <ReadyTimer readyAt={order.readyAt} scheduled={order.scheduled} />}
       <ul className="cart-list">
         {order.lines.map((l, i) => (
           <li key={i} className="cart-line">
@@ -85,5 +88,37 @@ export default function OrderPage() {
         </button>
       )}
     </section>
+  );
+}
+
+/** Ring that fills up as the ready time gets closer. */
+function ReadyTimer({ readyAt, scheduled }: { readyAt: number; scheduled: boolean }) {
+  const now = useNow(15_000).getTime();
+  const left = Math.max(0, Math.round((readyAt - now) / 60000));
+  const total = scheduled ? Math.max(left, 1) : 30;
+  const progress = scheduled && left > 60 ? 0.04 : Math.min(1, Math.max(0.04, 1 - left / total));
+  const C = 2 * Math.PI * 44;
+  return (
+    <div className="ready-timer">
+      <svg viewBox="0 0 100 100" width="120" height="120" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" strokeWidth="8" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--yellow)" strokeWidth="8" strokeLinecap="round"
+          strokeDasharray={C} strokeDashoffset={C * (1 - progress)} transform="rotate(-90 50 50)" className="ready-timer__ring" />
+      </svg>
+      <div className="ready-timer__text">
+        {left > 0 ? (
+          <>
+            <strong>{left > 90 ? formatTime(readyAt) : `${left}`}</strong>
+            <span>{left > 90 ? (scheduled ? 'השעה שבחרתם' : 'מוכן בערך') : 'דקות'}</span>
+          </>
+        ) : (
+          <>
+            <strong>כמעט</strong>
+            <span>מוכן</span>
+          </>
+        )}
+      </div>
+      <p className="muted small">{scheduled ? 'הזמנה מראש' : 'מוכן בערך'} ב-{formatTime(readyAt)}</p>
+    </div>
   );
 }

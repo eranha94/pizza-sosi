@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatAgorot } from '@pizza-sosi/contracts/constants';
+import { formatAgorot, orderSlots, formatTime } from '@pizza-sosi/contracts/constants';
 import { useCart, cartTotal } from '../store/cart';
-import { useStoreSettings } from '../lib/menu';
+import { useStoreSettings, useNow } from '../lib/menu';
+import { useStoreStatus } from '../components/StoreStatus';
 import { createOrder, errorMessage } from '../lib/api';
 
 export default function CheckoutPage() {
@@ -16,6 +17,16 @@ export default function CheckoutPage() {
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
   const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
+  const now = useNow();
+  const { status, prepMinutes } = useStoreStatus();
+  const slots = useMemo(() => (store.data ? orderSlots(store.data, now) : []), [store.data, now]);
+  // Status unknown (offline/loading): allow "asap"; the server checks the hours anyway.
+  const canAsap = status === null || status.state === 'open';
+  const [whenMode, setWhenMode] = useState<'asap' | 'later'>('asap');
+  const [slot, setSlot] = useState<number | null>(null);
+  const mode = canAsap ? whenMode : 'later';
+  const chosenSlot = slot !== null && slots.includes(slot) ? slot : null;
+  const cannotOrder = status !== null && !canAsap && slots.length === 0;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +43,10 @@ export default function CheckoutPage() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? '');
+    if (mode === 'later' && chosenSlot === null) {
+      setError('בחרו שעה להזמנה');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -43,6 +58,7 @@ export default function CheckoutPage() {
         customer: { name: get('name'), phone: get('phone'), email: get('email') },
         address: fulfillment === 'delivery' ? { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes') } : undefined,
         note: get('note'),
+        when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
       });
       clear();
       if (res.paymentUrl) window.location.assign(res.paymentUrl);
@@ -64,6 +80,40 @@ export default function CheckoutPage() {
             <input type="radio" name="fulfillment" disabled={!deliveryEnabled} checked={fulfillment === 'delivery'} onChange={() => setFulfillment('delivery')} /> משלוח
             {!deliveryEnabled && <span className="muted small"> (לא זמין כרגע)</span>}
           </label>
+        </fieldset>
+
+        <fieldset className="when">
+          <legend>מתי?</legend>
+          {cannotOrder ? (
+            <p className="notice notice--error">אנחנו סגורים כרגע ואין שעות פנויות להזמנה מראש היום.</p>
+          ) : (
+            <>
+              <div className="segmented">
+                <label className={canAsap ? '' : 'is-disabled'}>
+                  <input type="radio" name="when" disabled={!canAsap} checked={mode === 'asap'} onChange={() => setWhenMode('asap')} />
+                  <span>
+                    כמה שיותר מהר
+                    {canAsap && <span className="muted small"> · מוכן בערך ב-{formatTime(now.getTime() + prepMinutes * 60000)}</span>}
+                    {!canAsap && <span className="muted small"> · סגור כרגע</span>}
+                  </span>
+                </label>
+                <label>
+                  <input type="radio" name="when" checked={mode === 'later'} onChange={() => setWhenMode('later')} />
+                  <span>לשעה מסוימת</span>
+                </label>
+              </div>
+              {mode === 'later' && (
+                <div className="slots" role="radiogroup" aria-label="שעה">
+                  {slots.map((t) => (
+                    <label key={t} className={chosenSlot === t ? 'is-on' : ''}>
+                      <input type="radio" name="slot" checked={chosenSlot === t} onChange={() => setSlot(t)} />
+                      {formatTime(t)}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </fieldset>
 
         <label className="field"><span>שם</span><input name="name" required minLength={2} maxLength={60} autoComplete="name" /></label>
@@ -93,7 +143,7 @@ export default function CheckoutPage() {
 
         <div className="summary"><span>סה״כ משוער</span><strong>{formatAgorot(total)}</strong></div>
         {error && <p className="notice notice--error" role="alert">{error}</p>}
-        <button type="submit" className="button button--primary button--block" disabled={submitting}>
+        <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder}>
           {submitting ? 'שולח…' : paymentMethod === 'card' ? 'למעבר לתשלום' : 'שליחת ההזמנה'}
         </button>
       </form>

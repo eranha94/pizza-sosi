@@ -52,14 +52,22 @@ export const MenuItem = z.object({
 });
 export type MenuItem = z.infer<typeof MenuItem>;
 
-/** `settings/store` – public opening state. */
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const DayHours = z.object({ open: hhmm, close: hhmm }).nullable();
+
+/** `settings/store` – public opening state, read by everyone, written only by the admin functions. */
 export const StoreSettings = z.object({
-  /** Local time "HH:MM" in Asia/Jerusalem. */
-  opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  /** Local time "HH:MM"; "00:00" means midnight. Admin can change it for today. */
-  closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  /** 0 = Sunday … 6 = Saturday; null = closed that day. close <= open means after midnight. */
+  weeklyHours: z.tuple([DayHours, DayHours, DayHours, DayHours, DayHours, DayHours, DayHours]),
+  /** One-day changes, e.g. close early tonight. */
+  overrides: z
+    .array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), closed: z.boolean().optional(), open: hhmm.optional(), close: hhmm.optional() }))
+    .max(60)
+    .default([]),
   /** Manual switch: when false, no orders are accepted regardless of hours. */
   acceptingOrders: z.boolean(),
+  /** Typical minutes from order to ready (shown to customers, minimum for scheduled orders). */
+  prepMinutes: z.number().int().min(5).max(180),
   deliveryEnabled: z.boolean(),
   deliveryFeeAgorot: z.number().int().min(0).max(10_000),
   minOrderAgorot: z.number().int().min(0).max(100_000),

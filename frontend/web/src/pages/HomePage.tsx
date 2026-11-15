@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_IDS, CATEGORY_LABELS, formatAgorot } from '@pizza-sosi/contracts/constants';
 import type { CategoryId, MenuItem } from '@pizza-sosi/contracts';
-import { useMenu, useBucket, useStoreSettings } from '../lib/menu';
+import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet, prefetchOrdering } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
+import { StoreStatusCard } from '../components/StoreStatus';
 
 export function HomePage() {
   const menu = useMenu();
-  const store = useStoreSettings();
   const bucket = useBucket();
   const [selected, setSelected] = useState<MenuItem | null>(null);
 
@@ -34,9 +34,7 @@ export function HomePage() {
         <a className="button button--primary hero__cta" href="#menu">לתפריט ולהזמנה</a>
       </section>
 
-      {store.data?.acceptingOrders === false && (
-        <p className="notice" role="status">כרגע לא מקבלים הזמנות באתר. אפשר להתקשר: <a href="tel:0548880909">054-8880909</a></p>
-      )}
+      <StoreStatusCard />
 
       <section id="menu" className="menu" aria-label="התפריט">
         {byCategory.length > 1 && (

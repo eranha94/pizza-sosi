@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { OrderStatus } from './orders.js';
-import { CategoryId } from './menu.js';
+import { CategoryId, StoreSettings } from './menu.js';
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
-const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 export const STAFF_ROLES = ['owner', 'staff'] as const;
 export const StaffRole = z.enum(STAFF_ROLES);
@@ -14,8 +13,9 @@ export type SetOrderStatusRequest = z.infer<typeof SetOrderStatusRequest>;
 
 export const UpdateStoreSettingsRequest = z
   .object({
-    opensAt: hhmm.optional(),
-    closesAt: hhmm.optional(),
+    weeklyHours: StoreSettings.shape.weeklyHours.optional(),
+    overrides: StoreSettings.shape.overrides.optional(),
+    prepMinutes: StoreSettings.shape.prepMinutes.optional(),
     acceptingOrders: z.boolean().optional(),
     deliveryEnabled: z.boolean().optional(),
     deliveryFeeAgorot: z.number().int().min(0).max(10_000).optional(),

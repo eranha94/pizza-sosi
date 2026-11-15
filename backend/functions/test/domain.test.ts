@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
 import { canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
-import { isOpen } from '../src/domain/hours.js';
 
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
@@ -81,13 +80,3 @@ describe('order state', () => {
   });
 });
 
-describe('isOpen (Asia/Jerusalem)', () => {
-  const s = { opensAt: '11:00', closesAt: '00:00', acceptingOrders: true };
-  // 2026-11-12 is winter time, UTC+2
-  it('open in the evening', () => expect(isOpen(s, new Date('2026-11-12T20:30:00Z'))).toBe(true)); // 22:30
-  it('closed after midnight', () => expect(isOpen(s, new Date('2026-11-12T22:30:00Z'))).toBe(false)); // 00:30
-  it('closed in the morning', () => expect(isOpen(s, new Date('2026-11-12T07:00:00Z'))).toBe(false)); // 09:00
-  it('handles closing after midnight', () =>
-    expect(isOpen({ ...s, closesAt: '01:30' }, new Date('2026-11-12T23:00:00Z'))).toBe(true)); // 01:00
-  it('manual switch closes', () => expect(isOpen({ ...s, acceptingOrders: false }, new Date('2026-11-12T18:00:00Z'))).toBe(false));
-});

@@ -3,6 +3,7 @@
  * The browser's first page load imports only this file (no validation library).
  */
 export * from './money.js';
+export * from './hours.js';
 
 export const CATEGORY_IDS = ['pizzas', 'specials', 'toasts', 'burgers', 'salads', 'drinks'] as const;
 type Category = (typeof CATEGORY_IDS)[number];

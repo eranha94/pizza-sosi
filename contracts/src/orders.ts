@@ -48,6 +48,8 @@ export const CreateOrderRequest = z
       email: z.string().trim().toLowerCase().email().max(120),
     }),
     address: Address.optional(),
+    /** "asap", or a time (epoch ms) picked from the offered slots. */
+    when: z.union([z.literal('asap'), z.object({ at: z.number().int().positive() }).strict()]).default('asap'),
     note: z.string().trim().max(300).default(''),
   })
   .strict()
@@ -96,5 +98,8 @@ export const OrderView = z.object({
   deliveryFeeAgorot: z.number().int(),
   totalAgorot: z.number().int(),
   customerName: z.string(),
+  /** Epoch ms when the order should be ready (estimate for asap orders). */
+  readyAt: z.number().int().nullable().default(null),
+  scheduled: z.boolean().default(false),
 });
 export type OrderView = z.infer<typeof OrderView>;

@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router';
 import { formatAgorot } from '@pizza-sosi/contracts/constants';
 import { useCart, cartCount, cartTotal } from '../store/cart';
+import { StoreDot } from './StoreStatus';
 
 export function Layout() {
   const count = useCart(cartCount);
@@ -11,6 +12,7 @@ export function Layout() {
       <header className="site-header">
         <Link to="/" className="brand" aria-label="פיצה סוסי – דף הבית">
           <img src="/brand/pizza-sosi-header.svg" alt="" width="150" height="63" />
+          <StoreDot />
         </Link>
         <Link to="/cart" className="cart-button" aria-label={`סל הקניות, ${count} פריטים`}>
           <CartIcon />
