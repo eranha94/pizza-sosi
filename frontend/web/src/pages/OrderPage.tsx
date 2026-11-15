@@ -4,7 +4,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
 import { useNow } from '../lib/menu';
 import { services, ensureSignedIn } from '../lib/firebase';
-import { cancelOrder, errorMessage } from '../lib/api';
+import { cancelOrder, getOrderStatus, errorMessage } from '../lib/api';
 
 export default function OrderPage() {
   const { orderId = '' } = useParams();
@@ -12,9 +12,26 @@ export default function OrderPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  /** false when the page was opened on another device (tracking only). */
+  const [mine, setMine] = useState(true);
 
   useEffect(() => {
     let unsub = () => {};
+    let timer = 0;
+    let stopped = false;
+    // Another device (e.g. the link from WhatsApp): read-only tracking through the server, refreshed every 15 s.
+    const track = async () => {
+      try {
+        const o = await getOrderStatus(orderId);
+        if (stopped) return;
+        setOrder(o);
+        setMine(o.mine);
+        setState('ready');
+        if (!['completed', 'cancelled'].includes(o.status)) timer = window.setTimeout(track, 15_000);
+      } catch {
+        if (!stopped) setState('missing');
+      }
+    };
     (async () => {
       await ensureSignedIn();
       const { db } = await services();
@@ -24,13 +41,18 @@ export default function OrderPage() {
           const parsed = OrderView.safeParse({ id: snap.id, ...snap.data() });
           if (parsed.success) {
             setOrder(parsed.data);
+            setMine(true);
             setState('ready');
-          } else setState('missing');
+          } else void track();
         },
-        () => setState('missing'),
+        () => void track(),
       );
     })();
-    return () => unsub();
+    return () => {
+      stopped = true;
+      unsub();
+      window.clearTimeout(timer);
+    };
   }, [orderId]);
 
   if (state === 'loading') return <p className="page-loading">טוען את ההזמנה…</p>;
@@ -38,12 +60,12 @@ export default function OrderPage() {
     return (
       <section className="page">
         <h1>ההזמנה לא נמצאה</h1>
-        <p>אפשר לראות הזמנה רק מהמכשיר שממנו היא נשלחה.</p>
+        <p>בדקו שהקישור מלא, או התקשרו אלינו.</p>
         <Link to="/" className="button">לדף הבית</Link>
       </section>
     );
 
-  const canCancel = ['pending_payment', 'placed', 'accepted'].includes(order.status);
+  const canCancel = mine && ['pending_payment', 'placed', 'accepted'].includes(order.status);
   const active = ['pending_payment', 'placed', 'accepted', 'preparing', 'almost_ready'].includes(order.status);
 
   return (

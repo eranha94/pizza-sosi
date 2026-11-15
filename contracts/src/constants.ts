@@ -61,6 +61,7 @@ export const ORDER_STEPS: Record<'pickup' | 'delivery', readonly Status[]> = {
 export const API = {
   createOrder: 'createOrder',
   cancelOrder: 'cancelOrder',
+  getOrderStatus: 'getOrderStatus',
   adminSetOrderStatus: 'adminSetOrderStatus',
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',

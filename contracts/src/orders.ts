@@ -73,6 +73,9 @@ export const CreateOrderResponse = z.object({
 export type CreateOrderResponse = z.infer<typeof CreateOrderResponse>;
 
 export const CancelOrderRequest = z.object({ orderId: id }).strict();
+/** Look up an order by its (unguessable) id, e.g. from the WhatsApp tracking link on another device. */
+export const GetOrderStatusRequest = z.object({ orderId: id }).strict();
+export type GetOrderStatusRequest = z.infer<typeof GetOrderStatusRequest>;
 export type CancelOrderRequest = z.infer<typeof CancelOrderRequest>;
 
 /** Priced line as stored on the order (snapshot at order time). */

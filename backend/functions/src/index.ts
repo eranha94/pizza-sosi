@@ -5,6 +5,7 @@ setGlobalOptions({ region: FUNCTIONS_REGION, maxInstances: 10 });
 
 export { createOrder } from './api/createOrder.js';
 export { cancelOrder } from './api/cancelOrder.js';
+export { getOrderStatus } from './api/getOrderStatus.js';
 export {
   adminSetOrderStatus,
   adminUpdateStoreSettings,

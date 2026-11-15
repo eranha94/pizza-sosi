@@ -5,6 +5,7 @@ import {
   type CreateOrderInput,
   type CreateOrderResponse,
   type CancelOrderRequest,
+  type OrderView,
 } from '@pizza-sosi/contracts';
 import { services, ensureSignedIn } from './firebase';
 
@@ -35,4 +36,9 @@ export function errorMessage(e: unknown): string {
     return e.message;
   }
   return 'אין חיבור. בדקו את האינטרנט ונסו שוב';
+}
+
+/** Read-only tracking for links opened on another device (e.g. from WhatsApp). */
+export function getOrderStatus(orderId: string) {
+  return call<{ orderId: string }, OrderView & { mine: boolean }>(API.getOrderStatus, { orderId });
 }
