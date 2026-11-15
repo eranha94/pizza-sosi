@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatAgorot, COVERAGE_LABELS } from '@pizza-sosi/contracts/constants';
+import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
 import { useCart, addOnsPrice, type Coverage } from '../store/cart';
 
@@ -28,7 +29,10 @@ function priceLabel(o: AddOnOption) {
 
 function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
   const add = useCart((s) => s.add);
-  const [chosen, setChosen] = useState<Map<string, Coverage>>(new Map());
+  // Single-choice groups (dough, cheese…) start on their default option.
+  const [chosen, setChosen] = useState<Map<string, Coverage>>(
+    () => new Map(item.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => [g.defaultOptionId!, 'whole'])),
+  );
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
 
@@ -37,6 +41,21 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
     .filter((g) => g.options.length > 0)
     .toSorted((a, b) => a.order - b.order);
   const chosenList = [...chosen].map(([id, coverage]) => ({ id, coverage }));
+  const hasHalves = groups.some((g) => g.options.some((o) => o.halfAgorot !== null));
+  const showPreview = item.category === 'pizzas';
+  const previewToppings: PreviewTopping[] = groups
+    .filter((g) => g.selection !== 'single')
+    .flatMap((g) => g.options)
+    .filter((o) => chosen.has(o.id))
+    .map((o) => ({ id: o.id, name: o.name, placement: o.halfAgorot === null ? 'whole' : chosen.get(o.id)! }));
+  const missing = groups.filter((g) => g.selection === 'single' && !g.options.some((o) => chosen.has(o.id)));
+  const pickOne = (groupOptionIds: string[], id: string) =>
+    setChosen((m) => {
+      const next = new Map(m);
+      for (const other of groupOptionIds) next.delete(other);
+      next.set(id, 'whole');
+      return next;
+    });
   const unit = item.priceAgorot + addOnsPrice(item, chosenList).total;
 
   const toggle = (id: string) =>
@@ -56,7 +75,30 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
       </div>
       {item.description && <p className="sheet__desc">{item.description}</p>}
 
+      {showPreview && <PizzaPreview toppings={previewToppings} />}
+      {showPreview && hasHalves && <p className="sheet__tip">אפשר לשים כל תוספת על כל הפיצה או רק על חצי ממנה.</p>}
+
       {groups.map((g) => {
+        if (g.selection === 'single') {
+          const ids = g.options.map((o) => o.id);
+          return (
+            <fieldset key={g.id} className="choice">
+              <legend>
+                {g.name}
+                {!g.options.some((o) => chosen.has(o.id)) && <span className="choice__required"> · חובה לבחור</span>}
+              </legend>
+              <div className="choice__row" role="radiogroup">
+                {g.options.map((o) => (
+                  <label key={o.id} className={chosen.has(o.id) ? 'is-on' : ''}>
+                    <input type="radio" name={`g-${g.id}`} checked={chosen.has(o.id)} onChange={() => pickOne(ids, o.id)} />
+                    {o.name}
+                    {o.wholeAgorot > 0 && <span className="price-tag">+{formatAgorot(o.wholeAgorot)}</span>}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          );
+        }
         const half = g.options.find((o) => o.halfAgorot !== null);
         return (
           <fieldset key={g.id} className="addons">
@@ -78,11 +120,12 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
                     {o.halfAgorot === null && <span className="addon__price">{priceLabel(o)}</span>}
                   </label>
                   {coverage && o.halfAgorot !== null && (
-                    <div className="coverage" role="radiogroup" aria-label={`${o.name}: על איזה חלק?`}>
-                      {(['whole', 'half'] as const).map((c) => (
-                        <label key={c} className={coverage === c ? 'is-on' : ''}>
+                    <div className="coverage" role="radiogroup" aria-label={`${o.name}: איפה לשים?`}>
+                      {(['left', 'whole', 'right'] as const).map((c) => (
+                        <label key={c} className={coverage === c ? 'is-on' : ''} title={COVERAGE_LABELS[c]}>
                           <input type="radio" name={`cov-${o.id}`} checked={coverage === c} onChange={() => setCoverage(o.id, c)} />
-                          {c === 'half' ? 'חצי' : COVERAGE_LABELS[c]}
+                          <HalfIcon part={c} />
+                          <span>{c === 'whole' ? 'הכל' : c === 'right' ? 'ימין' : 'שמאל'}</span>
                         </label>
                       ))}
                     </div>
@@ -105,10 +148,23 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
           <output aria-live="polite">{quantity}</output>
           <button type="button" aria-label="הוספה" onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</button>
         </div>
-        <button type="submit" className="button button--primary">
-          הוספה לסל · {formatAgorot(unit * quantity)}
+        <button type="submit" className="button button--primary" disabled={missing.length > 0}>
+          {missing.length > 0 ? `בחרו ${missing[0]!.name}` : `הוספה לסל · ${formatAgorot(unit * quantity)}`}
         </button>
       </div>
     </form>
+  );
+}
+
+/** Tiny pizza: the filled part shows where the topping goes. Not mirrored by RTL on purpose. */
+function HalfIcon({ part }: { part: 'whole' | 'right' | 'left' }) {
+  const d = part === 'whole' ? 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20Z' : part === 'right' ? 'M12 2a10 10 0 0 1 0 20Z' : 'M12 2a10 10 0 0 0 0 20Z';
+  return (
+    <svg className="half-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="#fff5d6" stroke="currentColor" strokeWidth="1.5" />
+      <path d={d} fill="#e8a93a" />
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      {part !== 'whole' && <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 2" />}
+    </svg>
   );
 }

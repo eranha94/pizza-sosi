@@ -113,14 +113,25 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .addons { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); align-items: start; }
 .addons legend { grid-column: 1 / -1; }
 .addons legend { font-weight: 700; margin-bottom: 8px; }
+.choice { border: 0; padding: 0; margin: 0; }
+.choice legend { font-weight: 700; margin-bottom: 8px; }
+.choice__required { color: var(--danger); font-weight: 600; font-size: 0.9rem; }
+.choice__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice__row label { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--paper); cursor: pointer; }
+.choice__row label.is-on { border-color: var(--ink); background: var(--yellow); font-weight: 700; }
+.choice__row input { position: absolute; opacity: 0; pointer-events: none; }
+.choice__row label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 .addons__hint { font-weight: 400; color: var(--ink-soft); font-size: 0.9rem; }
 .addon { border: 1.5px solid var(--line); border-radius: 14px; }
 .addon.is-on { border-color: var(--ink); background: var(--cream); }
 .addon__main { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; min-height: 44px; cursor: pointer; }
 .addon input { width: 20px; height: 20px; accent-color: var(--ink); }
-.coverage { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 10px 10px; }
-.coverage label { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; white-space: nowrap; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); font-size: 0.9rem; cursor: pointer; }
-.coverage label.is-on { border-color: var(--ink); background: var(--yellow); font-weight: 700; }
+.coverage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 8px 8px; direction: ltr; }
+.coverage label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; padding: 4px 2px; white-space: nowrap; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); font-size: 0.78rem; color: var(--ink-soft); cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+.coverage label:hover { border-color: var(--ink-soft); }
+.half-icon { color: var(--ink); }
+.coverage label.is-on .half-icon { color: var(--yellow); }
+.coverage label.is-on { border-color: var(--ink); background: var(--ink); color: var(--yellow); font-weight: 700; }
 .coverage input { position: absolute; opacity: 0; pointer-events: none; }
 .coverage label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 .addon__price { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
@@ -166,3 +177,15 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .site-footer { padding: 28px 16px calc(28px + env(safe-area-inset-bottom)); text-align: center; background: var(--ink); color: #fff; }
 .site-footer p { margin: 4px 0; }
 .site-footer a { color: var(--yellow); }
+
+/* Live pizza preview */
+.pizza-preview { margin: 0 auto; width: min(240px, 62vw); position: relative; }
+.pizza-preview svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 10px 18px rgb(30 26 27 / .22)); }
+.pizza-preview__sides { display: flex; justify-content: space-between; padding: 2px 18%; font-size: 0.8rem; font-weight: 700; color: var(--ink-soft); }
+.pizza-split { stroke: #fff; stroke-width: 2; stroke-dasharray: 5 5; opacity: 0; transition: opacity .25s; }
+.pizza-split.is-on { opacity: .9; }
+.piece { transform-box: fill-box; transform-origin: center; animation: piece-in .42s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+@keyframes piece-in { from { opacity: 0; transform: translateY(-14px) scale(.2); } }
+@media (prefers-reduced-motion: reduce) { .piece { animation: none; } .pizza-split { transition: none; } }
+.sheet__tip { margin: -6px 0 0; text-align: center; font-size: 0.85rem; color: var(--ink-soft); }
+.price-tag { margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: var(--ink); color: var(--yellow); font-size: 0.78rem; font-weight: 700; }

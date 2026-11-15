@@ -49,5 +49,10 @@ export const API = {
 
 export const FUNCTIONS_REGION = 'europe-west1';
 
-export const COVERAGES = ['whole', 'half'] as const;
-export const COVERAGE_LABELS: Record<(typeof COVERAGES)[number], string> = { whole: 'כל הפיצה', half: 'חצי פיצה' };
+/** Where a topping goes. "right"/"left" are the halves as the customer looks at the pizza; both cost the half price. */
+export const COVERAGES = ['whole', 'right', 'left'] as const;
+export const COVERAGE_LABELS: Record<(typeof COVERAGES)[number], string> = {
+  whole: 'כל הפיצה',
+  right: 'חצי ימין',
+  left: 'חצי שמאל',
+};

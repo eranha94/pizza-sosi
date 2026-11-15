@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import type { MenuItem } from '@pizza-sosi/contracts';
 
-export type Coverage = 'whole' | 'half';
+export type Coverage = 'whole' | 'right' | 'left';
 export interface ChosenAddOn {
   id: string;
   coverage: Coverage;
@@ -50,9 +50,10 @@ export function addOnsPrice(item: MenuItem, chosen: ChosenAddOn[]): { total: num
   for (const c of chosen) {
     const o = options.get(c.id);
     if (!o) continue;
-    const half = c.coverage === 'half' && o.halfAgorot !== null;
+    const half = c.coverage !== 'whole' && o.halfAgorot !== null;
     total += half ? o.halfAgorot! : o.wholeAgorot;
-    labels.push(o.halfAgorot === null ? o.name : `${o.name} (${half ? 'חצי' : 'כל הפיצה'})`);
+    const where = { whole: 'כל הפיצה', right: 'חצי ימין', left: 'חצי שמאל' }[c.coverage];
+    labels.push(o.halfAgorot === null ? o.name : `${o.name} (${half ? where : 'כל הפיצה'})`);
   }
   return { total, labels };
 }
@@ -85,8 +86,8 @@ export const useCart = create<CartState>()(
       remove: (key) => set((s) => ({ lines: s.lines.filter((l) => l.key !== key) })),
       clear: () => set({ lines: [] }),
     }),
-    // v2: toppings now have whole/half choices; older carts are dropped.
-    { name: 'pizza-sosi-cart', version: 2, migrate: () => ({ lines: [] }), storage: createJSONStorage(() => safeStorage) },
+    // v3: toppings go on the whole pizza, right half or left half; older carts are dropped.
+    { name: 'pizza-sosi-cart', version: 3, migrate: () => ({ lines: [] }), storage: createJSONStorage(() => safeStorage) },
   ),
 );
 

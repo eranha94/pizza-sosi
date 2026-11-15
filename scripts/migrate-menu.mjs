@@ -7,7 +7,7 @@
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { parseArgs } from 'node:util';
-import { toAddOnGroups } from './lib-addons.mjs';
+import { toAddOnGroups, choiceGroupsFor } from './lib-addons.mjs';
 
 const { values } = parseArgs({
   options: { from: { type: 'string' }, to: { type: 'string' }, write: { type: 'boolean', default: false } },
@@ -42,15 +42,17 @@ for (const d of itemsSnap.docs) {
   const x = d.data();
   const category = String(x.category ?? 'pizzas');
   const own = (await d.ref.collection('add_ons').get()).docs.map(toRow).sort((a, b) => a.order - b.order);
+  const name = String(x.name ?? '').trim();
+  const choices = choiceGroupsFor({ name, category, description: String(x.desc ?? '').trim() });
   const item = {
-    name: String(x.name ?? '').trim(),
-    description: String(x.desc ?? '').trim(),
+    name,
+    description: choices.description,
     category,
     priceAgorot: toAgorot(x.price ?? 0),
     imagePath: toImagePath(x),
     order: Number(x.order ?? 0),
     active: true,
-    addOnGroups: toAddOnGroups(own.length ? own : category === 'pizzas' ? globalRows : []),
+    addOnGroups: [...choices.groups, ...toAddOnGroups(own.length ? own : category === 'pizzas' ? globalRows : [])],
     migratedFrom: `settings/admin/menu_items/${d.id}`,
   };
   console.log(`${d.id}: ${item.name} – ${item.priceAgorot / 100} ₪`);

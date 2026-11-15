@@ -23,11 +23,17 @@ export const AddOnOption = z.object({
 });
 export type AddOnOption = z.infer<typeof AddOnOption>;
 
-/** A heading that groups toppings with the same price, e.g. "מיוחדות". */
+/**
+ * A heading that groups choices.
+ *  - "multi": optional toppings, any number (e.g. "מיוחדות")
+ *  - "single": exactly one must be chosen (e.g. "עובי בצק": עבה/סטנדרט/דק). `defaultOptionId` is pre-selected.
+ */
 export const AddOnGroup = z.object({
   id,
   name: z.string().min(1).max(60),
   order: z.number().int(),
+  selection: z.enum(['multi', 'single']).default('multi'),
+  defaultOptionId: id.nullable().default(null),
   options: z.array(AddOnOption).max(40),
 });
 export type AddOnGroup = z.infer<typeof AddOnGroup>;

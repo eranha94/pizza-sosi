@@ -53,7 +53,7 @@ export default function OrderPage() {
           <li key={i} className="cart-line">
             <div className="cart-line__info">
               <strong>{l.quantity} × {l.name}</strong>
-              {l.addOns.length > 0 && <span className="muted">{l.addOns.map((a) => (a.coverage === 'half' ? `${a.name} (חצי)` : a.name)).join(', ')}</span>}
+              {l.addOns.length > 0 && <span className="muted">{l.addOns.map((a) => (a.coverage === 'right' ? `${a.name} (חצי ימין)` : a.coverage === 'left' ? `${a.name} (חצי שמאל)` : a.name)).join(', ')}</span>}
             </div>
             <span className="cart-line__price">{formatAgorot(l.lineTotalAgorot)}</span>
           </li>
