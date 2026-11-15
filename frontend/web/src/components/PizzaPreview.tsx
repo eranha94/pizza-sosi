@@ -301,16 +301,25 @@ const SIZE: Partial<Record<Kind, number>> = {
   anchovy: 9, artichoke: 9, beef: 9, blackOlive: 9, greenOlive: 9, kalamata: 9, driedTomato: 9,
 };
 
+export type Cheese = 'house' | 'mozzarella' | 'hardMix';
+/** Cheese tones: house = golden, mozzarella = milky white, hard-cheese mix = deeper amber, more baked. */
+const CHEESE_COLORS: Record<Cheese, [string, string, string]> = {
+  house: ['#ffeeb0', '#f6cc69', '#e6a540'],
+  mozzarella: ['#fffaf0', '#fbe9bd', '#ecc982'],
+  hardMix: ['#ffe39a', '#efb54e', '#d68a2a'],
+};
+
 // ---------- the pizza ----------
 export const PizzaPreview = memo(function PizzaPreview({
   toppings,
   dough = 'standard',
-  mozzarella = false,
+  cheese = 'house',
 }: {
   toppings: PreviewTopping[];
   dough?: Dough;
-  mozzarella?: boolean;
+  cheese?: Cheese;
 }) {
+  const cheeseColors = CHEESE_COLORS[cheese];
   const crustWidth = dough === 'thin' ? 7 : dough === 'thick' ? 17 : 12;
   const outer = 94;
   const sauceR = outer - crustWidth;
@@ -328,8 +337,8 @@ export const PizzaPreview = memo(function PizzaPreview({
         return { x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, rx: 2 + rand() * (crustWidth / 4), ry: 1.2 + rand() * 1.6, rot: (a * 180) / Math.PI + 90, dark: rand() > 0.55 };
       }),
       // baked look: soft golden patches + a few small dark "leopard" spots, more towards the edge
-      browned: Array.from({ length: mozzarella ? 34 : 26 }, (_, i) => {
-        const rand = rng(`brown-${i}-${mozzarella}`);
+      browned: Array.from({ length: cheese === 'hardMix' ? 44 : cheese === 'mozzarella' ? 34 : 26 }, (_, i) => {
+        const rand = rng(`brown-${i}-${cheese}`);
         const a = rand() * Math.PI * 2;
         const rr = Math.pow(rand(), 0.6) * (cheeseR - 4);
         const leopard = rand() > 0.72;
@@ -349,7 +358,7 @@ export const PizzaPreview = memo(function PizzaPreview({
         return { x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, r: 1.5 + rand() * 2.5 };
       }),
     }),
-    [dough, mozzarella, sauceR, cheeseR, crustWidth],
+    [dough, cheese, sauceR, cheeseR, crustWidth],
   );
 
   const split = toppings.some((t) => t.placement !== 'whole');
@@ -368,9 +377,9 @@ export const PizzaPreview = memo(function PizzaPreview({
             <stop offset="100%" stopColor="#9c2412" />
           </radialGradient>
           <radialGradient id="g-cheese" cx="42%" cy="38%" r="65%">
-            <stop offset="0%" stopColor={mozzarella ? '#fffaf0' : '#ffeeb0'} />
-            <stop offset="65%" stopColor={mozzarella ? '#fbe9bd' : '#f6cc69'} />
-            <stop offset="100%" stopColor={mozzarella ? '#ecc982' : '#e6a540'} />
+            <stop offset="0%" stopColor={cheeseColors[0]} />
+            <stop offset="65%" stopColor={cheeseColors[1]} />
+            <stop offset="100%" stopColor={cheeseColors[2]} />
           </radialGradient>
           <radialGradient id="g-olive-black" cx="35%" cy="30%"><stop offset="0%" stopColor="#5a4d48" /><stop offset="100%" stopColor="#141010" /></radialGradient>
           <radialGradient id="g-olive-kal" cx="35%" cy="30%"><stop offset="0%" stopColor="#7d4c64" /><stop offset="100%" stopColor="#2e1424" /></radialGradient>

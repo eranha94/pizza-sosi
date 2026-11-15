@@ -51,7 +51,7 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
   // The preview follows the dough and cheese choices too.
   const chosenNames = new Set(groups.flatMap((g) => g.options).filter((o) => chosen.has(o.id)).map((o) => o.name));
   const dough = chosenNames.has('עבה') ? 'thick' : chosenNames.has('דק') ? 'thin' : 'standard';
-  const mozzarella = chosenNames.has('גבינת מוצרלה');
+  const cheese = chosenNames.has('גבינת מוצרלה') ? 'mozzarella' : [...chosenNames].some((n) => n.includes('גבינות קשות')) ? 'hardMix' : 'house';
   const missing = groups.filter((g) => g.selection === 'single' && !g.options.some((o) => chosen.has(o.id)));
   const pickOne = (groupOptionIds: string[], id: string) =>
     setChosen((m) => {
@@ -79,7 +79,7 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
       </div>
       {item.description && <p className="sheet__desc">{item.description}</p>}
 
-      {showPreview && <PizzaPreview toppings={previewToppings} dough={dough} mozzarella={mozzarella} />}
+      {showPreview && <PizzaPreview toppings={previewToppings} dough={dough} cheese={cheese} />}
       {showPreview && hasHalves && <p className="sheet__tip">אפשר לשים כל תוספת על כל הפיצה או רק על חצי ממנה.</p>}
 
       {groups.map((g) => {

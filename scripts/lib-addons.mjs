@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 
 const GROUP_ORDER = ['רגילות', 'FRESH', 'מיוחדות', 'סופר מיוחדים', 'תוספות'];
 const normaliseGroup = (g) => (/^סופר מיוחד/.test(g) ? 'סופר מיוחדים' : g.trim());
-const stableId = (...parts) => createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
+export const stableId = (...parts) => createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
 
 /** @param {{name: string, priceAgorot: number, active: boolean}[]} rows */
 export function toAddOnGroups(rows) {
@@ -77,7 +77,7 @@ export function choiceGroupsFor({ name, category, description }) {
   const drop = [];
   if (category === 'pizzas') {
     groups.push(single('עובי בצק', ['סטנדרט', 'דק', ['עבה', 500]], 'סטנדרט', 1));
-    groups.push(single('גבינה', ['גבינת הבית', 'גבינת מוצרלה'], 'גבינת הבית', 2));
+    groups.push(single('גבינה', ['גבינת הבית', 'גבינת מוצרלה', 'מיקס גבינות קשות 33% שומן'], 'גבינת הבית', 2));
     drop.push(/ניתן לבחור עובי בצק/, /גבינה לבחירה/);
   }
   if (/פסטה/.test(name)) {
