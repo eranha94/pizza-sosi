@@ -13,14 +13,16 @@ export function AuthAction() {
   const mode = params.get('mode');
   const code = params.get('oobCode') ?? '';
   const [email, setEmail] = useState<string | null>(null);
-  const [state, setState] = useState<'checking' | 'form' | 'done' | 'bad'>('checking');
+  const [state, setState] = useState<'checking' | 'form' | 'done' | 'bad'>(() =>
+    code && (mode === 'resetPassword' || mode === 'verifyEmail') ? 'checking' : 'bad',
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     // Don't keep the one-time code in the address bar / history.
     history.replaceState(null, '', '/auth/action');
-    if (!code) return setState('bad');
+    if (!code) return;
     if (mode === 'resetPassword') {
       verifyPasswordResetCode(auth, code)
         .then((e) => {
@@ -32,7 +34,7 @@ export function AuthAction() {
       applyActionCode(auth, code)
         .then(() => setState('done'))
         .catch(() => setState('bad'));
-    } else setState('bad');
+    }
   }, [code, mode]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
