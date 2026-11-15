@@ -38,10 +38,10 @@ export const paymentWebhook = onRequest({ region: FUNCTIONS_REGION, maxInstances
     }
     if (tx.status === 'approved' && tx.amountAgorot === order.totalAgorot && order.status === 'pending_payment') {
       t.update(ref, {
-        status: 'paid',
+        status: 'placed',
         'payment.status': 'approved',
         updatedAt: FieldValue.serverTimestamp(),
-        statusHistory: FieldValue.arrayUnion({ status: 'paid', at: new Date().toISOString(), by: 'payment' }),
+        statusHistory: FieldValue.arrayUnion({ status: 'placed', at: new Date().toISOString(), by: 'payment' }),
       });
     } else if (tx.status === 'approved') {
       logger.error('payment amount/status mismatch', { orderId: tx.orderId });

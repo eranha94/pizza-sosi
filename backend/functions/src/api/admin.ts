@@ -22,7 +22,7 @@ export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (re
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError('not-found', 'ההזמנה לא נמצאה');
     const from = snap.data()!.status as OrderStatus;
-    if (!canTransition(from, status)) throw new HttpsError('failed-precondition', `אי אפשר לעבור מ-${from} ל-${status}`);
+    if (!canTransition(from, status, snap.data()!.fulfillment)) throw new HttpsError('failed-precondition', `אי אפשר לעבור מ-${from} ל-${status}`);
     tx.update(ref, {
       status,
       updatedAt: FieldValue.serverTimestamp(),

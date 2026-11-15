@@ -1,27 +1,35 @@
 import type { OrderStatus } from '@pizza-sosi/contracts';
 
+type Fulfillment = 'pickup' | 'delivery';
+
 /** Allowed status transitions. Anything not listed is rejected by the server. */
 const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  pending_payment: ['paid', 'cancelled'],
-  paid: ['accepted', 'cancelled'],
+  pending_payment: ['placed', 'cancelled'],
+  placed: ['accepted', 'cancelled'],
   accepted: ['preparing', 'cancelled'],
-  preparing: ['ready', 'cancelled'],
-  ready: ['out_for_delivery', 'completed'],
+  // "almost ready" may be skipped when things move fast
+  preparing: ['almost_ready', 'ready', 'out_for_delivery', 'cancelled'],
+  almost_ready: ['ready', 'out_for_delivery', 'cancelled'],
+  ready: ['completed'],
   out_for_delivery: ['completed'],
   completed: [],
   cancelled: [],
 };
 
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return TRANSITIONS[from].includes(to);
+export function canTransition(from: OrderStatus, to: OrderStatus, fulfillment: Fulfillment): boolean {
+  if (!TRANSITIONS[from].includes(to)) return false;
+  // "Ready for pickup" only for pickup orders, "on the way" only for deliveries.
+  if (to === 'ready' && fulfillment !== 'pickup') return false;
+  if (to === 'out_for_delivery' && fulfillment !== 'delivery') return false;
+  return true;
 }
 
 /** A customer may cancel only until the kitchen starts preparing. */
 export function customerCanCancel(status: OrderStatus): boolean {
-  return status === 'pending_payment' || status === 'paid' || status === 'accepted';
+  return status === 'pending_payment' || status === 'placed' || status === 'accepted';
 }
 
 /** Status a new order starts in. Pay-on-site orders skip the payment step. */
 export function initialStatus(paymentMethod: 'card' | 'on_site'): OrderStatus {
-  return paymentMethod === 'card' ? 'pending_payment' : 'accepted';
+  return paymentMethod === 'card' ? 'pending_payment' : 'placed';
 }

@@ -20,9 +20,9 @@ export interface AdminOrder {
   createdAt?: Timestamp | null;
 }
 
-export const ACTIVE: OrderStatus[] = ['paid', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
-/** Orders the kitchen hasn't started yet. Card orders arrive "paid", pay-on-site orders arrive "accepted". */
-export const isNew = (o: AdminOrder) => o.status === 'paid' || o.status === 'accepted';
+export const ACTIVE: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery'];
+/** Orders nobody has confirmed yet ("התקבלה" not pressed). */
+export const isNew = (o: AdminOrder) => o.status === 'placed';
 
 const SOUND_KEY = 'pizza-sosi-admin-sound';
 
@@ -45,7 +45,7 @@ function ring(ctx: AudioContext) {
 }
 
 /**
- * Live list of open orders + a sound when a new one arrives (and every 45 s while card orders wait for approval).
+ * Live list of open orders + a sound when a new one arrives (and every 45 s while new orders wait to be confirmed).
  * Browsers only allow sound after a click, so the board has a "turn on sound" button.
  */
 export function useActiveOrders() {
@@ -100,8 +100,8 @@ export function useActiveOrders() {
     );
   }, [play]);
 
-  // Keep reminding while card orders wait for approval.
-  const waiting = orders.some((o) => o.status === 'paid');
+  // Keep reminding while new orders wait to be confirmed.
+  const waiting = orders.some(isNew);
   useEffect(() => {
     if (!waiting) return;
     const t = window.setInterval(play, 45_000);

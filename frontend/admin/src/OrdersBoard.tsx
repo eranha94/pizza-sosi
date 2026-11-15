@@ -7,26 +7,35 @@ import { isNew, type AdminOrder, type ActiveOrders } from './orders';
 /** The main forward step for each status (one big button), plus cancel where allowed. */
 function nextStep(o: AdminOrder): { to: OrderStatus; label: string } | null {
   switch (o.status) {
-    case 'paid':
-      return { to: 'accepted', label: 'אישור הזמנה' };
+    case 'placed':
+      return { to: 'accepted', label: '✓ התקבלה' };
     case 'accepted':
       return { to: 'preparing', label: 'התחלת הכנה' };
     case 'preparing':
-      return { to: 'ready', label: 'ההזמנה מוכנה' };
+      return { to: 'almost_ready', label: 'כמעט מוכנה' };
+    case 'almost_ready':
+      return o.fulfillment === 'delivery' ? { to: 'out_for_delivery', label: '🛵 נאספה ע״י השליח' } : { to: 'ready', label: 'מוכנה לאיסוף' };
     case 'ready':
-      return o.fulfillment === 'delivery' ? { to: 'out_for_delivery', label: 'יצאה למשלוח' } : { to: 'completed', label: 'נמסרה ללקוח' };
+      return { to: 'completed', label: 'נאספה ע״י הלקוח' };
     case 'out_for_delivery':
       return { to: 'completed', label: 'נמסרה ללקוח' };
     default:
       return null;
   }
 }
-const canCancel = (s: OrderStatus) => s === 'paid' || s === 'accepted' || s === 'preparing';
+/** Skip "almost ready" when it's already done. */
+function shortcut(o: AdminOrder): { to: OrderStatus; label: string } | null {
+  if (o.status !== 'preparing') return null;
+  return o.fulfillment === 'delivery' ? { to: 'out_for_delivery', label: 'ישר לשליח' } : { to: 'ready', label: 'ישר למוכנה' };
+}
+const canCancel = (s: OrderStatus) => s === 'placed' || s === 'accepted' || s === 'preparing' || s === 'almost_ready';
+const KITCHEN: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready'];
 
 const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[] = [
   { id: 'new', title: 'חדשות', match: isNew },
-  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'preparing' },
-  { id: 'ready', title: 'מוכנות / במשלוח', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
+  { id: 'accepted', title: 'התקבלו', match: (o) => o.status === 'accepted' },
+  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'preparing' || o.status === 'almost_ready' },
+  { id: 'ready', title: 'מוכנות לאיסוף / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
 ];
 
 function useNow(ms = 30_000) {
@@ -106,7 +115,7 @@ function minutesAgo(o: AdminOrder, now: number) {
 function OrderCard({ order: o, now, busy, onMove }: { order: AdminOrder; now: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
   const step = nextStep(o);
   const ago = minutesAgo(o, now);
-  const late = o.readyAt !== undefined && o.readyAt < now && (o.status === 'accepted' || o.status === 'paid' || o.status === 'preparing');
+  const late = o.readyAt !== undefined && o.readyAt < now && KITCHEN.includes(o.status);
   return (
     <li className={`order order--${o.status} ${late ? 'order--late' : ''}`}>
       <div className="order__head">
@@ -161,6 +170,11 @@ function OrderCard({ order: o, now, busy, onMove }: { order: AdminOrder; now: nu
         {step && (
           <button className="btn btn--grow" disabled={busy} onClick={() => onMove(step.to)}>
             {busy ? '…' : step.label}
+          </button>
+        )}
+        {shortcut(o) && (
+          <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => onMove(shortcut(o)!.to)} title="לדלג על כמעט מוכנה">
+            {shortcut(o)!.label}
           </button>
         )}
         {canCancel(o.status) && (

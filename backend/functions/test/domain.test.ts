@@ -66,16 +66,26 @@ describe('priceCart', () => {
 
 describe('order state', () => {
   it('only allows defined transitions', () => {
-    expect(canTransition('accepted', 'preparing')).toBe(true);
-    expect(canTransition('completed', 'preparing')).toBe(false);
-    expect(canTransition('pending_payment', 'ready')).toBe(false);
+    expect(canTransition('placed', 'accepted', 'pickup')).toBe(true);
+    expect(canTransition('accepted', 'preparing', 'pickup')).toBe(true);
+    expect(canTransition('preparing', 'almost_ready', 'delivery')).toBe(true);
+    expect(canTransition('completed', 'preparing', 'pickup')).toBe(false);
+    expect(canTransition('pending_payment', 'ready', 'pickup')).toBe(false);
+    expect(canTransition('placed', 'preparing', 'pickup')).toBe(false);
+  });
+  it('ready-for-pickup only for pickup, on-the-way only for delivery', () => {
+    expect(canTransition('almost_ready', 'ready', 'pickup')).toBe(true);
+    expect(canTransition('almost_ready', 'ready', 'delivery')).toBe(false);
+    expect(canTransition('almost_ready', 'out_for_delivery', 'delivery')).toBe(true);
+    expect(canTransition('almost_ready', 'out_for_delivery', 'pickup')).toBe(false);
   });
   it('customer can cancel only until preparing', () => {
+    expect(customerCanCancel('placed')).toBe(true);
     expect(customerCanCancel('accepted')).toBe(true);
     expect(customerCanCancel('preparing')).toBe(false);
   });
   it('pay on site skips payment', () => {
-    expect(initialStatus('on_site')).toBe('accepted');
+    expect(initialStatus('on_site')).toBe('placed');
     expect(initialStatus('card')).toBe('pending_payment');
   });
 });

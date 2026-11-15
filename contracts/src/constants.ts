@@ -17,11 +17,18 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   drinks: 'שתייה',
 };
 
+/**
+ * Order flow (the owner moves it forward from the admin page):
+ *   placed → accepted → preparing → almost_ready → ready (pickup)            → completed
+ *                                               ↘ out_for_delivery (delivery) → completed
+ * Card orders start as pending_payment and become "placed" when the payment is approved.
+ */
 export const ORDER_STATUSES = [
   'pending_payment',
-  'paid',
+  'placed',
   'accepted',
   'preparing',
+  'almost_ready',
   'ready',
   'out_for_delivery',
   'completed',
@@ -30,13 +37,20 @@ export const ORDER_STATUSES = [
 type Status = (typeof ORDER_STATUSES)[number];
 export const ORDER_STATUS_LABELS: Record<Status, string> = {
   pending_payment: 'ממתינה לתשלום',
-  paid: 'שולמה',
+  placed: 'הזמנה חדשה',
   accepted: 'התקבלה',
   preparing: 'בהכנה',
-  ready: 'מוכנה',
+  almost_ready: 'כמעט מוכנה',
+  ready: 'מוכנה לאיסוף',
   out_for_delivery: 'בדרך אליך',
   completed: 'הושלמה',
   cancelled: 'בוטלה',
+};
+
+/** The steps a customer sees, by fulfillment. */
+export const ORDER_STEPS: Record<'pickup' | 'delivery', readonly Status[]> = {
+  pickup: ['placed', 'accepted', 'preparing', 'almost_ready', 'ready'],
+  delivery: ['placed', 'accepted', 'preparing', 'almost_ready', 'out_for_delivery'],
 };
 
 /** Names of the callable functions – the API surface. */

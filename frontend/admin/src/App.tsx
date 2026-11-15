@@ -5,7 +5,7 @@ import { Login } from './Login';
 import { EnrollMfa } from './EnrollMfa';
 import { OrdersBoard } from './OrdersBoard';
 import { StorePage } from './StorePage';
-import { useActiveOrders } from './orders';
+import { useActiveOrders, isNew } from './orders';
 
 const MenuEditor = lazy(() => import('./MenuEditor').then((m) => ({ default: m.MenuEditor })));
 
@@ -81,7 +81,7 @@ function Shell({ session }: { session: Session }) {
   }, []);
   const tabs = TABS.filter((t) => !t.ownerOnly || session.role === 'owner');
   const current = tabs.some((t) => t.id === tab) ? tab : 'orders';
-  const newCount = orders.orders.filter((o) => o.status === 'paid').length;
+  const newCount = orders.orders.filter(isNew).length;
 
   useEffect(() => {
     document.title = newCount ? `(${newCount}) הזמנות חדשות – פיצה סוסי` : 'פיצה סוסי – ניהול';

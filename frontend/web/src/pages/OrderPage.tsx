@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { OrderView, ORDER_STATUS_LABELS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
+import { OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
 import { useNow } from '../lib/menu';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, errorMessage } from '../lib/api';
@@ -43,13 +43,14 @@ export default function OrderPage() {
       </section>
     );
 
-  const canCancel = ['pending_payment', 'paid', 'accepted'].includes(order.status);
-  const active = !['completed', 'cancelled', 'ready', 'out_for_delivery'].includes(order.status);
+  const canCancel = ['pending_payment', 'placed', 'accepted'].includes(order.status);
+  const active = ['pending_payment', 'placed', 'accepted', 'preparing', 'almost_ready'].includes(order.status);
 
   return (
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      <OrderSteps order={order} />
       {order.readyAt && active && <ReadyTimer readyAt={order.readyAt} scheduled={order.scheduled} />}
       <ul className="cart-list">
         {order.lines.map((l, i) => (
@@ -88,6 +89,32 @@ export default function OrderPage() {
         </button>
       )}
     </section>
+  );
+}
+
+const STEP_LABELS: Partial<Record<Order['status'], string>> = {
+  placed: 'נשלחה',
+  accepted: 'התקבלה',
+  preparing: 'בהכנה',
+  almost_ready: 'כמעט מוכנה',
+  ready: 'מוכנה לאיסוף',
+  out_for_delivery: 'בדרך אליך',
+};
+
+/** Live progress: each step lights up as the pizzeria moves the order forward. */
+function OrderSteps({ order }: { order: Order }) {
+  if (order.status === 'cancelled' || order.status === 'pending_payment') return null;
+  const steps = ORDER_STEPS[order.fulfillment];
+  const at = order.status === 'completed' ? steps.length : steps.indexOf(order.status);
+  return (
+    <ol className="order-steps" aria-label="מצב ההזמנה">
+      {steps.map((s, i) => (
+        <li key={s} className={i < at ? 'is-done' : i === at ? 'is-current' : ''} aria-current={i === at ? 'step' : undefined}>
+          <span className="order-steps__dot" aria-hidden="true">{i < at ? '✓' : i + 1}</span>
+          <span className="order-steps__label">{STEP_LABELS[s]}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
