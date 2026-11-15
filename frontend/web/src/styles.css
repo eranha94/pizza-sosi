@@ -204,7 +204,7 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 }
 .item-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
 .item-card__img { width: 112px; height: 112px; object-fit: cover; border-radius: 14px; background: var(--cream); }
-.item-card__img--empty { display: block; background: radial-gradient(circle at 50% 50%, var(--yellow) 0 30%, var(--cream) 31%); }
+.item-card__img--empty { display: block; background: url('/brand/pizza-sosi-badge.svg') center / 62% no-repeat, var(--cream); }
 .item-card__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-inline-end: 28px; }
 .item-card__name { font-weight: 700; font-size: 1.05rem; }
 .item-card__desc { color: var(--ink-soft); font-size: 0.9rem; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
