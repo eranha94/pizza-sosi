@@ -44,6 +44,16 @@ export const adminUpdateStoreSettings = secureCall<{ ok: true }>(async (req) => 
 export const adminUpsertMenuItem = secureCall<{ id: string }>(async (req) => {
   const { uid } = requireStaff(req, ['owner']);
   const input = validate(UpsertMenuItemRequest, req.data);
+  // Option ids must be unique inside a group, and a default must point to one of the group's options.
+  for (const g of input.addOnGroups) {
+    const ids = g.options.map((o) => o.id).filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw new HttpsError('invalid-argument', `אפשרות כפולה בקבוצה "${g.name}"`);
+    if (g.defaultOptionId && !ids.includes(g.defaultOptionId)) throw new HttpsError('invalid-argument', `ברירת מחדל לא תקינה בקבוצה "${g.name}"`);
+    if (g.selection === 'single' && g.options.some((o) => o.halfAgorot !== null))
+      throw new HttpsError('invalid-argument', `בבחירת חובה אין מחיר חצי ("${g.name}")`);
+  }
+  if (input.id && !(await db.collection(COL.menuItems).doc(input.id).get()).exists)
+    throw new HttpsError('not-found', 'הפריט לא נמצא');
   const ref = input.id ? db.collection(COL.menuItems).doc(input.id) : db.collection(COL.menuItems).doc();
   const newId = () => db.collection('_').doc().id;
   const addOnGroups = input.addOnGroups.map((g) => ({

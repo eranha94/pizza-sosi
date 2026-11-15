@@ -2,6 +2,7 @@ import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from 'firebase/functions';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { FUNCTIONS_REGION } from '@pizza-sosi/contracts';
 
@@ -31,10 +32,13 @@ export const auth = getAuth(app);
 auth.languageCode = 'he';
 export const db = getFirestore(app);
 export const functions = getFunctions(app, FUNCTIONS_REGION);
+export const storage = getStorage(app);
+export const bucket = config.storageBucket ?? '';
 if (useEmulators) {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, 'localhost', 8080);
   connectFunctionsEmulator(functions, 'localhost', 5001);
+  connectStorageEmulator(storage, 'localhost', 9199);
 }
 
 /** Admin actions go only through server functions, which re-check role and MFA. */
