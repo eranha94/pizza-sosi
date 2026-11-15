@@ -6,6 +6,7 @@ import { useActiveCategory } from '../store/ui';
 import { useMenu } from '../lib/menu';
 import { StoreDot } from './StoreStatus';
 import { ThemeMenu } from './ThemeMenu';
+import { Footer } from './Footer';
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -88,12 +89,7 @@ export function Layout() {
       <main id="main">
         <Outlet />
       </main>
-      <footer className="site-footer">
-        <p>פיצה סוסי · כל סוגי הפיצות והטוסטים</p>
-        <p>
-          <a href="tel:0548880909">054-8880909</a>
-        </p>
-      </footer>
+      <Footer />
     </>
   );
 }
