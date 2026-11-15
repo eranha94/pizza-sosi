@@ -5,7 +5,8 @@
 export * from './money.js';
 export * from './hours.js';
 
-export const CATEGORY_IDS = ['pizzas', 'specials', 'toasts', 'burgers', 'salads', 'drinks'] as const;
+/** Order of the categories on the site. מבצעים last. */
+export const CATEGORY_IDS = ['pizzas', 'toasts', 'burgers', 'salads', 'drinks', 'specials'] as const;
 type Category = (typeof CATEGORY_IDS)[number];
 export const CATEGORY_LABELS: Record<Category, string> = {
   pizzas: 'פיצות',

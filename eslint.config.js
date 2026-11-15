@@ -26,6 +26,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ['frontend/**/public/**/*.js'],
+    languageOptions: { globals: globals.browser, sourceType: 'script' },
+  },
+  {
     files: ['contracts/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {

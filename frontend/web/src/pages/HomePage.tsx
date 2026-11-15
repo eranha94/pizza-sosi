@@ -5,6 +5,9 @@ import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet, prefetchOrdering } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
 import { StoreStatusCard } from '../components/StoreStatus';
+import { useActiveCategory } from '../store/ui';
+import { scrollToCategory } from '../components/Layout';
+import { useLocation } from 'react-router';
 
 export function HomePage() {
   const menu = useMenu();
@@ -14,11 +17,49 @@ export function HomePage() {
   // Load the ordering code in idle time so checkout opens instantly.
   useEffect(() => prefetchOrdering(), []);
 
+
+
   const byCategory = useMemo(() => {
     const map = new Map<CategoryId, MenuItem[]>();
     for (const item of menu.data ?? []) map.set(item.category, [...(map.get(item.category) ?? []), item]);
     return CATEGORY_IDS.filter((c) => map.has(c)).map((c) => ({ id: c, items: map.get(c)! }));
   }, [menu.data]);
+
+  // Header underline follows the category on screen.
+  const setActive = useActiveCategory((s) => s.set);
+  const location = useLocation();
+  const ids = byCategory.map((c) => c.id).join(',');
+  useEffect(() => {
+    const sections = ids ? ids.split(',').map((id) => document.getElementById(`cat-${id}`)).filter((el): el is HTMLElement => el !== null) : [];
+    if (sections.length === 0) return;
+    // Active = the last category whose heading has passed just under the header.
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 112) + 60;
+      let current: string | null = null;
+      for (const s of sections) if (s.getBoundingClientRect().top <= line) current = s.id.slice(4);
+      setActive(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      setActive(null);
+    };
+  }, [ids, setActive]);
+
+  // Arriving with #cat-… (from another page): scroll there once the menu is on screen.
+  useEffect(() => {
+    const m = /^#cat-(\w+)$/.exec(location.hash);
+    if (m && ids.includes(m[1]!)) requestAnimationFrame(() => scrollToCategory(m[1]!));
+  }, [location.hash, ids]);
 
   return (
     <>
@@ -37,15 +78,8 @@ export function HomePage() {
       <StoreStatusCard />
 
       <section id="menu" className="menu" aria-label="התפריט">
-        {byCategory.length > 1 && (
-          <nav className="menu__tabs" aria-label="קטגוריות">
-            {byCategory.map((c) => (
-              <a key={c.id} href={`#cat-${c.id}`} className="chip">{CATEGORY_LABELS[c.id]}</a>
-            ))}
-          </nav>
-        )}
         {menu.isPending && <p className="page-loading">טוען את התפריט…</p>}
-        {menu.isError && <p className="notice notice--error">לא הצלחנו לטעון את התפריט. רעננו את הדף.</p>}
+        {menu.isError && !menu.data?.length && <p className="notice notice--error">לא הצלחנו לטעון את התפריט. רעננו את הדף.</p>}
         {byCategory.map((c) => (
           <section key={c.id} id={`cat-${c.id}`} className="menu__category" aria-labelledby={`h-${c.id}`}>
             <h2 id={`h-${c.id}`}>{CATEGORY_LABELS[c.id]}</h2>
