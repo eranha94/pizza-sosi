@@ -48,6 +48,10 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
     .flatMap((g) => g.options)
     .filter((o) => chosen.has(o.id))
     .map((o) => ({ id: o.id, name: o.name, placement: o.halfAgorot === null ? 'whole' : chosen.get(o.id)! }));
+  // The preview follows the dough and cheese choices too.
+  const chosenNames = new Set(groups.flatMap((g) => g.options).filter((o) => chosen.has(o.id)).map((o) => o.name));
+  const dough = chosenNames.has('עבה') ? 'thick' : chosenNames.has('דק') ? 'thin' : 'standard';
+  const mozzarella = chosenNames.has('גבינת מוצרלה');
   const missing = groups.filter((g) => g.selection === 'single' && !g.options.some((o) => chosen.has(o.id)));
   const pickOne = (groupOptionIds: string[], id: string) =>
     setChosen((m) => {
@@ -75,7 +79,7 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
       </div>
       {item.description && <p className="sheet__desc">{item.description}</p>}
 
-      {showPreview && <PizzaPreview toppings={previewToppings} />}
+      {showPreview && <PizzaPreview toppings={previewToppings} dough={dough} mozzarella={mozzarella} />}
       {showPreview && hasHalves && <p className="sheet__tip">אפשר לשים כל תוספת על כל הפיצה או רק על חצי ממנה.</p>}
 
       {groups.map((g) => {
