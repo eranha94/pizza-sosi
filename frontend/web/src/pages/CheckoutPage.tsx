@@ -150,6 +150,13 @@ export default function CheckoutPage() {
         </fieldset>
         {paymentMethod === 'card' && <p className="muted small">התשלום מתבצע בדף מאובטח של חברת הסליקה. פרטי הכרטיס לא עוברים דרכנו.</p>}
 
+        <label className="consent">
+          <input type="checkbox" name="consent" required />
+          <span>
+            קראתי ואני מסכים/ה ל<Link to="/terms" target="_blank">תקנון</Link> ול<Link to="/privacy" target="_blank">מדיניות הפרטיות</Link>.
+            הפרטים ישמשו לטיפול בהזמנה בלבד.
+          </span>
+        </label>
         <div className="summary"><span>סה״כ משוער</span><strong>{formatAgorot(total)}</strong></div>
         {error && <p className="notice notice--error" role="alert">{error}</p>}
         <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder}>

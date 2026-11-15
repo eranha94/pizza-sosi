@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { CONTACT } from '../config/contact';
+import { BUSINESS } from '../config/business';
+import { LEGAL_PAGES } from '../pages/legal/LegalLayout';
 
 type Item = { href: string; label: string; icon: ReactNode; tone: string; brand?: boolean };
 
@@ -33,7 +36,12 @@ export function Footer() {
           );
         })}
       </ul>
-      <p className="site-footer__small">© פיצה סוסי</p>
+      <nav className="site-footer__legal" aria-label="מידע משפטי">
+        {LEGAL_PAGES.map((p) => (
+          <Link key={p.path} to={p.path}>{p.label}</Link>
+        ))}
+      </nav>
+      <p className="site-footer__small">© {BUSINESS.name} · {BUSINESS.legalType} {BUSINESS.id}</p>
     </footer>
   );
 }
