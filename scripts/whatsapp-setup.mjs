@@ -27,7 +27,7 @@ if (!values.project || !/^\d+$/.test(values.waba ?? '') || !/^\d+$/.test(values[
   process.exit(1);
 }
 const site = values.site.replace(/\/$/, '');
-const GRAPH = 'https://graph.facebook.com/v23.0';
+const GRAPH = 'https://graph.facebook.com/v25.0';
 
 // {{1}} = customer first name, {{2}} = order number. Button opens the live order page.
 const TEMPLATES = [

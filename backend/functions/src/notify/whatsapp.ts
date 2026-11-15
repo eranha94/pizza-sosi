@@ -20,7 +20,7 @@ export const TEMPLATE_BY_STATUS: Record<NotifyStatus, string> = {
   cancelled: 'pizza_sosi_order_cancelled',
 };
 
-const GRAPH = 'https://graph.facebook.com/v23.0';
+const GRAPH = 'https://graph.facebook.com/v25.0';
 
 interface WhatsappConfig { enabled: boolean; phoneNumberId: string; language: string }
 
