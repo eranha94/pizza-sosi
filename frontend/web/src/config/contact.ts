@@ -9,7 +9,7 @@ export const CONTACT = {
   whatsapp: `https://wa.me/972548880909?text=${encodeURIComponent('היי פיצה סוסי, אשמח להזמין 🍕')}`,
   /** Opens Waze on the pizzeria. */
   waze: `https://waze.com/ul?q=${encodeURIComponent('פיצה סוסי דאלית אל כרמל')}&navigate=yes`,
-  instagram: '',
-  tiktok: '',
-  facebook: '',
+  instagram: 'https://www.instagram.com/pizza_sosi',
+  tiktok: 'https://www.tiktok.com/@user2580740966133',
+  facebook: 'https://www.facebook.com/profile.php?id=61555600685159',
 };
