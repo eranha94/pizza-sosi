@@ -307,9 +307,15 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .link-tile--phone { --tone: #feb800; }
 .link-tile--phone .link-tile__icon { color: #1e1a1b; }
 .link-tile--instagram { --tone: #d6336c; }
-.link-tile--tiktok { --tone: #222; }
-.link-tile--tiktok .link-tile__icon { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .25); }
-.link-tile--facebook { --tone: #1877f2; }
+.link-tile--tiktok { --tone: #fe2c55; }
+.link-tile--facebook { --tone: #0866ff; }
+/* Official brand logos: shown unaltered, never rotated (brand guidelines) */
+.link-tile__icon--brand { background: none; border-radius: 50%; overflow: hidden; }
+.link-tile__icon--brand img { display: block; width: 44px; height: 44px; }
+.link-tile--instagram .link-tile__icon--brand { background: #fff; }
+.link-tile--instagram .link-tile__icon--brand img { width: 22px; height: 22px; } /* clear space = half the glyph */
+.link-tile--tiktok .link-tile__icon--brand { box-shadow: 0 0 0 1px rgb(255 255 255 / .22); }
+.link-tile:hover .link-tile__icon--brand { transform: scale(1.1); }
 .link-tile--whatsapp .link-tile__icon { animation: wa-nudge 4s ease-in-out infinite; }
 @keyframes wa-nudge { 0%, 88%, 100% { transform: none; } 92% { transform: rotate(-12deg); } 96% { transform: rotate(10deg); } }
 @media (prefers-reduced-motion: reduce) { .link-tile, .link-tile__icon { transition: none; } .link-tile--whatsapp .link-tile__icon { animation: none; } }
