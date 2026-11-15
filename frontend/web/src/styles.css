@@ -198,7 +198,33 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .price-tag { margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: var(--ink); color: var(--yellow); font-size: 0.78rem; font-weight: 700; }
 
 /* Store status – the oven */
-.oven-card { position: relative; z-index: 2; display: flex; align-items: center; gap: 14px; max-width: 560px; margin: -38px auto 0; padding: 12px 18px; border-radius: 22px; background: var(--paper); box-shadow: var(--shadow); }
+.oven-card { position: relative; z-index: 2; max-width: 560px; margin: -38px auto 0; border-radius: 22px; background: var(--paper); box-shadow: var(--shadow); overflow: hidden; }
+.oven-card__head { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 18px; cursor: pointer; text-align: start; }
+.oven-card__head:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; border-radius: 22px; }
+.oven-card__more { display: inline-flex; align-items: center; gap: 2px; align-self: center; padding: 6px 10px; border-radius: 999px; background: rgb(0 0 0 / .06); font-size: .85rem; font-weight: 600; color: var(--ink-soft); }
+.oven-card.is-closed .oven-card__more { background: rgb(255 255 255 / .1); color: #e9dfd6; }
+.oven-card__chev { transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+.oven-card.is-expanded .oven-card__chev { transform: rotate(180deg); }
+.oven-card__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .38s cubic-bezier(.2, .8, .2, 1); }
+.oven-card.is-expanded .oven-card__panel { grid-template-rows: 1fr; }
+.oven-card__panel-inner { overflow: hidden; }
+.week { list-style: none; margin: 0; padding: 4px 18px 16px; display: grid; gap: 2px; }
+.week li { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 8px; padding: 7px 10px; border-radius: 12px; opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .3s; }
+.oven-card.is-expanded .week li { opacity: 1; transform: none; }
+.oven-card.is-expanded .week li:nth-child(2) { transition-delay: .03s; } .oven-card.is-expanded .week li:nth-child(3) { transition-delay: .06s; }
+.oven-card.is-expanded .week li:nth-child(4) { transition-delay: .09s; } .oven-card.is-expanded .week li:nth-child(5) { transition-delay: .12s; }
+.oven-card.is-expanded .week li:nth-child(6) { transition-delay: .15s; } .oven-card.is-expanded .week li:nth-child(7) { transition-delay: .18s; }
+.week__day { font-weight: 600; display: inline-flex; gap: 8px; align-items: center; }
+.week__badge { padding: 1px 8px; border-radius: 999px; background: var(--yellow); color: var(--ink); font-size: .72rem; font-weight: 700; }
+.week__dots { border-bottom: 2px dotted currentColor; opacity: .18; transform: translateY(-4px); }
+.week__hours { font-variant-numeric: tabular-nums; font-weight: 600; }
+.week__note { grid-column: 1 / -1; font-size: .75rem; color: #b45309; margin-top: -2px; }
+.week li.is-today { background: rgb(254 184 0 / .16); }
+.week li.is-off .week__hours { color: #b42318; }
+.oven-card.is-closed .week { color: #f3ebe4; }
+.oven-card.is-closed .week li.is-today { background: rgb(254 184 0 / .18); }
+.oven-card.is-closed .week li.is-off .week__hours { color: #ffb4a8; }
+@media (prefers-reduced-motion: reduce) { .oven-card__panel, .week li, .oven-card__chev { transition: none; } }
 .oven-card--loading { height: 80px; }
 .oven-card__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .oven-card__text strong { font-size: 1.15rem; }

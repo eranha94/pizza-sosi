@@ -1,4 +1,6 @@
-import { storeStatus, formatTime, localParts, type StoreStatus as Status } from '@pizza-sosi/contracts/constants';
+import { useId, useState } from 'react';
+import { storeStatus, formatTime, localParts, hoursFor, zonedToEpoch, WEEKDAY_NAMES, type StoreStatus as Status } from '@pizza-sosi/contracts/constants';
+import type { StoreSettings } from '@pizza-sosi/contracts';
 import { useStoreSettings, useNow } from '../lib/menu';
 
 /*
@@ -25,10 +27,13 @@ function dayWord(ms: number) {
 
 export function StoreStatusCard() {
   const { status, prepMinutes } = useStoreStatus();
-  if (!status) return null;
+  const store = useStoreSettings();
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  if (!status || !store.data) return null;
 
-  const open = status.state === 'open';
-  const closingSoon = open && status.minutesLeft <= 45;
+  const isOpen = status.state === 'open';
+  const closingSoon = isOpen && status.minutesLeft <= 45;
   let title: string;
   let line: string;
   if (status.state === 'open') {
@@ -43,16 +48,27 @@ export function StoreStatusCard() {
   }
 
   return (
-    <section className={`oven-card ${open ? 'is-open' : 'is-closed'} ${closingSoon ? 'is-soon' : ''}`} role="status" aria-live="polite">
-      <Oven lit={open} />
-      <div className="oven-card__text">
-        <strong>{title}</strong>
-        <span>{line}</span>
-        {closingSoon && status.state === 'open' && (
-          <span className="oven-card__bar" aria-hidden="true">
-            <span style={{ transform: `scaleX(${Math.max(0.04, status.minutesLeft / 45)})` }} />
-          </span>
-        )}
+    <section className={`oven-card ${isOpen ? 'is-open' : 'is-closed'} ${closingSoon ? 'is-soon' : ''} ${open ? 'is-expanded' : ''}`}>
+      <button type="button" className="oven-card__head" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)}>
+        <Oven lit={isOpen} />
+        <span className="oven-card__text" role="status" aria-live="polite">
+          <strong>{title}</strong>
+          <span>{line}</span>
+          {closingSoon && status.state === 'open' && (
+            <span className="oven-card__bar" aria-hidden="true">
+              <span style={{ transform: `scaleX(${Math.max(0.04, status.minutesLeft / 45)})` }} />
+            </span>
+          )}
+        </span>
+        <span className="oven-card__more">
+          שעות
+          <svg className="oven-card__chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+      </button>
+      <div id={panelId} className="oven-card__panel" role="region" aria-label="ימים ושעות פעילות">
+        <div className="oven-card__panel-inner">
+          <WeekHours schedule={store.data} />
+        </div>
       </div>
     </section>
   );
@@ -100,5 +116,36 @@ function Oven({ lit }: { lit: boolean }) {
       )}
       <rect x="2" y="51" width="60" height="4" rx="2" fill="#4a1e0c" />
     </svg>
+  );
+}
+
+/** Sunday → Saturday for the coming week, with today highlighted and one-day changes shown. */
+function WeekHours({ schedule }: { schedule: StoreSettings }) {
+  const today = localParts(new Date());
+  const rows = Array.from({ length: 7 }, (_, i) => {
+    // the date of weekday i within the next 7 days (today included)
+    const ahead = (i - today.weekday + 7) % 7;
+    const date = localParts(new Date(zonedToEpoch(today.date, 12 * 60) + ahead * 86400000)).date;
+    const h = hoursFor(schedule, date);
+    const regular = schedule.weeklyHours[i] ?? null;
+    const changed = schedule.overrides?.some((o) => o.date === date) ?? false;
+    return { i, h, regular, changed, isToday: ahead === 0 };
+  });
+  return (
+    <ul className="week">
+      {rows.map(({ i, h, changed, isToday }) => (
+        <li key={i} className={`${isToday ? 'is-today' : ''} ${h ? '' : 'is-off'}`}>
+          <span className="week__day">
+            {WEEKDAY_NAMES[i]}
+            {isToday && <span className="week__badge">היום</span>}
+          </span>
+          <span className="week__dots" aria-hidden="true" />
+          <span className="week__hours" dir="ltr">
+            {h ? `${h.open} – ${h.close}` : 'סגור'}
+          </span>
+          {changed && <span className="week__note">שינוי השבוע</span>}
+        </li>
+      ))}
+    </ul>
   );
 }
