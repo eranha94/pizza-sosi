@@ -28,6 +28,11 @@ export function cancelOrder(input: CancelOrderRequest) {
 }
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof FunctionsError) return e.message || 'משהו השתבש. נסו שוב';
+  if (e instanceof FunctionsError) {
+    // Our server sends Hebrew messages; anything else (internal, network, timeout) gets a friendly text.
+    if (e.code === 'functions/internal' || e.code === 'functions/unavailable' || e.code === 'functions/deadline-exceeded' || !/[\u0590-\u05FF]/.test(e.message))
+      return 'משהו השתבש ולא הצלחנו לשלוח. נסו שוב בעוד רגע, או התקשרו אלינו';
+    return e.message;
+  }
   return 'אין חיבור. בדקו את האינטרנט ונסו שוב';
 }
