@@ -72,6 +72,11 @@ const single = (name, options, defaultName, order) => {
  * Required choices (pick exactly one). Thick dough costs 5 ₪. Returns the groups and the description without
  * the lines that are now real choices.
  */
+/** Display names that changed on the new site (the choice moved into a real option). */
+export function displayName(name) {
+  return /^רביולי\s+גבינה\s*\/\s*בטטה$/.test(name) ? 'רביולי' : name;
+}
+
 export function choiceGroupsFor({ name, category, description }) {
   const groups = [];
   const drop = [];
@@ -85,6 +90,7 @@ export function choiceGroupsFor({ name, category, description }) {
     drop.push(/^\s*שמנת\s*\/\s*רוזה\s*$/);
   }
   if (/רביולי/.test(name)) groups.push(single('מילוי', ['גבינה', 'בטטה'], null, 1));
+  if (/אצבעות נקניקיות/.test(name)) groups.push(single('סוג נקניקיות', ['נקניקיות רגילות', 'נקניקיות חריפות'], null, 1));
   const desc = description
     .split('\n')
     .filter((line) => !drop.some((re) => re.test(line)))
