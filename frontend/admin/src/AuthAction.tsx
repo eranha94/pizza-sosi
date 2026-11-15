@@ -50,7 +50,14 @@ export function AuthAction() {
       setState('done');
     } catch (err) {
       const c = (err as { code?: string }).code;
-      setError(c === 'auth/weak-password' || c === 'auth/password-does-not-meet-requirements' ? 'הסיסמה חלשה מדי – נסה ארוכה יותר' : 'הקישור כבר לא בתוקף. בקש קישור חדש.');
+      const msg = (err as { message?: string }).message ?? '';
+      setError(
+        c === 'auth/weak-password' || c === 'auth/password-does-not-meet-requirements'
+          ? `הסיסמה לא עומדת בדרישות: ${msg.replace(/^.*?\[/, '[')}`
+          : c === 'auth/invalid-action-code' || c === 'auth/expired-action-code'
+            ? 'הקישור כבר לא בתוקף (נשלח מייל חדש יותר או שעברה שעה). בקש קישור חדש.'
+            : `השמירה נכשלה (${c ?? 'unknown'})`,
+      );
     } finally {
       setBusy(false);
     }
