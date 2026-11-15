@@ -47,7 +47,8 @@ export const CreateOrderRequest = z
       phone,
       email: z.string().trim().toLowerCase().email().max(120),
     }),
-    address: Address.optional(),
+    /** Pickup orders: absent or null (the callable SDK sends `undefined` as `null`). */
+    address: Address.nullish().transform((a) => a ?? undefined),
     /** "asap", or a time (epoch ms) picked from the offered slots. */
     when: z.union([z.literal('asap'), z.object({ at: z.number().int().positive() }).strict()]).default('asap'),
     note: z.string().trim().max(300).default(''),

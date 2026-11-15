@@ -56,7 +56,7 @@ export default function CheckoutPage() {
         fulfillment,
         paymentMethod,
         customer: { name: get('name'), phone: get('phone'), email: get('email') },
-        address: fulfillment === 'delivery' ? { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes') } : undefined,
+        ...(fulfillment === 'delivery' ? { address: { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes') } } : {}),
         note: get('note'),
         when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
       });
