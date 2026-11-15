@@ -34,7 +34,8 @@ const KITCHEN: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready
 const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[] = [
   { id: 'new', title: 'חדשות', match: isNew },
   { id: 'accepted', title: 'התקבלו', match: (o) => o.status === 'accepted' },
-  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'preparing' || o.status === 'almost_ready' },
+  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'preparing' },
+  { id: 'almost', title: 'כמעט מוכנות', match: (o) => o.status === 'almost_ready' },
   { id: 'ready', title: 'מוכנות לאיסוף / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
 ];
 
