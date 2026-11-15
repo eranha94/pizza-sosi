@@ -16,7 +16,7 @@ export interface PricedCart {
   totalAgorot: number;
 }
 
-type Chosen = { id: string; coverage: 'whole' | 'half' };
+type Chosen = { id: string; coverage: 'whole' | 'right' | 'left' };
 
 /**
  * Resolve the customer's choices against the item's groups:
@@ -59,12 +59,13 @@ export function priceCart(
     const item = menu.get(line.itemId);
     if (!item || !item.active) throw new PricingError(`פריט לא זמין: ${line.itemId}`, 'item_unavailable');
     const addOns = resolveChoices(item, line.addOns).map(({ option: o, coverage }) => {
-      const half = coverage === 'half' && o.halfAgorot !== null;
+      // Half price only where the topping offers halves; otherwise it covers the whole pizza.
+      const half = coverage !== 'whole' && o.halfAgorot !== null;
       return {
         id: o.id,
         name: o.name,
         priceAgorot: half ? o.halfAgorot! : o.wholeAgorot,
-        coverage: o.halfAgorot === null ? null : half ? ('half' as const) : ('whole' as const),
+        coverage: o.halfAgorot === null ? null : half ? coverage : ('whole' as const),
       };
     });
     const unit = item.priceAgorot + addOns.reduce((s, a) => s + a.priceAgorot, 0);

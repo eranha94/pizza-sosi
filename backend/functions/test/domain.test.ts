@@ -29,16 +29,21 @@ const menu = new Map([[pizza.id, pizza]]);
 
 describe('priceCart', () => {
   it('charges each topping by coverage: whole or half', () => {
-    const r = priceCart([{ itemId: 'p1', quantity: 2, addOns: [{ id: 'tuna', coverage: 'half' }], note: '' }], menu, 1500);
+    const r = priceCart([{ itemId: 'p1', quantity: 2, addOns: [{ id: 'tuna', coverage: 'right' }], note: '' }], menu, 1500);
     expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 1300);
-    expect(r.lines[0]!.addOns.find((a) => a.id === 'tuna')!.coverage).toBe('half');
+    expect(r.lines[0]!.addOns.find((a) => a.id === 'tuna')!.coverage).toBe('right');
     expect(r.subtotalAgorot).toBe(2 * 7200);
     expect(r.totalAgorot).toBe(2 * 7200 + 1500);
     const whole = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'tuna', coverage: 'whole' }], note: '' }], menu, 0);
     expect(whole.lines[0]!.unitPriceAgorot).toBe(5900 + 1800);
   });
-  it('ignores "half" on toppings with one price, and duplicates', () => {
-    const r = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'gouda', coverage: 'half' }, { id: 'gouda', coverage: 'whole' }], note: '' }], menu, 0);
+  it('left and right halves both cost the half price', () => {
+    const r = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'tuna', coverage: 'left' }], note: '' }], menu, 0);
+    expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 1300);
+    expect(r.lines[0]!.addOns.find((a) => a.id === 'tuna')!.coverage).toBe('left');
+  });
+  it('ignores halves on toppings with one price, and duplicates', () => {
+    const r = priceCart([{ itemId: 'p1', quantity: 1, addOns: [{ id: 'gouda', coverage: 'left' }, { id: 'gouda', coverage: 'whole' }], note: '' }], menu, 0);
     expect(r.lines[0]!.unitPriceAgorot).toBe(5900 + 600);
     const gouda = r.lines[0]!.addOns.filter((a) => a.id === 'gouda');
     expect(gouda).toHaveLength(1);
