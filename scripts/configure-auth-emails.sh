@@ -21,19 +21,25 @@ print(json.dumps({"notification": {"sendEmail": {
 PY
 )
 
-RESP=$(curl -sS -X PATCH \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  -H "x-goog-user-project: ${PROJECT}" \
-  -H "Content-Type: application/json; charset=utf-8" \
-  "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT}/config?updateMask=notification.sendEmail.callbackUri,notification.sendEmail.resetPasswordTemplate" \
-  --data-binary "$PAYLOAD")
-
-if echo "$RESP" | grep -q '"error"'; then
-  echo "✗ failed:"; echo "$RESP" | python3 -c 'import json,sys; e=json.load(sys.stdin)["error"]; print(e.get("status"), e.get("message"))'
-  exit 1
-fi
-echo "$RESP" | python3 -c '
+patch() { # $1 = updateMask, $2 = json
+  curl -sS -X PATCH \
+    -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+    -H "x-goog-user-project: ${PROJECT}" \
+    -H "Content-Type: application/json; charset=utf-8" \
+    "https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT}/config?updateMask=$1" \
+    --data-binary "$2"
+}
+report() { python3 -c '
 import json, sys
-s = json.load(sys.stdin)["notification"]["sendEmail"]
-print("✓ link page :", s.get("callbackUri"))
-print("✓ subject   :", s.get("resetPasswordTemplate", {}).get("subject"))'
+r = json.load(sys.stdin)
+if "error" in r: print("✗", sys.argv[1], "-", r["error"].get("message")); sys.exit(1)
+print("✓", sys.argv[1])' "$1"; }
+
+# 1) The important part: where the link in the email leads. Always allowed.
+patch notification.sendEmail.callbackUri "{\"notification\":{\"sendEmail\":{\"callbackUri\":\"${ADMIN_URL}/auth/action\"}}}" \
+  | report "email links → ${ADMIN_URL}/auth/action"
+
+# 2) Nice to have: Hebrew text. Firebase blocks template edits on some projects
+#    (EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED) – then the default Hebrew text stays, which is fine.
+patch notification.sendEmail.resetPasswordTemplate "$PAYLOAD" | report "Hebrew email text" \
+  || echo "  (default text kept – the link still works)"
