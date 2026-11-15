@@ -70,6 +70,7 @@ const STORE_DEFAULTS: StoreSettings = {
   deliveryEnabled: false,
   deliveryFeeAgorot: 0,
   minOrderAgorot: 0,
+  whatsappStatuses: [],
 };
 
 /** Opening hours & switches. Refreshed every minute so a change in the admin shows up quickly. */

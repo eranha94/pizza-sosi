@@ -9,6 +9,8 @@ import {
   formatTime,
   hoursFor,
   formatAgorot,
+  NOTIFY_STATUSES,
+  type NotifyStatus,
   type StoreSettings,
 } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
@@ -22,6 +24,7 @@ const DEFAULTS: StoreSettings = {
   deliveryEnabled: false,
   deliveryFeeAgorot: 0,
   minOrderAgorot: 0,
+  whatsappStatuses: [...NOTIFY_STATUSES],
 } as StoreSettings;
 
 function useStoreSettings() {
@@ -75,6 +78,7 @@ export function StorePage() {
         <WeeklyHours key={JSON.stringify(settings.weeklyHours)} settings={settings} />
         <Overrides settings={settings} />
         <Delivery settings={settings} />
+        <WhatsappNotify key={settings.whatsappStatuses.join()} settings={settings} />
       </div>
     </div>
   );
@@ -300,6 +304,52 @@ function Delivery({ settings }: { settings: StoreSettings }) {
         </p>
         <button className="btn" disabled={busy}>שמירה</button>
       </form>
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
+const NOTIFY_LABELS: Record<NotifyStatus, string> = {
+  accepted: 'ההזמנה התקבלה',
+  preparing: 'בהכנה',
+  almost_ready: 'כמעט מוכנה',
+  ready: 'מוכנה לאיסוף',
+  out_for_delivery: 'בדרך (נאספה ע״י השליח)',
+  cancelled: 'ההזמנה בוטלה',
+};
+
+function WhatsappNotify({ settings }: { settings: StoreSettings }) {
+  const { save, msg, busy } = useSaver();
+  const [on, setOn] = useState<Set<NotifyStatus>>(() => new Set(settings.whatsappStatuses));
+  const dirty = [...on].sort().join() !== [...settings.whatsappStatuses].sort().join();
+  return (
+    <section className="card" aria-labelledby="wa-h">
+      <h2 id="wa-h">💬 הודעות וואטסאפ ללקוח</h2>
+      <p className="muted small">בכל מעבר סטטוס שמסומן כאן, הלקוח מקבל הודעה (רק לקוחות שאישרו בהזמנה). כל הודעה עולה כמה אגורות.</p>
+      <ul className="notify-list">
+        {NOTIFY_STATUSES.map((s) => (
+          <li key={s}>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={on.has(s)}
+                onChange={(e) =>
+                  setOn((cur) => {
+                    const next = new Set(cur);
+                    if (e.target.checked) next.add(s);
+                    else next.delete(s);
+                    return next;
+                  })
+                }
+              />
+              <span>{NOTIFY_LABELS[s]}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <button className="btn" disabled={!dirty || busy} onClick={() => save({ whatsappStatuses: NOTIFY_STATUSES.filter((s) => on.has(s)) })}>
+        שמירה
+      </button>
       <Msg msg={msg} />
     </section>
   );

@@ -20,6 +20,7 @@ export const UpdateStoreSettingsRequest = z
     deliveryEnabled: z.boolean().optional(),
     deliveryFeeAgorot: z.number().int().min(0).max(10_000).optional(),
     minOrderAgorot: z.number().int().min(0).max(100_000).optional(),
+    whatsappStatuses: StoreSettings.shape.whatsappStatuses.optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;

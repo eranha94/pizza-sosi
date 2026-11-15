@@ -79,6 +79,7 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
       note: input.note,
       readyAt,
       scheduled: input.when !== 'asap',
+      notify: { whatsapp: input.notifyWhatsapp },
       payment: { provider: provider.name, providerRef: null, status: input.paymentMethod === 'card' ? 'pending' : 'on_site' },
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

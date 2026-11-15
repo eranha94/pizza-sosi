@@ -90,3 +90,12 @@ describe('order state', () => {
   });
 });
 
+
+describe('whatsapp numbers', async () => {
+  const { toWhatsappNumber } = await import('../src/notify/whatsapp.js');
+  it('converts Israeli mobiles and rejects landlines', () => {
+    expect(toWhatsappNumber('052-587 6207')).toBe('972525876207');
+    expect(toWhatsappNumber('972525876207')).toBe('972525876207');
+    expect(toWhatsappNumber('04-8391234')).toBeNull();
+  });
+});

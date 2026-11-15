@@ -13,3 +13,4 @@ export {
 } from './api/admin.js';
 export { paymentWebhook } from './api/paymentWebhook.js';
 export { onOrderConfirmed } from './api/orderEmails.js';
+export { onOrderStatusNotify } from './api/orderNotifications.js';

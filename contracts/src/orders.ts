@@ -52,6 +52,8 @@ export const CreateOrderRequest = z
     /** "asap", or a time (epoch ms) picked from the offered slots. */
     when: z.union([z.literal('asap'), z.object({ at: z.number().int().positive() }).strict()]).default('asap'),
     note: z.string().trim().max(300).default(''),
+    /** The customer agreed to get order updates on WhatsApp (explicit opt-in, required by WhatsApp). */
+    notifyWhatsapp: z.boolean().default(false),
   })
   .strict()
   .refine((o) => o.fulfillment === 'pickup' || o.address !== undefined, {

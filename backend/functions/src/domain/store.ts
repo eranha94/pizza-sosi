@@ -1,4 +1,4 @@
-import { StoreSettings, MenuItem, DEFAULT_SCHEDULE } from '@pizza-sosi/contracts';
+import { StoreSettings, MenuItem, DEFAULT_SCHEDULE, NOTIFY_STATUSES } from '@pizza-sosi/contracts';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { db, COL } from '../firebase.js';
 
@@ -8,6 +8,7 @@ export const DEFAULT_STORE: StoreSettings = {
   deliveryEnabled: false,
   deliveryFeeAgorot: 0,
   minOrderAgorot: 0,
+  whatsappStatuses: [...NOTIFY_STATUSES],
 };
 
 export async function loadStoreSettings(): Promise<StoreSettings> {

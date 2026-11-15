@@ -426,3 +426,11 @@ h1, h2 { line-height: 1.2; text-wrap: balance; }
 .ready-timer__text span { font-size: 0.85rem; color: var(--ink-soft); }
 
 .choice__row label.is-on .price-tag { background: var(--on-accent); color: var(--yellow); }
+
+/* WhatsApp opt-in at checkout */
+.optin { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--paper); cursor: pointer; }
+.optin:has(input:checked) { border-color: #1fa855; background: color-mix(in srgb, #1fa855 8%, var(--paper)); }
+.optin input { width: 20px; height: 20px; margin-top: 2px; accent-color: #1fa855; flex: none; }
+.optin__icon { font-size: 1.3rem; line-height: 1; }
+.optin strong { display: block; }
+.optin small { display: block; color: var(--ink-soft); margin-top: 2px; }

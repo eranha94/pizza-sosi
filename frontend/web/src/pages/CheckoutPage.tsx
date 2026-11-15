@@ -58,6 +58,7 @@ export default function CheckoutPage() {
         customer: { name: get('name'), phone: get('phone'), email: get('email') },
         ...(fulfillment === 'delivery' ? { address: { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes') } } : {}),
         note: get('note'),
+        notifyWhatsapp: f.get('notifyWhatsapp') === 'on',
         when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
       });
       clear();
@@ -133,6 +134,14 @@ export default function CheckoutPage() {
         )}
 
         <label className="field"><span>הערה להזמנה (לא חובה)</span><textarea name="note" maxLength={300} rows={2} /></label>
+        <label className="optin">
+          <input type="checkbox" name="notifyWhatsapp" defaultChecked />
+          <span className="optin__icon" aria-hidden="true">💬</span>
+          <span>
+            <strong>עדכונים על ההזמנה בוואטסאפ</strong>
+            <small>פיצה סוסי תשלח לך הודעה כשההזמנה מתקבלת, בהכנה ומוכנה. רק על ההזמנה הזאת, בלי פרסומות.</small>
+          </span>
+        </label>
 
         <fieldset className="segmented">
           <legend>תשלום</legend>

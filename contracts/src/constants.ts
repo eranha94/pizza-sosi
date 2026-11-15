@@ -47,6 +47,10 @@ export const ORDER_STATUS_LABELS: Record<Status, string> = {
   cancelled: 'בוטלה',
 };
 
+/** Statuses that can trigger a WhatsApp update to the customer (the owner picks which in the admin). */
+export const NOTIFY_STATUSES = ['accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery', 'cancelled'] as const;
+export type NotifyStatus = (typeof NOTIFY_STATUSES)[number];
+
 /** The steps a customer sees, by fulfillment. */
 export const ORDER_STEPS: Record<'pickup' | 'delivery', readonly Status[]> = {
   pickup: ['placed', 'accepted', 'preparing', 'almost_ready', 'ready'],

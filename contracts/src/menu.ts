@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CATEGORY_IDS } from './constants.js';
+import { CATEGORY_IDS, NOTIFY_STATUSES } from './constants.js';
 
 export const CategoryId = z.enum(CATEGORY_IDS);
 export type CategoryId = z.infer<typeof CategoryId>;
@@ -71,5 +71,7 @@ export const StoreSettings = z.object({
   deliveryEnabled: z.boolean(),
   deliveryFeeAgorot: z.number().int().min(0).max(10_000),
   minOrderAgorot: z.number().int().min(0).max(100_000),
+  /** Which status changes send the customer a WhatsApp message (when they opted in). */
+  whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;
