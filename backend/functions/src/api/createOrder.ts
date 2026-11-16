@@ -102,7 +102,7 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
     await orderRef.update({ 'payment.providerRef': page.providerRef });
   }
 
-  const response: CreateOrderResponse = { orderId: orderRef.id, status, totalAgorot: priced.totalAgorot, paymentUrl };
+  const response: CreateOrderResponse = { orderId: orderRef.id, number, status, totalAgorot: priced.totalAgorot, paymentUrl };
   await idemRef.set({ response, createdAt: FieldValue.serverTimestamp() });
   logger.info('order created', { orderId: orderRef.id, number, total: priced.totalAgorot, method: input.paymentMethod });
   return response;

@@ -5,6 +5,7 @@ import { useCart, cartTotal } from '../store/cart';
 import { useStoreSettings, useNow } from '../lib/menu';
 import { useStoreStatus } from '../components/StoreStatus';
 import { createOrder, errorMessage } from '../lib/api';
+import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -15,7 +16,10 @@ export default function CheckoutPage() {
   const deliveryEnabled = store.data?.deliveryEnabled === true;
   // One key per checkout visit: a double click cannot create two orders.
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
-  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
+  // Details remembered on this device from the last order (if the customer chose that).
+  const [profile, setProfile] = useState(loadProfile);
+  const [remember, setRemember] = useState(true);
+  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
   const now = useNow();
   const { status, prepMinutes } = useStoreStatus();
@@ -62,6 +66,14 @@ export default function CheckoutPage() {
         when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
       });
       clear();
+      rememberOrder({ id: res.orderId, number: res.number ?? 0, at: Date.now(), totalAgorot: res.totalAgorot });
+      if (remember)
+        saveProfile({
+          name: get('name'), phone: get('phone'), email: get('email'),
+          street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), addressNotes: get('addressNotes'),
+          fulfillment, notifyWhatsapp: f.get('notifyWhatsapp') === 'on',
+        });
+      else forgetProfile();
       if (res.paymentUrl) window.location.assign(res.paymentUrl);
       else navigate(`/order/${res.orderId}`, { replace: true });
     } catch (err) {
@@ -73,7 +85,8 @@ export default function CheckoutPage() {
   return (
     <section className="page">
       <h1>פרטי ההזמנה</h1>
-      <form className="form" onSubmit={onSubmit} noValidate={false}>
+      {profile?.name && <p className="welcome">שמחים לראות אותך שוב, {profile.name.split(' ')[0]}! 👋 הפרטים מולאו מההזמנה הקודמת.</p>}
+      <form className="form" key={profile ? "p" : "empty"} onSubmit={onSubmit} noValidate={false}>
         <fieldset className="segmented">
           <legend>איך מקבלים?</legend>
           <label><input type="radio" name="fulfillment" checked={fulfillment === 'pickup'} onChange={() => setFulfillment('pickup')} /> איסוף עצמי</label>
@@ -117,25 +130,25 @@ export default function CheckoutPage() {
           )}
         </fieldset>
 
-        <label className="field"><span>שם</span><input name="name" required minLength={2} maxLength={60} autoComplete="name" /></label>
-        <label className="field"><span>טלפון</span><input name="phone" type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" autoComplete="tel" placeholder="050-0000000" /></label>
-        <label className="field"><span>מייל (לאישור ההזמנה)</span><input name="email" type="email" required autoComplete="email" spellCheck={false} placeholder="name@example.com" /></label>
+        <label className="field"><span>שם</span><input name="name" defaultValue={profile?.name} required minLength={2} maxLength={60} autoComplete="name" /></label>
+        <label className="field"><span>טלפון</span><input name="phone" defaultValue={profile?.phone} type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" autoComplete="tel" placeholder="050-0000000" /></label>
+        <label className="field"><span>מייל (לאישור ההזמנה)</span><input name="email" defaultValue={profile?.email} type="email" required autoComplete="email" spellCheck={false} placeholder="name@example.com" /></label>
 
         {fulfillment === 'delivery' && (
           <fieldset className="group">
             <legend>כתובת למשלוח</legend>
-            <label className="field"><span>רחוב</span><input name="street" required autoComplete="address-line1" /></label>
+            <label className="field"><span>רחוב</span><input name="street" defaultValue={profile?.street} required autoComplete="address-line1" /></label>
             <div className="row">
-              <label className="field"><span>מספר בית</span><input name="houseNumber" autoComplete="off" inputMode="numeric" /></label>
-              <label className="field"><span>דירה</span><input name="apartment" autoComplete="address-line2" /></label>
+              <label className="field"><span>מספר בית</span><input name="houseNumber" defaultValue={profile?.houseNumber} autoComplete="off" inputMode="numeric" /></label>
+              <label className="field"><span>דירה</span><input name="apartment" defaultValue={profile?.apartment} autoComplete="address-line2" /></label>
             </div>
-            <label className="field"><span>הערות לשליח</span><input name="addressNotes" autoComplete="off" /></label>
+            <label className="field"><span>הערות לשליח</span><input name="addressNotes" defaultValue={profile?.addressNotes} autoComplete="off" /></label>
           </fieldset>
         )}
 
         <label className="field"><span>הערה להזמנה (לא חובה)</span><textarea name="note" maxLength={300} rows={2} /></label>
         <label className="optin">
-          <input type="checkbox" name="notifyWhatsapp" defaultChecked />
+          <input type="checkbox" name="notifyWhatsapp" defaultChecked={profile?.notifyWhatsapp ?? true} />
           <span className="optin__icon" aria-hidden="true">💬</span>
           <span>
             <strong>עדכונים על ההזמנה בוואטסאפ</strong>
@@ -150,6 +163,25 @@ export default function CheckoutPage() {
         </fieldset>
         {paymentMethod === 'card' && <p className="muted small">התשלום מתבצע בדף מאובטח של חברת הסליקה. פרטי הכרטיס לא עוברים דרכנו.</p>}
 
+        <div className="remember">
+          <label className="consent">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            <span>לזכור את הפרטים שלי במכשיר הזה להזמנה הבאה</span>
+          </label>
+          {profile && (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                forgetProfile();
+                setProfile(null);
+                setRemember(false);
+              }}
+            >
+              שכחו אותי
+            </button>
+          )}
+        </div>
         <label className="consent">
           <input type="checkbox" name="consent" required />
           <span>

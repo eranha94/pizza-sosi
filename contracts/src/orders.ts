@@ -65,6 +65,7 @@ export type CreateOrderInput = z.input<typeof CreateOrderRequest>;
 
 export const CreateOrderResponse = z.object({
   orderId: id,
+  number: z.number().int().optional(),
   status: OrderStatus,
   totalAgorot: z.number().int(),
   /** Hosted payment page of the payment provider, when paymentMethod is "card". */

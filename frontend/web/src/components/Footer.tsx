@@ -37,6 +37,7 @@ export function Footer() {
         })}
       </ul>
       <nav className="site-footer__legal" aria-label="מידע משפטי">
+        <Link to="/my-orders">ההזמנות שלי</Link>
         {LEGAL_PAGES.map((p) => (
           <Link key={p.path} to={p.path}>{p.label}</Link>
         ))}
