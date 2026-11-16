@@ -93,15 +93,17 @@ export function Layout() {
         )}
         <div className="header-actions">
           <ThemeMenu />
-          <Link to="/cart" key={added?.n ?? 0} className={`cart-button ${added ? 'is-bump' : ''}`} aria-label={`סל הקניות, ${count} פריטים`}>
+          <Link to="/cart" key={added?.n ?? 0} className={`cart-button ${added ? 'is-bump' : ''}`}>
             <CartIcon />
             {count > 0 ? (
               <span className="cart-button__meta">
+                <span className="sr-only">הסל: </span>
                 <span className="cart-button__count">{count}</span>
+                <span className="sr-only"> פריטים, </span>
                 <span className="cart-button__total">{formatAgorot(total)}</span>
               </span>
             ) : (
-              <span>הסל</span>
+              <span>הסל<span className="sr-only"> ריק</span></span>
             )}
           </Link>
         </div>
@@ -110,8 +112,8 @@ export function Layout() {
         <Outlet />
       </main>
       {count > 0 && location.pathname === '/' && (
-        <Link to="/cart" className="cart-bar" aria-label={`לסל: ${count} פריטים, ${formatAgorot(total)}`}>
-          <span className="cart-bar__count">{count}</span>
+        <Link to="/cart" className="cart-bar">
+          <span className="cart-bar__count">{count}<span className="sr-only"> פריטים</span></span>
           <span className="cart-bar__label">לסל ולהזמנה</span>
           <strong className="cart-bar__total">{formatAgorot(total)}</strong>
         </Link>
