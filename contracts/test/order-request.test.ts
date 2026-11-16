@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CreateOrderRequest } from '../src/index.js';
 
 const base = {
-  idempotencyKey: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+  idempotencyKey: crypto.randomUUID(),
   lines: [{ itemId: 'abc', quantity: 1, addOns: [{ id: 'd0144c78f71a38f2', coverage: 'whole' }], note: '' }],
   fulfillment: 'pickup',
   paymentMethod: 'on_site',

@@ -6,4 +6,5 @@ useDefault = true
 description = "Reviewed false positives"
 # 7c61313: a hard-coded test UUID (idempotency key) in contracts/test was flagged as generic-api-key.
 # The test now generates the UUID at runtime; the old commit stays in history.
-commits = ["7c6131316d2a4a78120f96c262e98528b44775c1"]
+# 9088429: same kind of test UUID in contracts/test/order-request.test.ts (now generated at runtime).
+commits = ["7c6131316d2a4a78120f96c262e98528b44775c1", "90884292dd663c2f182d25e047c6289236732ee1"]

@@ -5,7 +5,7 @@ import { canTransition, customerCanCancel, initialStatus } from '../src/domain/o
 
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
-  imagePath: null, order: 1, active: true,
+  imagePath: null, order: 1, active: true, tags: [],
   addOnGroups: [
     {
       id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std',

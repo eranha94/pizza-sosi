@@ -13,9 +13,10 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   const sheet = page.locator('dialog.sheet[open]');
   await expect(sheet.getByRole('heading', { name: 'פיצה בדיקה' })).toBeVisible();
   // Thick dough (+5), olives on the right half (+6).
-  await sheet.getByRole('radio', { name: /עבה/ }).check();
-  await sheet.getByRole('checkbox', { name: 'זיתים' }).check();
-  await sheet.getByRole('radio', { name: /ימין/ }).check();
+  // Choice inputs are visually hidden behind styled labels – click like a user would.
+  await sheet.locator('label', { hasText: 'עבה' }).click();
+  await sheet.locator('label', { hasText: 'זיתים' }).click();
+  await sheet.locator('.coverage label', { hasText: 'ימין' }).click();
   await sheet.getByRole('button', { name: /הוספה לסל · 70/ }).click();
 
   // Sticky cart bar on the menu.
@@ -30,7 +31,7 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   // Edit the pizza: tuna on the whole pizza too (+13).
   await page.getByRole('button', { name: 'עריכת פיצה בדיקה' }).click();
   const edit = page.locator('dialog.sheet[open]');
-  await edit.getByRole('checkbox', { name: 'טונה' }).check();
+  await edit.locator('label', { hasText: 'טונה' }).click();
   await edit.getByRole('button', { name: /עדכון · 83/ }).click();
   await expect(page.locator('.summary strong')).toHaveText(/91/);
 
