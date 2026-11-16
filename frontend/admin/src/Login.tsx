@@ -7,7 +7,8 @@ import {
   type MultiFactorResolver,
   type MultiFactorError,
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { API } from '@pizza-sosi/contracts';
+import { auth, callAdmin } from './firebase';
 
 /** Staff sign-in: email + password, then a 6-digit code from the authenticator app. */
 export function Login() {
@@ -39,9 +40,12 @@ export function Login() {
     setError(null);
     if (!email.includes('@')) return setError('הקלד קודם את המייל שלך');
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-    } catch {
-      /* same answer either way – don't reveal which emails exist */
+      // Our server sends a Hebrew email with a working link; until email is set up it says "firebase".
+      const { mode } = (await callAdmin(API.requestPasswordReset, { email: email.trim() })) as { mode: 'sent' | 'firebase' };
+      if (mode === 'firebase') await sendPasswordResetEmail(auth, email.trim());
+    } catch (err) {
+      if ((err as { code?: string }).code === 'functions/resource-exhausted') return setError('יותר מדי בקשות. נסה שוב בעוד שעה.');
+      /* otherwise the same answer either way – don't reveal which emails exist */
     }
     setInfo('אם המייל רשום אצלנו, נשלח אליו קישור לקביעת סיסמה חדשה.');
   }

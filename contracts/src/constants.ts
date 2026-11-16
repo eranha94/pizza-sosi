@@ -78,6 +78,7 @@ export const API = {
   adminUpsertMenuItem: 'adminUpsertMenuItem',
   adminDeleteMenuItem: 'adminDeleteMenuItem',
   adminBulkUpdateOption: 'adminBulkUpdateOption',
+  requestPasswordReset: 'requestPasswordReset',
 } as const;
 
 export const FUNCTIONS_REGION = 'europe-west1';

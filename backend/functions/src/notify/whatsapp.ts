@@ -1,6 +1,7 @@
 import { logger } from 'firebase-functions';
 import type { NotifyStatus } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
+import { readSecret } from '../security/secrets.js';
 
 /**
  * WhatsApp Business Platform (Cloud API) – order status updates to customers who opted in.
@@ -38,27 +39,6 @@ export function toWhatsappNumber(phone: string): string | null {
   return null; // landlines can't receive WhatsApp
 }
 
-let cachedToken: { value: string; at: number } | null = null;
-
-/** Reads WHATSAPP_TOKEN from Secret Manager with the function's own identity (metadata server). */
-async function accessToken(): Promise<string> {
-  if (cachedToken && Date.now() - cachedToken.at < 5 * 60_000) return cachedToken.value;
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
-  const meta = await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', {
-    headers: { 'Metadata-Flavor': 'Google' },
-  });
-  if (!meta.ok) throw new Error(`metadata token ${meta.status}`);
-  const { access_token } = (await meta.json()) as { access_token: string };
-  const res = await fetch(`https://secretmanager.googleapis.com/v1/projects/${project}/secrets/WHATSAPP_TOKEN/versions/latest:access`, {
-    headers: { Authorization: `Bearer ${access_token}` },
-  });
-  if (!res.ok) throw new Error(`secret WHATSAPP_TOKEN ${res.status}`);
-  const body = (await res.json()) as { payload: { data: string } };
-  const value = Buffer.from(body.payload.data, 'base64').toString('utf8').trim();
-  cachedToken = { value, at: Date.now() };
-  return value;
-}
-
 export interface TemplateMessage {
   to: string;
   template: string;
@@ -70,7 +50,7 @@ export interface TemplateMessage {
 
 /** Sends one approved template message. Returns the WhatsApp message id. */
 export async function sendTemplate(cfg: WhatsappConfig, m: TemplateMessage): Promise<string> {
-  const token = await accessToken();
+  const token = await readSecret('WHATSAPP_TOKEN');
   const res = await fetch(`${GRAPH}/${cfg.phoneNumberId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

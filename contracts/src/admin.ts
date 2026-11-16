@@ -83,3 +83,7 @@ export const BulkUpdateOptionRequest = z
   .strict()
   .refine((r) => r.wholeAgorot !== undefined || r.halfAgorot !== undefined || r.active !== undefined, 'אין מה לעדכן');
 export type BulkUpdateOptionRequest = z.infer<typeof BulkUpdateOptionRequest>;
+
+/** Admin "forgot password": always answers the same, whether or not the email belongs to a staff account. */
+export const RequestPasswordResetRequest = z.object({ email: z.string().trim().toLowerCase().email().max(200) }).strict();
+export type RequestPasswordResetRequest = z.infer<typeof RequestPasswordResetRequest>;
