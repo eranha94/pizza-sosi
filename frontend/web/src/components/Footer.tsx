@@ -4,7 +4,8 @@ import { CONTACT } from '../config/contact';
 import { BUSINESS } from '../config/business';
 import { LEGAL_PAGES } from '../pages/legal/LegalLayout';
 
-type Item = { href: string; label: string; icon: ReactNode; tone: string; brand?: boolean };
+/** app: opens a phone app (Waze, WhatsApp) – same tab, so the phone hands the link to the app instead of a web page. */
+type Item = { href: string; label: string; icon: ReactNode; tone: string; brand?: boolean; app?: boolean };
 
 /** Official logo files from each platform's brand kit — shown as-is (no recolor/rotation). */
 const logo = (name: string) => <img src={`/brand/social/${name}.png`} alt="" width="44" height="44" loading="lazy" decoding="async" />;
@@ -12,8 +13,8 @@ const logo = (name: string) => <img src={`/brand/social/${name}.png`} alt="" wid
 /** Footer: WhatsApp & Waze first (most used), then phone and social pages. */
 export function Footer() {
   const items: Item[] = [
-    { href: CONTACT.whatsapp, label: 'וואטסאפ', icon: <ChatIcon />, tone: 'whatsapp' },
-    { href: CONTACT.waze, label: 'ניווט בוויז', icon: <NavIcon />, tone: 'waze' },
+    { href: CONTACT.whatsapp, label: 'וואטסאפ', icon: <ChatIcon />, tone: 'whatsapp', app: true },
+    { href: CONTACT.waze, label: 'ניווט בוויז', icon: <NavIcon />, tone: 'waze', app: true },
     { href: `tel:${CONTACT.phoneTel}`, label: CONTACT.phoneDisplay, icon: <PhoneIcon />, tone: 'phone' },
     { href: CONTACT.instagram, label: 'אינסטגרם', icon: logo('instagram'), tone: 'instagram', brand: true },
     { href: CONTACT.tiktok, label: 'טיקטוק', icon: logo('tiktok'), tone: 'tiktok', brand: true },
@@ -25,7 +26,7 @@ export function Footer() {
       <p className="site-footer__title">פיצה סוסי · כל סוגי הפיצות והטוסטים</p>
       <ul className="links">
         {items.map((i) => {
-          const external = i.href.startsWith('http');
+          const external = i.href.startsWith('http') && !i.app;
           return (
             <li key={i.tone}>
               <a className={`link-tile link-tile--${i.tone}`} href={i.href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>

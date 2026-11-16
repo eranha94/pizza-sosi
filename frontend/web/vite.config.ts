@@ -27,6 +27,8 @@ const RESTAURANT = {
   acceptsReservations: false,
   hasMenu: `${SITE}/#menu`,
   address: { '@type': 'PostalAddress', addressLocality: 'דאלית אל-כרמל', addressCountry: 'IL' },
+  geo: { '@type': 'GeoCoordinates', latitude: 32.69890, longitude: 35.05495 },
+  hasMap: 'https://waze.com/ul/hsvbfj8whz',
   sameAs: [
     'https://www.instagram.com/pizza_sosi',
     'https://www.tiktok.com/@user2580740966133',
