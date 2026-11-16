@@ -32,7 +32,7 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   await expect(page.locator('.summary strong')).toHaveText(/78/);
 
   // Edit the pizza: tuna on the whole pizza too (+13).
-  await page.getByRole('button', { name: 'עריכה: פיצה בדיקה' }).click();
+  await page.getByRole('button', { name: /עריכה.*פיצה בדיקה/ }).click();
   const edit = page.locator('dialog.sheet[open]');
   await edit.locator('label', { hasText: 'טונה' }).click();
   const updateBtn = edit.getByRole('button', { name: /עדכון/ });
