@@ -8,9 +8,10 @@ import { StorePage } from './StorePage';
 import { useActiveOrders, isNew } from './orders';
 
 const MenuEditor = lazy(() => import('./MenuEditor').then((m) => ({ default: m.MenuEditor })));
+const SalesSummary = lazy(() => import('./SalesSummary').then((m) => ({ default: m.SalesSummary })));
 
 interface Session { user: User; role: 'owner' | 'staff' | null; mfa: boolean; enrolled: boolean }
-type Tab = 'orders' | 'store' | 'menu';
+type Tab = 'orders' | 'store' | 'menu' | 'summary';
 
 export function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -64,11 +65,12 @@ const TABS: { id: Tab; label: string; ownerOnly?: boolean }[] = [
   { id: 'orders', label: 'הזמנות' },
   { id: 'store', label: 'שעות ופתיחה' },
   { id: 'menu', label: 'תפריט', ownerOnly: true },
+  { id: 'summary', label: 'סיכום', ownerOnly: true },
 ];
 
 function readTab(): Tab {
   const h = location.hash.replace('#', '');
-  return h === 'store' || h === 'menu' ? h : 'orders';
+  return h === 'store' || h === 'menu' || h === 'summary' ? h : 'orders';
 }
 
 function Shell({ session }: { session: Session }) {
@@ -107,6 +109,11 @@ function Shell({ session }: { session: Session }) {
       <main className="layout">
         {current === 'orders' && <OrdersBoard {...orders} />}
         {current === 'store' && <StorePage />}
+        {current === 'summary' && (
+          <Suspense fallback={<p className="muted">טוען…</p>}>
+            <SalesSummary />
+          </Suspense>
+        )}
         {current === 'menu' && (
           <Suspense fallback={<p className="muted">טוען…</p>}>
             <MenuEditor />

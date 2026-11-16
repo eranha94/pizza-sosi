@@ -238,3 +238,30 @@ input:focus, select:focus, textarea:focus { border-color: var(--ink); outline: n
 .center-cell input { width: 18px; height: 18px; accent-color: var(--ink); }
 .inline { display: inline-flex; gap: 6px; align-items: center; }
 .notify-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+
+.bulk { padding: 0; gap: 0; }
+.bulk__toggle { font: inherit; display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 18px; background: none; border: 0; cursor: pointer; text-align: start; font-weight: 700; color: inherit; }
+.bulk__toggle > :nth-child(2) { flex: 1; font-weight: 400; }
+.bulk__form { display: grid; gap: 12px; padding: 0 18px 18px; }
+.bulk__preview { background: var(--yellow-soft); border-radius: 12px; padding: 12px; display: grid; gap: 10px; }
+.bulk__preview p { margin: 0; }
+
+/* Daily summary */
+.summary-page { display: grid; gap: 16px; }
+.field--inline { grid-auto-flow: column; align-items: center; gap: 8px; }
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.kpi { background: #fff; border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 4px; }
+.kpi span { color: var(--soft); font-size: .88rem; font-weight: 600; }
+.kpi strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.kpi--main { background: var(--yellow); }
+.kpi--main span { color: var(--ink); }
+.split, .top { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.split li, .top li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.top { counter-reset: top; }
+.top li::before { counter-increment: top; content: counter(top); font-weight: 800; color: var(--soft); min-width: 1.2em; }
+.top li span { flex: 1; }
+.hours { list-style: none; margin: 0; padding: 0; display: flex; align-items: end; gap: 4px; block-size: 160px; }
+.hours li { flex: 1; display: grid; grid-template-rows: 1fr auto auto; align-items: end; justify-items: center; block-size: 100%; min-width: 0; }
+.hours__bar { inline-size: 100%; max-inline-size: 28px; background: var(--yellow); border-radius: 6px 6px 0 0; min-block-size: 2px; align-self: end; }
+.hours__n { font-size: .75rem; font-weight: 700; }
+.hours__h { font-size: .75rem; color: var(--soft); }

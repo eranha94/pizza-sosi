@@ -5,6 +5,7 @@ import {
   UpdateStoreSettingsRequest,
   UpsertMenuItemRequest,
   DeleteMenuItemRequest,
+  BulkUpdateOptionRequest,
   type OrderStatus,
 } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
@@ -74,4 +75,42 @@ export const adminDeleteMenuItem = secureCall<{ ok: true }>(async (req) => {
   await db.collection(COL.menuItems).doc(id).update({ active: false, deletedAt: FieldValue.serverTimestamp() });
   await audit(uid, 'menu.delete', id);
   return { ok: true };
+});
+
+/** Update one add-on (by name) on every menu item that has it. dryRun returns what would change. */
+export const adminBulkUpdateOption = secureCall<{ items: string[] }>(async (req) => {
+  const { uid } = requireStaff(req, ['owner']);
+  const input = validate(BulkUpdateOptionRequest, req.data);
+  const snap = await db.collection(COL.menuItems).get();
+  const batch = db.batch();
+  const items: string[] = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    if (d.deletedAt || (input.category && d.category !== input.category)) continue;
+    let touched = false;
+    const groups = (d.addOnGroups ?? []).map((g: { selection?: string; options: Record<string, unknown>[] }) => {
+      if ((g.selection ?? 'multi') !== 'multi') return g;
+      return {
+        ...g,
+        options: g.options.map((o) => {
+          if (o.name !== input.optionName) return o;
+          touched = true;
+          return {
+            ...o,
+            ...(input.wholeAgorot !== undefined && { wholeAgorot: input.wholeAgorot }),
+            ...(input.halfAgorot !== undefined && { halfAgorot: input.halfAgorot }),
+            ...(input.active !== undefined && { active: input.active }),
+          };
+        }),
+      };
+    });
+    if (!touched) continue;
+    items.push(String(d.name));
+    if (!input.dryRun) batch.update(doc.ref, { addOnGroups: groups, updatedAt: FieldValue.serverTimestamp() });
+  }
+  if (!input.dryRun && items.length) {
+    await batch.commit();
+    await audit(uid, 'menu.bulkOption', input.optionName, { ...input, count: items.length });
+  }
+  return { items };
 });

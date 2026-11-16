@@ -4,6 +4,7 @@ import { API, CATEGORY_IDS, CATEGORY_LABELS, formatAgorot, type MenuItem, type C
 import { db, callAdmin, bucket } from './firebase';
 import { photoUrl } from './image';
 import { ItemEditor } from './ItemEditor';
+import { BulkOption } from './BulkOption';
 
 export type AdminMenuItem = MenuItem & { deletedAt?: unknown };
 
@@ -106,6 +107,7 @@ export function MenuEditor() {
         ))}
       </nav>
       {msg && <p className="saved" role="status">{msg}</p>}
+      <BulkOption items={items} />
 
       {CATEGORY_IDS.map((c) => {
         const list = byCat.get(c)!;

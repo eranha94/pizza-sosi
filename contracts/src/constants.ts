@@ -66,6 +66,7 @@ export const API = {
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',
   adminDeleteMenuItem: 'adminDeleteMenuItem',
+  adminBulkUpdateOption: 'adminBulkUpdateOption',
 } as const;
 
 export const FUNCTIONS_REGION = 'europe-west1';

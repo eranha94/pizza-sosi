@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CATEGORY_IDS } from './constants.js';
 import { OrderStatus } from './orders.js';
 import { CategoryId, StoreSettings } from './menu.js';
 
@@ -63,3 +64,21 @@ export const UpsertMenuItemRequest = z
 export type UpsertMenuItemRequest = z.infer<typeof UpsertMenuItemRequest>;
 
 export const DeleteMenuItemRequest = z.object({ id }).strict();
+
+/**
+ * Change one add-on across the whole menu (e.g. "olives now cost 12 ₪ on every pizza").
+ * Matches options by exact name inside "multi" (topping) groups, optionally only in one category.
+ */
+export const BulkUpdateOptionRequest = z
+  .object({
+    optionName: z.string().trim().min(1).max(80),
+    category: z.enum(CATEGORY_IDS).optional(),
+    wholeAgorot: z.number().int().min(0).max(100_000).optional(),
+    /** null = no half option any more; undefined = leave as is. */
+    halfAgorot: z.number().int().min(0).max(100_000).nullable().optional(),
+    active: z.boolean().optional(),
+    dryRun: z.boolean().default(false),
+  })
+  .strict()
+  .refine((r) => r.wholeAgorot !== undefined || r.halfAgorot !== undefined || r.active !== undefined, 'אין מה לעדכן');
+export type BulkUpdateOptionRequest = z.infer<typeof BulkUpdateOptionRequest>;
