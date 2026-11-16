@@ -20,12 +20,27 @@ export const onOrderStatusNotify = onDocumentUpdated(
     const after = event.data?.after.data();
     if (!before || !after || before.status === after.status) return;
     const status = after.status;
-    if (!isNotifyStatus(status) || after.notify?.whatsapp !== true) return;
+    if (!isNotifyStatus(status)) return;
+    const orderId = event.params.orderId;
+    if (after.notify?.whatsapp !== true) {
+      logger.info('whatsapp skipped: customer did not opt in', { orderId, status });
+      return;
+    }
 
     const [settings, cfg] = await Promise.all([loadStoreSettings(), loadWhatsappConfig()]);
-    if (!cfg || !settings.whatsappStatuses.includes(status)) return;
+    if (!cfg) {
+      logger.warn('whatsapp skipped: settings/whatsapp missing or disabled', { orderId, status });
+      return;
+    }
+    if (!settings.whatsappStatuses.includes(status)) {
+      logger.info('whatsapp skipped: status turned off in store settings', { orderId, status });
+      return;
+    }
     const to = toWhatsappNumber(String(after.contact?.phone ?? ''));
-    if (!to) return;
+    if (!to) {
+      logger.info('whatsapp skipped: not a mobile number', { orderId, status });
+      return;
+    }
 
     // Claim this (order, status) once – a transaction makes a duplicate trigger a no-op.
     const ref = event.data!.after.ref;
@@ -48,9 +63,12 @@ export const onOrderStatusNotify = onDocumentUpdated(
         buttonParam: ref.id,
       });
       await ref.update({ [field]: { state: 'sent', id, at: FieldValue.serverTimestamp() } });
+      logger.info('whatsapp sent', { orderId, status });
     } catch (e) {
       logger.error('whatsapp notify failed', { orderId: ref.id, status, error: (e as Error).message });
-      await ref.update({ [field]: { state: 'failed', at: FieldValue.serverTimestamp() } });
+      // Keep Meta's error code on the order, so the reason is visible without digging in the logs.
+      const code = /^whatsapp \d+ (\d+)/.exec((e as Error).message)?.[1] ?? null;
+      await ref.update({ [field]: { state: 'failed', code, at: FieldValue.serverTimestamp() } });
     }
   },
 );
