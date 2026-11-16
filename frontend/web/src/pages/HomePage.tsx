@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CATEGORY_IDS, CATEGORY_LABELS, formatAgorot } from '@pizza-sosi/contracts/constants';
+import { CATEGORY_IDS, CATEGORY_LABELS, ITEM_TAGS, ITEM_TAG_LABELS, formatAgorot, type ItemTag } from '@pizza-sosi/contracts/constants';
 import type { CategoryId, MenuItem } from '@pizza-sosi/contracts';
 import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet, prefetchOrdering } from '../lib/firebase';
@@ -14,6 +14,12 @@ export function HomePage() {
   const menu = useMenu();
   const bucket = useBucket();
   const [selected, setSelected] = useState<MenuItem | null>(null);
+  const [search, setSearch] = useState('');
+  const [tag, setTag] = useState<ItemTag | null>(null);
+  const q = search.trim();
+  const filtering = q !== '' || tag !== null;
+  // Tags that actually appear on the menu (no empty filters).
+  const tagsInMenu = useMemo(() => ITEM_TAGS.filter((t) => (menu.data ?? []).some((m) => m.tags.includes(t))), [menu.data]);
 
   // Load the ordering code in idle time so checkout opens instantly.
   useEffect(() => prefetchOrdering(), []);
@@ -22,9 +28,13 @@ export function HomePage() {
 
   const byCategory = useMemo(() => {
     const map = new Map<CategoryId, MenuItem[]>();
-    for (const item of menu.data ?? []) map.set(item.category, [...(map.get(item.category) ?? []), item]);
+    const match = (m: MenuItem) =>
+      (!tag || m.tags.includes(tag)) &&
+      (!q || m.name.includes(q) || m.description.includes(q) || m.addOnGroups.some((g) => g.options.some((o) => o.active && o.name.includes(q))));
+    for (const item of menu.data ?? []) if (match(item)) map.set(item.category, [...(map.get(item.category) ?? []), item]);
     return CATEGORY_IDS.filter((c) => map.has(c)).map((c) => ({ id: c, items: map.get(c)! }));
-  }, [menu.data]);
+  }, [menu.data, q, tag]);
+  const found = byCategory.reduce((n, c) => n + c.items.length, 0);
 
   // Header underline follows the category on screen.
   const setActive = useActiveCategory((s) => s.set);
@@ -79,6 +89,30 @@ export function HomePage() {
       <StoreStatusCard />
 
       <section id="menu" className="menu" aria-label="התפריט">
+        {(menu.data?.length ?? 0) > 0 && (
+          <div className="menu-tools" role="search">
+            <label className="menu-search">
+              <span className="sr-only">חיפוש בתפריט</span>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש: טונה, פטריות, טוסט…" enterKeyHint="search" />
+            </label>
+            {tagsInMenu.length > 0 && (
+              <div className="tag-filter" role="group" aria-label="סינון לפי תגית">
+                {tagsInMenu.map((t) => (
+                  <button key={t} type="button" className={`tag-chip ${tag === t ? 'is-on' : ''}`} aria-pressed={tag === t} onClick={() => setTag(tag === t ? null : t)}>
+                    {ITEM_TAG_LABELS[t].icon} {ITEM_TAG_LABELS[t].label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filtering && (
+              <p className="menu-tools__result" role="status" aria-live="polite">
+                {found === 0 ? 'לא מצאנו מנה מתאימה' : found === 1 ? 'מנה אחת' : `${found} מנות`} ·{' '}
+                <button type="button" className="link-button" onClick={() => { setSearch(''); setTag(null); }}>ניקוי</button>
+              </p>
+            )}
+          </div>
+        )}
         {menu.isPending && <p className="page-loading">טוען את התפריט…</p>}
         {menu.isError && !menu.data?.length && <p className="notice notice--error">לא הצלחנו לטעון את התפריט. רעננו את הדף.</p>}
         {byCategory.map((c) => (
@@ -98,6 +132,13 @@ export function HomePage() {
                       )}
                       <span className="item-card__body">
                         <span className="item-card__name">{item.name}</span>
+                        {item.tags.length > 0 && (
+                          <span className="item-card__tags">
+                            {item.tags.map((t) => (
+                              <span key={t} className={`badge badge--${t}`}>{ITEM_TAG_LABELS[t].icon} {ITEM_TAG_LABELS[t].label}</span>
+                            ))}
+                          </span>
+                        )}
                         {item.description && <span className="item-card__desc">{item.description}</span>}
                         <span className="item-card__price">{formatAgorot(item.priceAgorot)}</span>
                       </span>

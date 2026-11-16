@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { API, CATEGORY_IDS, CATEGORY_LABELS, type CategoryId, type MenuItem } from '@pizza-sosi/contracts';
+import { API, CATEGORY_IDS, CATEGORY_LABELS, ITEM_TAGS, ITEM_TAG_LABELS, type CategoryId, type MenuItem, type ItemTag } from '@pizza-sosi/contracts';
 import { callAdmin, bucket } from './firebase';
 import { uploadMenuPhoto, photoUrl } from './image';
 import { toRequest, type AdminMenuItem } from './MenuEditor';
@@ -43,6 +43,7 @@ export function ItemEditor({
   const [cat, setCat] = useState<CategoryId>(item?.category ?? category);
   const [price, setPrice] = useState(shek(item?.priceAgorot ?? null));
   const [active, setActive] = useState(item?.active ?? true);
+  const [tags, setTags] = useState<ItemTag[]>(item?.tags ?? []);
   const [imagePath, setImagePath] = useState<string | null>(item?.imagePath ?? null);
   const [groups, setGroups] = useState<DGroup[]>(() => toDraft(item?.addOnGroups ?? []));
   const [photoState, setPhotoState] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export function ItemEditor({
       category: cat,
       priceAgorot: ag(price),
       active,
+      tags,
       imagePath,
       order: item && item.category === cat ? item.order : cat === category ? nextOrder : Math.max(0, ...allItems.filter((x) => x.category === cat).map((x) => x.order)) + 10,
       addOnGroups: groups.map((g, gi) => ({
@@ -235,6 +237,20 @@ export function ItemEditor({
               </label>
             </div>
           </div>
+          <fieldset className="tags-edit">
+            <legend>תגיות</legend>
+            {ITEM_TAGS.map((t) => (
+              <label key={t} className={`chip ${tags.includes(t) ? 'chip--on' : ''}`}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={tags.includes(t)}
+                  onChange={(e) => touch(setTags)(e.target.checked ? [...tags, t] : tags.filter((x) => x !== t))}
+                />
+                {ITEM_TAG_LABELS[t].icon} {ITEM_TAG_LABELS[t].label}
+              </label>
+            ))}
+          </fieldset>
           <label className="field">
             <span>תיאור</span>
             <textarea rows={3} value={description} onChange={(e) => touch(setDescription)(e.target.value)} maxLength={1000} />

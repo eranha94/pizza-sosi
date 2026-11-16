@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatAgorot, COVERAGE_LABELS } from '@pizza-sosi/contracts/constants';
+import { formatAgorot, COVERAGE_LABELS, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
 import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
@@ -85,6 +85,11 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
         <h2 id="sheet-title">{item.name}</h2>
         <button type="button" className="icon-button" aria-label="סגירה" onClick={onDone}>×</button>
       </div>
+      {item.tags.length > 0 && (
+        <p className="item-card__tags">
+          {item.tags.map((t) => <span key={t} className={`badge badge--${t}`}>{ITEM_TAG_LABELS[t].icon} {ITEM_TAG_LABELS[t].label}</span>)}
+        </p>
+      )}
       {item.description && <p className="sheet__desc">{item.description}</p>}
 
       {showPreview && <PizzaPreview toppings={previewToppings} dough={dough} cheese={cheese} />}

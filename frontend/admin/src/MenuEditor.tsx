@@ -19,6 +19,7 @@ export function toRequest(item: AdminMenuItem, patch: Partial<MenuItem> = {}): U
     imagePath: x.imagePath ?? null,
     order: x.order,
     active: x.active,
+    tags: x.tags ?? [],
     addOnGroups: (x.addOnGroups ?? []).map((g) => ({
       id: g.id,
       name: g.name,

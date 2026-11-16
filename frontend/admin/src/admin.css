@@ -282,3 +282,7 @@ body.kitchen .order--placed { animation: arrive .4s ease-out, nudge 1.4s ease-in
 @keyframes nudge { 50% { box-shadow: 0 0 0 6px var(--yellow), var(--shadow); } }
 body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .clock { font-size: 1.6rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; padding: 0 8px; }
+.tags-edit { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tags-edit legend { font-weight: 600; font-size: .92rem; margin-bottom: 6px; }
+.tags-edit .chip { cursor: pointer; }
+.tags-edit .chip:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }

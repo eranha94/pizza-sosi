@@ -490,3 +490,18 @@ body:has(.cart-bar) .site-footer { padding-bottom: 96px; }
 .my-orders__row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--paper); border: 1.5px solid var(--line); color: inherit; text-decoration: none; }
 .my-orders__row:hover { border-color: var(--yellow); }
 .my-orders__total { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Menu search + tag filter */
+.menu-tools { display: grid; gap: 10px; margin: 0 auto 8px; max-width: 1100px; padding: 0 16px; }
+.menu-search { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 999px; background: var(--paper); border: 1.5px solid var(--line); color: var(--ink-soft); }
+.menu-search:focus-within { border-color: var(--yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 35%, transparent); }
+.menu-search input { flex: 1; min-height: 46px; border: 0; background: none; font: inherit; color: var(--ink); outline: none; }
+.tag-filter { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.tag-chip { font: inherit; font-size: .9rem; font-weight: 600; white-space: nowrap; padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+.tag-chip.is-on { background: var(--strong); color: var(--on-strong); border-color: var(--strong); }
+.menu-tools__result { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+.item-card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.badge { display: inline-flex; align-items: center; gap: 3px; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--yellow) 22%, var(--paper)); color: var(--ink); }
+.badge--spicy { background: #fde3dc; color: #a3260f; }
+.badge--vegetarian, .badge--vegan { background: #dff3e1; color: #1d6b2d; }
+.badge--new { background: #e6e3fb; color: #4a3aa8; }

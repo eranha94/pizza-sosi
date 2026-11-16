@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CATEGORY_IDS, NOTIFY_STATUSES } from './constants.js';
+import { CATEGORY_IDS, NOTIFY_STATUSES, ITEM_TAGS } from './constants.js';
 
 export const CategoryId = z.enum(CATEGORY_IDS);
 export type CategoryId = z.infer<typeof CategoryId>;
@@ -49,6 +49,7 @@ export const MenuItem = z.object({
   order: z.number().int(),
   active: z.boolean(),
   addOnGroups: z.array(AddOnGroup).max(10).default([]),
+  tags: z.array(z.enum(ITEM_TAGS)).max(ITEM_TAGS.length).default([]),
 });
 export type MenuItem = z.infer<typeof MenuItem>;
 

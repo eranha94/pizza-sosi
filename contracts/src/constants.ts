@@ -47,6 +47,17 @@ export const ORDER_STATUS_LABELS: Record<Status, string> = {
   cancelled: 'בוטלה',
 };
 
+/** Labels the owner can put on a menu item (shown as badges, usable as menu filters). */
+export const ITEM_TAGS = ['recommended', 'new', 'spicy', 'vegetarian', 'vegan'] as const;
+export type ItemTag = (typeof ITEM_TAGS)[number];
+export const ITEM_TAG_LABELS: Record<ItemTag, { label: string; icon: string }> = {
+  recommended: { label: 'מומלץ', icon: '⭐' },
+  new: { label: 'חדש', icon: '✨' },
+  spicy: { label: 'חריף', icon: '🌶️' },
+  vegetarian: { label: 'צמחוני', icon: '🌱' },
+  vegan: { label: 'טבעוני', icon: '🥦' },
+};
+
 /** Statuses that can trigger a WhatsApp update to the customer (the owner picks which in the admin). */
 export const NOTIFY_STATUSES = ['accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery', 'cancelled'] as const;
 export type NotifyStatus = (typeof NOTIFY_STATUSES)[number];

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { MenuItem, StoreSettings } from '@pizza-sosi/contracts';
-import { DEFAULT_SCHEDULE } from '@pizza-sosi/contracts/constants';
+import { DEFAULT_SCHEDULE, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
 import { useEffect, useState } from 'react';
 import { menuDb, firebaseApp } from './firebase';
 
@@ -10,7 +10,7 @@ import { menuDb, firebaseApp } from './firebase';
  * No validation library here on purpose (smaller first load); the server validates every order.
  */
 
-const CACHE_KEY = 'pizza-sosi-menu-v2';
+const CACHE_KEY = 'pizza-sosi-menu-v3';
 
 function readCache<T>(key: string): T | undefined {
   try {
@@ -40,6 +40,7 @@ function toMenuItem(id: string, d: Record<string, unknown>): MenuItem | null {
     order: typeof d.order === 'number' ? d.order : 0,
     active: d.active === true,
     addOnGroups: Array.isArray(d.addOnGroups) ? (d.addOnGroups as MenuItem['addOnGroups']) : [],
+    tags: Array.isArray(d.tags) ? (d.tags.filter((t) => t in ITEM_TAG_LABELS) as MenuItem['tags']) : [],
   };
 }
 

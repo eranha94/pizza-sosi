@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CATEGORY_IDS } from './constants.js';
+import { CATEGORY_IDS, ITEM_TAGS } from './constants.js';
 import { OrderStatus } from './orders.js';
 import { CategoryId, StoreSettings } from './menu.js';
 
@@ -36,6 +36,7 @@ export const UpsertMenuItemRequest = z
     imagePath: z.string().max(300).regex(/^menu_images\/[^/]+$/).nullable(),
     order: z.number().int().min(0).max(10_000),
     active: z.boolean(),
+    tags: z.array(z.enum(ITEM_TAGS)).max(ITEM_TAGS.length).default([]),
     addOnGroups: z
       .array(
         z.object({
