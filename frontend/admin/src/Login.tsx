@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { API } from '@pizza-sosi/contracts';
 import { auth, callAdmin } from './firebase';
+import { OtpInput } from './OtpInput';
 
 /** Staff sign-in: email + password, then a 6-digit code from the authenticator app. */
 export function Login() {
@@ -17,6 +18,7 @@ export function Login() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
 
   async function onPassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,18 +52,18 @@ export function Login() {
     setInfo('אם המייל רשום אצלנו, נשלח אליו קישור לקביעת סיסמה חדשה.');
   }
 
-  async function onCode(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!resolver) return;
-    const code = String(new FormData(e.currentTarget).get('code')).trim();
+  async function onCode(e?: FormEvent<HTMLFormElement>, typed = code) {
+    e?.preventDefault();
+    if (!resolver || busy || typed.length !== 6) return;
     const hint = resolver.hints.find((h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID);
     if (!hint) return setError('לא מוגדר אימות דו־שלבי לחשבון');
     setBusy(true);
     setError(null);
     try {
-      await resolver.resolveSignIn(TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code));
+      await resolver.resolveSignIn(TotpMultiFactorGenerator.assertionForSignIn(hint.uid, typed));
     } catch {
       setError('הקוד שגוי או שפג תוקפו');
+      setCode('');
     } finally {
       setBusy(false);
     }
@@ -73,7 +75,7 @@ export function Login() {
         <img src="/pizza-sosi-header.svg" alt="פיצה סוסי" width="190" height="80" />
         <h1>ניהול הפיצריה</h1>
         {!resolver ? (
-          <form className="stack" onSubmit={onPassword}>
+          <form key="password" className="stack" onSubmit={onPassword}>
             <label className="field">
               <span>מייל</span>
               <input name="email" type="email" required autoComplete="username" spellCheck={false} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -86,14 +88,11 @@ export function Login() {
             <button type="button" className="link-btn" onClick={onForgot}>שכחתי סיסמה</button>
           </form>
         ) : (
-          <form className="stack" onSubmit={onCode}>
-            <p className="muted">פתח את אפליקציית האימות והקלד את הקוד של פיצה סוסי.</p>
-            <label className="field">
-              <span>קוד בן 6 ספרות</span>
-              <input className="code-input" name="code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" dir="ltr" autoFocus />
-            </label>
-            <button className="btn" disabled={busy}>{busy ? 'בודק…' : 'אישור'}</button>
-            <button type="button" className="link-btn" onClick={() => setResolver(null)}>חזרה</button>
+          <form key="code" className="stack" onSubmit={onCode}>
+            <p className="muted">פתח את אפליקציית האימות והקלד את 6 הספרות של פיצה סוסי.</p>
+            <OtpInput value={code} onChange={setCode} onComplete={(c) => void onCode(undefined, c)} disabled={busy} />
+            <button className="btn" disabled={busy || code.length !== 6}>{busy ? 'בודק…' : 'אישור'}</button>
+            <button type="button" className="link-btn" onClick={() => (setResolver(null), setCode(''))}>חזרה</button>
           </form>
         )}
         {error && <p className="error" role="alert">{error}</p>}

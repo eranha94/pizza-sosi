@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { multiFactor, signOut, TotpMultiFactorGenerator, type TotpSecret, type User } from 'firebase/auth';
 import QRCode from 'qrcode';
 import { auth } from './firebase';
+import { OtpInput } from './OtpInput';
 
 /**
  * First sign-in of a staff account: set up two-step verification with an authenticator app
@@ -14,6 +15,7 @@ export function EnrollMfa({ user }: { user: User }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [code, setCode] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -40,17 +42,17 @@ export function EnrollMfa({ user }: { user: User }) {
     };
   }, [user]);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!secret) return;
-    const code = String(new FormData(e.currentTarget).get('code')).trim();
+  async function onSubmit(e?: FormEvent<HTMLFormElement>, typed = code) {
+    e?.preventDefault();
+    if (!secret || busy || typed.length !== 6) return;
     setBusy(true);
     setError(null);
     try {
-      await multiFactor(user).enroll(TotpMultiFactorGenerator.assertionForEnrollment(secret, code), 'אפליקציית אימות');
+      await multiFactor(user).enroll(TotpMultiFactorGenerator.assertionForEnrollment(secret, typed), 'אפליקציית אימות');
       setDone(true);
     } catch {
       setError('הקוד שגוי או שפג תוקפו. הקלד את הקוד שמוצג עכשיו באפליקציה.');
+      setCode('');
     } finally {
       setBusy(false);
     }
@@ -91,11 +93,9 @@ export function EnrollMfa({ user }: { user: User }) {
         {showKey && secret && <code className="secret" dir="ltr">{secret.secretKey.replace(/(.{4})/g, '$1 ').trim()}</code>}
         {secret && (
           <form className="stack" onSubmit={onSubmit}>
-            <label className="field">
-              <span>קוד מהאפליקציה</span>
-              <input className="code-input" name="code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" dir="ltr" />
-            </label>
-            <button className="btn" disabled={busy}>{busy ? 'בודק…' : 'הפעלה'}</button>
+            <span className="field"><span>הקוד מהאפליקציה</span></span>
+            <OtpInput value={code} onChange={setCode} onComplete={(c) => void onSubmit(undefined, c)} disabled={busy} />
+            <button className="btn" disabled={busy || code.length !== 6}>{busy ? 'בודק…' : 'הפעלה'}</button>
           </form>
         )}
         {error && <p className="error" role="alert">{error}</p>}

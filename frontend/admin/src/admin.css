@@ -296,3 +296,10 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .zones li { display: grid; grid-template-columns: 1fr 96px 96px auto; gap: 6px; align-items: center; }
 .zones input { font: inherit; padding: 6px 10px; min-height: 38px; border-radius: 10px; border: 1.5px solid var(--line); width: 100%; }
 .zones__head { font-size: .78rem; color: var(--soft); font-weight: 600; }
+
+/* 6-digit code boxes */
+.otp { display: flex; justify-content: center; gap: 8px; }
+.otp__box { width: 46px; height: 56px; text-align: center; font: inherit; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink); caret-color: var(--yellow); }
+.otp__box:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgb(254 184 0 / .4); outline: none; }
+.otp__box:nth-child(3) { margin-inline-end: 10px; }
+@media (max-width: 380px) { .otp__box { width: 40px; height: 50px; } }
