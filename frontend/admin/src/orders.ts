@@ -29,14 +29,16 @@ const SOUND_KEY = 'pizza-sosi-admin-sound';
 /** Short two-tone "ding-dong" made with Web Audio (no audio file to load). */
 function ring(ctx: AudioContext) {
   const t = ctx.currentTime;
-  for (const [i, freq] of [880, 660, 880, 660].entries()) {
+  const loud = document.body.classList.contains('kitchen');
+  const notes = loud ? [880, 660, 880, 660, 880, 660, 988, 784] : [880, 660, 880, 660];
+  for (const [i, freq] of notes.entries()) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
     osc.frequency.value = freq;
     const start = t + i * 0.28;
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.5, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(loud ? 0.95 : 0.5, start + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
     osc.connect(gain).connect(ctx.destination);
     osc.start(start);

@@ -3,6 +3,7 @@ import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/f
 import { API, ORDER_STATUS_LABELS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
 import { isNew, type AdminOrder, type ActiveOrders } from './orders';
+import { useKitchenMode } from './kitchen';
 
 /** The main forward step for each status (one big button), plus cancel where allowed. */
 function nextStep(o: AdminOrder): { to: OrderStatus; label: string } | null {
@@ -53,6 +54,7 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
   const [busy, setBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const now = useNow();
+  const kitchen = useKitchenMode();
 
   async function move(order: AdminOrder, status: OrderStatus) {
     if (status === 'cancelled' && !window.confirm(`לבטל את הזמנה #${order.number}? הלקוח יראה שההזמנה בוטלה.`)) return;
@@ -72,6 +74,10 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
       <div className="page-head">
         <h1 id="orders-h">הזמנות פעילות <span className="count">{orders.length}</span></h1>
         <div className="page-head__actions">
+          {kitchen.on && <span className="clock" aria-label="שעה">{new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>}
+          <button className={`chip ${kitchen.on ? 'chip--on' : ''}`} onClick={() => void kitchen.toggle()} aria-pressed={kitchen.on}>
+            {kitchen.on ? '✕ יציאה ממצב מטבח' : '🍳 מצב מטבח'}
+          </button>
           <button className={`chip ${soundOn ? 'chip--on' : ''}`} onClick={toggleSound} aria-pressed={soundOn}>
             {soundOn ? '🔔 צליל פעיל' : '🔕 צליל כבוי'}
           </button>

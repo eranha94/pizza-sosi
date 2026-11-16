@@ -265,3 +265,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--ink); outline: n
 .hours__bar { inline-size: 100%; max-inline-size: 28px; background: var(--yellow); border-radius: 6px 6px 0 0; min-block-size: 2px; align-self: end; }
 .hours__n { font-size: .75rem; font-weight: 700; }
 .hours__h { font-size: .75rem; color: var(--soft); }
+
+/* Kitchen mode (tablet by the oven): no chrome, big type, big buttons */
+body.kitchen .bar { display: none; }
+body.kitchen .layout { max-width: none; padding: 12px; }
+body.kitchen .orders-page > .link-btn, body.kitchen .history { display: none; }
+body.kitchen { font-size: 19px; background: #1e1a1b; }
+body.kitchen .orders-page h1 { color: #fff; }
+body.kitchen .board__col { background: rgb(255 255 255 / .06); }
+body.kitchen .board__col h2 { color: #fff; font-size: 1.3rem; }
+body.kitchen .order { padding: 18px; }
+body.kitchen .order__num { font-size: 1.8rem; }
+body.kitchen .order__lines { font-size: 1.1rem; }
+body.kitchen .order__actions .btn { min-height: 64px; font-size: 1.2rem; }
+body.kitchen .order--placed { animation: arrive .4s ease-out, nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 50% { box-shadow: 0 0 0 6px var(--yellow), var(--shadow); } }
+body.kitchen .empty { color: rgb(255 255 255 / .6); }
+.clock { font-size: 1.6rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; padding: 0 8px; }
