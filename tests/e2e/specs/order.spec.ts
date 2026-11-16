@@ -17,7 +17,10 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   await sheet.locator('label', { hasText: 'עבה' }).click();
   await sheet.locator('label', { hasText: 'זיתים' }).click();
   await sheet.locator('.coverage label', { hasText: 'ימין' }).click();
-  await sheet.getByRole('button', { name: /הוספה לסל · 70/ }).click();
+  // Prices are formatted with Hebrew direction marks, so match the label and check the number separately.
+  const addBtn = sheet.getByRole('button', { name: /הוספה לסל/ });
+  await expect(addBtn).toContainText('70');
+  await addBtn.click();
 
   // Sticky cart bar on the menu.
   await expect(page.locator('.cart-bar')).toContainText('70');
@@ -32,7 +35,9 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   await page.getByRole('button', { name: 'עריכת פיצה בדיקה' }).click();
   const edit = page.locator('dialog.sheet[open]');
   await edit.locator('label', { hasText: 'טונה' }).click();
-  await edit.getByRole('button', { name: /עדכון · 83/ }).click();
+  const updateBtn = edit.getByRole('button', { name: /עדכון/ });
+  await expect(updateBtn).toContainText('83');
+  await updateBtn.click();
   await expect(page.locator('.summary strong')).toHaveText(/91/);
 
   await page.getByRole('link', { name: 'להמשך הזמנה' }).click();
