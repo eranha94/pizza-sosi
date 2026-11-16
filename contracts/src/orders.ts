@@ -33,6 +33,8 @@ export const Address = z.object({
   houseNumber: z.string().trim().max(10).default(''),
   apartment: z.string().trim().max(20).default(''),
   notes: z.string().trim().max(200).default(''),
+  /** Delivery area chosen by the customer, when the pizzeria defines areas. */
+  zoneId: z.string().max(30).optional(),
 });
 
 export const CreateOrderRequest = z

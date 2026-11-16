@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { CATEGORY_IDS, ITEM_TAGS } from './constants.js';
 import { OrderStatus } from './orders.js';
-import { CategoryId, StoreSettings } from './menu.js';
+import { CategoryId, StoreSettings, DeliveryZone } from './menu.js';
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -22,6 +22,7 @@ export const UpdateStoreSettingsRequest = z
     deliveryFeeAgorot: z.number().int().min(0).max(10_000).optional(),
     minOrderAgorot: z.number().int().min(0).max(100_000).optional(),
     whatsappStatuses: StoreSettings.shape.whatsappStatuses.optional(),
+    deliveryZones: z.array(DeliveryZone).max(30).optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;
@@ -87,3 +88,10 @@ export type BulkUpdateOptionRequest = z.infer<typeof BulkUpdateOptionRequest>;
 /** Admin "forgot password": always answers the same, whether or not the email belongs to a staff account. */
 export const RequestPasswordResetRequest = z.object({ email: z.string().trim().toLowerCase().email().max(200) }).strict();
 export type RequestPasswordResetRequest = z.infer<typeof RequestPasswordResetRequest>;
+
+/** Mark a dish or a topping (by name, everywhere) as available / sold out. Owner and staff. */
+export const SetAvailabilityRequest = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('item'), id, active: z.boolean() }).strict(),
+  z.object({ kind: z.literal('option'), name: z.string().trim().min(1).max(80), active: z.boolean() }).strict(),
+]);
+export type SetAvailabilityRequest = z.infer<typeof SetAvailabilityRequest>;

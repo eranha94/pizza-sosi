@@ -53,6 +53,14 @@ export const MenuItem = z.object({
 });
 export type MenuItem = z.infer<typeof MenuItem>;
 
+export const DeliveryZone = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+  name: z.string().trim().min(1).max(40),
+  feeAgorot: z.number().int().min(0).max(100_000),
+  minOrderAgorot: z.number().int().min(0).max(100_000),
+});
+export type DeliveryZone = z.infer<typeof DeliveryZone>;
+
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const DayHours = z.object({ open: hhmm, close: hhmm }).nullable();
 
@@ -72,6 +80,8 @@ export const StoreSettings = z.object({
   deliveryEnabled: z.boolean(),
   deliveryFeeAgorot: z.number().int().min(0).max(10_000),
   minOrderAgorot: z.number().int().min(0).max(100_000),
+  /** Delivery areas with their own fee and minimum. Empty = one fee/minimum for everywhere (fields above). */
+  deliveryZones: z.array(DeliveryZone).max(30).default([]),
   /** Which status changes send the customer a WhatsApp message (when they opted in). */
   whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
 });

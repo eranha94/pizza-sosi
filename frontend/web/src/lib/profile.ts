@@ -12,6 +12,7 @@ export interface Profile {
   addressNotes: string;
   fulfillment: 'pickup' | 'delivery';
   notifyWhatsapp: boolean;
+  zoneId?: string;
 }
 export interface MyOrder {
   id: string;

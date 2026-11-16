@@ -4,6 +4,7 @@ import { API, ORDER_STATUS_LABELS, COVERAGE_LABELS, formatAgorot, formatTime, ty
 import { db, callAdmin } from './firebase';
 import { isNew, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
+import { SoldOut } from './SoldOut';
 
 /** The main forward step for each status (one big button), plus cancel where allowed. */
 function nextStep(o: AdminOrder): { to: OrderStatus; label: string } | null {
@@ -55,6 +56,7 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
   const [showHistory, setShowHistory] = useState(false);
   const now = useNow();
   const kitchen = useKitchenMode();
+  const [soldOut, setSoldOut] = useState(false);
 
   async function move(order: AdminOrder, status: OrderStatus) {
     if (status === 'cancelled' && !window.confirm(`לבטל את הזמנה #${order.number}? הלקוח יראה שההזמנה בוטלה.`)) return;
@@ -75,6 +77,7 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
         <h1 id="orders-h">הזמנות פעילות <span className="count">{orders.length}</span></h1>
         <div className="page-head__actions">
           {kitchen.on && <span className="clock" aria-label="שעה">{new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>}
+          <button className="chip" onClick={() => setSoldOut(true)}>🚫 נגמר</button>
           <button className={`chip ${kitchen.on ? 'chip--on' : ''}`} onClick={() => void kitchen.toggle()} aria-pressed={kitchen.on}>
             {kitchen.on ? '✕ יציאה ממצב מטבח' : '🍳 מצב מטבח'}
           </button>
@@ -110,6 +113,7 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
         {showHistory ? 'הסתרת הזמנות שהסתיימו' : 'הזמנות שהסתיימו לאחרונה'}
       </button>
       {showHistory && <History />}
+      {soldOut && <SoldOut onClose={() => setSoldOut(false)} />}
     </section>
   );
 }
@@ -149,7 +153,7 @@ function OrderCard({ order: o, now, busy, onMove }: { order: AdminOrder; now: nu
       </p>
       {o.address && (
         <p className="order__address">
-          📍 {o.address.street} {o.address.houseNumber}
+          📍 {o.address.zoneName && <strong>{o.address.zoneName} · </strong>}{o.address.street} {o.address.houseNumber}
           {o.address.apartment && `, דירה ${o.address.apartment}`}
           {o.address.notes && ` · ${o.address.notes}`}
         </p>

@@ -13,7 +13,7 @@ export interface AdminOrder {
   paymentMethod: 'card' | 'on_site';
   totalAgorot: number;
   lines: { name: string; quantity: number; addOns: { name: string; coverage?: 'whole' | 'right' | 'left' | null }[]; note: string }[];
-  address?: { street: string; houseNumber: string; apartment: string; notes: string } | null;
+  address?: { street: string; houseNumber: string; apartment: string; notes: string; zoneName?: string } | null;
   note?: string;
   readyAt?: number;
   scheduled?: boolean;

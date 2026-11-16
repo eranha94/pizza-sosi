@@ -6,6 +6,7 @@ import {
   UpsertMenuItemRequest,
   DeleteMenuItemRequest,
   BulkUpdateOptionRequest,
+  SetAvailabilityRequest,
   type OrderStatus,
 } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
@@ -113,4 +114,32 @@ export const adminBulkUpdateOption = secureCall<{ items: string[] }>(async (req)
     await audit(uid, 'menu.bulkOption', input.optionName, { ...input, count: items.length });
   }
   return { items };
+});
+
+/** "Sold out" / "back in stock" – a dish, or a topping everywhere it appears. Staff can do it during service. */
+export const adminSetAvailability = secureCall<{ count: number }>(async (req) => {
+  const { uid } = requireStaff(req, ['owner', 'staff']);
+  const input = validate(SetAvailabilityRequest, req.data);
+  if (input.kind === 'item') {
+    const ref = db.collection(COL.menuItems).doc(input.id);
+    if (!(await ref.get()).exists) throw new HttpsError('not-found', 'הפריט לא נמצא');
+    await ref.update({ active: input.active, updatedAt: FieldValue.serverTimestamp() });
+    await audit(uid, input.active ? 'menu.available' : 'menu.soldOut', input.id, {});
+    return { count: 1 };
+  }
+  const snap = await db.collection(COL.menuItems).get();
+  const batch = db.batch();
+  let count = 0;
+  for (const doc of snap.docs) {
+    const groups = (doc.data().addOnGroups ?? []) as { options: { name: string; active: boolean }[] }[];
+    if (!groups.some((g) => g.options.some((o) => o.name === input.name && o.active !== input.active))) continue;
+    batch.update(doc.ref, {
+      addOnGroups: groups.map((g) => ({ ...g, options: g.options.map((o) => (o.name === input.name ? { ...o, active: input.active } : o)) })),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    count++;
+  }
+  if (count) await batch.commit();
+  await audit(uid, input.active ? 'option.available' : 'option.soldOut', input.name, { count });
+  return { count };
 });

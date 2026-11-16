@@ -9,6 +9,7 @@ export const DEFAULT_STORE: StoreSettings = {
   deliveryFeeAgorot: 0,
   minOrderAgorot: 0,
   whatsappStatuses: [...NOTIFY_STATUSES],
+  deliveryZones: [],
 };
 
 export async function loadStoreSettings(): Promise<StoreSettings> {

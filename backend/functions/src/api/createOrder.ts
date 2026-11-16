@@ -43,16 +43,31 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
   if (input.paymentMethod === 'card' && !provider.isConfigured())
     throw new HttpsError('failed-precondition', 'תשלום באשראי עוד לא זמין. אפשר לשלם במקום');
 
+  // Delivery fee and minimum: per area when the pizzeria defined areas, otherwise one for everywhere.
+  let deliveryFee = 0;
+  let minOrder = settings.minOrderAgorot;
+  let zoneName: string | null = null;
+  if (input.fulfillment === 'delivery') {
+    deliveryFee = settings.deliveryFeeAgorot;
+    if (settings.deliveryZones.length > 0) {
+      const zone = settings.deliveryZones.find((z) => z.id === input.address?.zoneId);
+      if (!zone) throw new HttpsError('failed-precondition', 'בחרו יישוב / אזור למשלוח');
+      deliveryFee = zone.feeAgorot;
+      minOrder = zone.minOrderAgorot;
+      zoneName = zone.name;
+    }
+  }
+
   const menu = await loadMenuItems(input.lines.map((l) => l.itemId));
   let priced;
   try {
-    priced = priceCart(input.lines, menu, input.fulfillment === 'delivery' ? settings.deliveryFeeAgorot : 0);
+    priced = priceCart(input.lines, menu, deliveryFee);
   } catch (e) {
     if (e instanceof PricingError) throw new HttpsError('failed-precondition', e.message, { code: e.code });
     throw e;
   }
-  if (priced.subtotalAgorot < settings.minOrderAgorot)
-    throw new HttpsError('failed-precondition', 'ההזמנה נמוכה מסכום המינימום');
+  if (priced.subtotalAgorot < minOrder)
+    throw new HttpsError('failed-precondition', `מינימום הזמנה${zoneName ? ` ל${zoneName}` : ''}: ${minOrder / 100} ₪`);
 
   const orderRef = db.collection(COL.orders).doc();
   const counterRef = db.collection(COL.counters).doc('orders');
@@ -75,7 +90,7 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
       customerName: input.customer.name,
       // Contact details: readable only by the customer and staff (see firestore.rules).
       contact: { phone: input.customer.phone, email: input.customer.email },
-      address: input.address ?? null,
+      address: input.address ? { ...input.address, ...(zoneName && { zoneName }) } : null,
       note: input.note,
       readyAt,
       scheduled: input.when !== 'asap',

@@ -25,6 +25,7 @@ const DEFAULTS: StoreSettings = {
   deliveryFeeAgorot: 0,
   minOrderAgorot: 0,
   whatsappStatuses: [...NOTIFY_STATUSES],
+  deliveryZones: [],
 } as StoreSettings;
 
 function useStoreSettings() {
@@ -77,7 +78,7 @@ export function StorePage() {
         <TodayCard settings={settings} />
         <WeeklyHours key={JSON.stringify(settings.weeklyHours)} settings={settings} />
         <Overrides settings={settings} />
-        <Delivery settings={settings} />
+        <Delivery key={JSON.stringify(settings.deliveryZones)} settings={settings} />
         <WhatsappNotify key={settings.whatsappStatuses.join()} settings={settings} />
       </div>
     </div>
@@ -269,15 +270,24 @@ function Overrides({ settings }: { settings: StoreSettings }) {
   );
 }
 
+type ZoneDraft = { id: string; name: string; fee: string; min: string };
+
 function Delivery({ settings }: { settings: StoreSettings }) {
   const { save, msg, busy } = useSaver();
+  const [zones, setZones] = useState<ZoneDraft[]>(() =>
+    settings.deliveryZones.map((z) => ({ id: z.id, name: z.name, fee: String(z.feeAgorot / 100), min: String(z.minOrderAgorot / 100) })),
+  );
+  const setZone = (i: number, patch: Partial<ZoneDraft>) => setZones((zs) => zs.map((z, j) => (j === i ? { ...z, ...patch } : z)));
+
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const clean = zones.filter((z) => z.name.trim());
     void save({
       deliveryEnabled: f.get('enabled') === 'on',
       deliveryFeeAgorot: Math.round(Number(f.get('fee')) * 100),
       minOrderAgorot: Math.round(Number(f.get('min')) * 100),
+      deliveryZones: clean.map((z) => ({ id: z.id, name: z.name.trim(), feeAgorot: Math.round(Number(z.fee || 0) * 100), minOrderAgorot: Math.round(Number(z.min || 0) * 100) })),
     });
   }
   return (
@@ -298,9 +308,35 @@ function Delivery({ settings }: { settings: StoreSettings }) {
             <input name="min" type="number" min={0} max={1000} step={1} defaultValue={settings.minOrderAgorot / 100} />
           </label>
         </div>
+
+        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 700 }}>אזורי משלוח (לא חובה)</legend>
+          <p className="muted small">אם מוגדרים אזורים – הלקוח בוחר יישוב, ומחיר המשלוח והמינימום נקבעים לפיו (במקום הסכומים שלמעלה). משלוח רק לאזורים ברשימה.</p>
+          {zones.length > 0 && (
+            <ul className="zones">
+              <li className="zones__head"><span>יישוב / אזור</span><span>משלוח ₪</span><span>מינימום ₪</span><span /></li>
+              {zones.map((z, i) => (
+                <li key={z.id}>
+                  <input value={z.name} onChange={(e) => setZone(i, { name: e.target.value })} placeholder="למשל: עוספיא" aria-label="שם האזור" maxLength={40} />
+                  <input type="number" min={0} step={1} value={z.fee} onChange={(e) => setZone(i, { fee: e.target.value })} aria-label={`משלוח ל${z.name}`} />
+                  <input type="number" min={0} step={1} value={z.min} onChange={(e) => setZone(i, { min: e.target.value })} aria-label={`מינימום ל${z.name}`} />
+                  <button type="button" className="icon-btn icon-btn--danger" onClick={() => setZones(zones.filter((_, j) => j !== i))} aria-label={`מחיקת ${z.name}`}>✕</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => setZones([...zones, { id: `z-${Math.random().toString(36).slice(2, 8)}`, name: '', fee: zones.at(-1)?.fee ?? '15', min: zones.at(-1)?.min ?? '0' }])}
+          >
+            + הוספת אזור
+          </button>
+        </fieldset>
+
         <p className="muted small">
-          כרגע: {settings.deliveryEnabled ? `משלוח ${formatAgorot(settings.deliveryFeeAgorot)}` : 'איסוף בלבד'}
-          {settings.minOrderAgorot > 0 && ` · מינימום ${formatAgorot(settings.minOrderAgorot)}`}
+          כרגע: {!settings.deliveryEnabled ? 'איסוף בלבד' : settings.deliveryZones.length ? `${settings.deliveryZones.length} אזורי משלוח` : `משלוח ${formatAgorot(settings.deliveryFeeAgorot)}`}
+          {!settings.deliveryZones.length && settings.minOrderAgorot > 0 && ` · מינימום ${formatAgorot(settings.minOrderAgorot)}`}
         </p>
         <button className="btn" disabled={busy}>שמירה</button>
       </form>

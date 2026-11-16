@@ -14,11 +14,13 @@ export default function CheckoutPage() {
   const total = useCart(cartTotal);
   const store = useStoreSettings();
   const deliveryEnabled = store.data?.deliveryEnabled === true;
+  const zones = store.data?.deliveryZones ?? [];
   // One key per checkout visit: a double click cannot create two orders.
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
   // Details remembered on this device from the last order (if the customer chose that).
   const [profile, setProfile] = useState(loadProfile);
   const [remember, setRemember] = useState(true);
+  const [zoneId, setZoneId] = useState(() => profile?.zoneId ?? '');
   const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
   const now = useNow();
@@ -31,6 +33,10 @@ export default function CheckoutPage() {
   const mode = canAsap ? whenMode : 'later';
   const chosenSlot = slot !== null && slots.includes(slot) ? slot : null;
   const cannotOrder = status !== null && !canAsap && slots.length === 0;
+  const zone = zones.find((z) => z.id === zoneId) ?? null;
+  const deliveryFee = fulfillment === 'delivery' ? (zones.length ? (zone?.feeAgorot ?? 0) : (store.data?.deliveryFeeAgorot ?? 0)) : 0;
+  const minOrder = fulfillment === 'delivery' && zones.length ? (zone?.minOrderAgorot ?? 0) : (store.data?.minOrderAgorot ?? 0);
+  const belowMin = total < minOrder;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +66,9 @@ export default function CheckoutPage() {
         fulfillment,
         paymentMethod,
         customer: { name: get('name'), phone: get('phone'), email: get('email') },
-        ...(fulfillment === 'delivery' ? { address: { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes') } } : {}),
+        ...(fulfillment === 'delivery'
+          ? { address: { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes'), ...(zones.length ? { zoneId } : {}) } }
+          : {}),
         note: get('note'),
         notifyWhatsapp: f.get('notifyWhatsapp') === 'on',
         when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
@@ -71,7 +79,7 @@ export default function CheckoutPage() {
         saveProfile({
           name: get('name'), phone: get('phone'), email: get('email'),
           street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), addressNotes: get('addressNotes'),
-          fulfillment, notifyWhatsapp: f.get('notifyWhatsapp') === 'on',
+          fulfillment, notifyWhatsapp: f.get('notifyWhatsapp') === 'on', zoneId,
         });
       else forgetProfile();
       if (res.paymentUrl) window.location.assign(res.paymentUrl);
@@ -137,6 +145,19 @@ export default function CheckoutPage() {
         {fulfillment === 'delivery' && (
           <fieldset className="group">
             <legend>כתובת למשלוח</legend>
+            {zones.length > 0 && (
+              <label className="field">
+                <span>יישוב / אזור</span>
+                <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+                  <option value="">בחירה…</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name} · משלוח {formatAgorot(z.feeAgorot)}{z.minOrderAgorot > 0 ? ` · מינימום ${formatAgorot(z.minOrderAgorot)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="field"><span>רחוב</span><input name="street" defaultValue={profile?.street} required autoComplete="address-line1" /></label>
             <div className="row">
               <label className="field"><span>מספר בית</span><input name="houseNumber" defaultValue={profile?.houseNumber} autoComplete="off" inputMode="numeric" /></label>
@@ -189,9 +210,11 @@ export default function CheckoutPage() {
             הפרטים ישמשו לטיפול בהזמנה בלבד.
           </span>
         </label>
-        <div className="summary"><span>סה״כ משוער</span><strong>{formatAgorot(total)}</strong></div>
+        {deliveryFee > 0 && <div className="summary"><span>משלוח{zone ? ` (${zone.name})` : ''}</span><span>{formatAgorot(deliveryFee)}</span></div>}
+        <div className="summary"><span>סה״כ משוער</span><strong>{formatAgorot(total + deliveryFee)}</strong></div>
+        {belowMin && <p className="notice" role="status">מינימום הזמנה{zone ? ` ל${zone.name}` : ''}: {formatAgorot(minOrder)}. חסרים עוד {formatAgorot(minOrder - total)}.</p>}
         {error && <p className="notice notice--error" role="alert">{error}</p>}
-        <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder}>
+        <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder || belowMin}>
           {submitting ? 'שולח…' : paymentMethod === 'card' ? 'למעבר לתשלום' : 'שליחת ההזמנה'}
         </button>
       </form>
