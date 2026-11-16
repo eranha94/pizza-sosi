@@ -10,5 +10,5 @@ export const BUSINESS = {
   email: 'support@pizza-sosi.co.il',
   site: 'pizza-sosi.co.il',
   /** Date the legal texts were last updated. */
-  legalUpdated: '15 בנובמבר 2026',
+  legalUpdated: '16 בנובמבר 2026',
 };

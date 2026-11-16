@@ -6,6 +6,7 @@ import { useCart, cartTotal, type CartLine } from '../store/cart';
 import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
+import { announce, notifyAdded, usePageTitle } from '../lib/a11y';
 
 /** Items worth suggesting next to an order: drinks first, then specials, not already in the cart. */
 function suggestions(menu: MenuItem[], lines: CartLine[]): MenuItem[] {
@@ -22,9 +23,9 @@ export default function CartPage() {
   const total = useCart(cartTotal);
   const { data: menu = [] } = useMenu();
   const [open, setOpen] = useState<{ item: MenuItem; editing: CartLine | null } | null>(null);
-  const [justAdded, setJustAdded] = useState<string | null>(null);
   const bucket = useBucket().data ?? '';
   const byId = new Map(menu.map((m) => [m.id, m]));
+  usePageTitle(lines.length === 0 ? 'הסל ריק' : 'הסל שלך');
 
   if (lines.length === 0) {
     return (
@@ -45,8 +46,7 @@ export default function CartPage() {
     }
     const defaults = m.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => ({ id: g.defaultOptionId!, coverage: 'whole' as const }));
     add(m, defaults, 1, '');
-    setJustAdded(m.name);
-    window.setTimeout(() => setJustAdded(null), 2200);
+    notifyAdded(m.name);
   }
 
   return (
@@ -68,9 +68,11 @@ export default function CartPage() {
                 )}
               </div>
               <div className="stepper" role="group" aria-label={`כמות של ${l.name}`}>
-                <button type="button" aria-label="הפחתה" onClick={() => (l.quantity === 1 ? remove(l.key) : setQuantity(l.key, l.quantity - 1))}>−</button>
-                <output>{l.quantity}</output>
-                <button type="button" aria-label="הוספה" onClick={() => setQuantity(l.key, l.quantity + 1)}>+</button>
+                <button type="button" aria-label={l.quantity === 1 ? `הסרת ${l.name} מהסל` : `הפחתת ${l.name}`} onClick={() => (l.quantity === 1 ? (remove(l.key), announce(`${l.name} הוסר מהסל`)) : setQuantity(l.key, l.quantity - 1))}>
+                  {l.quantity === 1 ? <TrashIcon /> : '−'}
+                </button>
+                <output aria-live="polite">{l.quantity}</output>
+                <button type="button" aria-label={`הוספת ${l.name}`} onClick={() => setQuantity(l.key, l.quantity + 1)}>+</button>
               </div>
               <span className="cart-line__price">{formatAgorot(l.unitPriceAgorot * l.quantity)}</span>
             </li>
@@ -97,8 +99,6 @@ export default function CartPage() {
               );
             })}
           </ul>
-          <p className="sr-only" role="status" aria-live="polite">{justAdded ? `${justAdded} נוסף לסל` : ''}</p>
-          {justAdded && <p className="toast" aria-hidden="true">✓ {justAdded} נוסף לסל</p>}
         </section>
       )}
 
@@ -110,5 +110,13 @@ export default function CartPage() {
       <Link to="/checkout" className="button button--primary button--block">להמשך הזמנה</Link>
       <ItemDialog item={open?.item ?? null} editing={open?.editing ?? null} onClose={() => setOpen(null)} />
     </section>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </svg>
   );
 }

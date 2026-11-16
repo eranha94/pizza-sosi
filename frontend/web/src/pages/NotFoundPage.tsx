@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
+import { usePageTitle } from '../lib/a11y';
 
 export default function NotFoundPage() {
+  usePageTitle('הדף לא נמצא');
   return (
     <section className="page">
       <h1>הדף לא נמצא</h1>

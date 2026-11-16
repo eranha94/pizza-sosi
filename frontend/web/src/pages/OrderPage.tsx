@@ -6,6 +6,7 @@ import { useNow, useMenu } from '../lib/menu';
 import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, getOrderStatus, errorMessage } from '../lib/api';
+import { usePageTitle } from '../lib/a11y';
 
 export default function OrderPage() {
   const { orderId = '' } = useParams();
@@ -55,6 +56,8 @@ export default function OrderPage() {
       window.clearTimeout(timer);
     };
   }, [orderId]);
+
+  usePageTitle(state === 'loading' ? null : order ? `הזמנה #${order.number}` : 'ההזמנה לא נמצאה');
 
   if (state === 'loading') return <p className="page-loading">טוען את ההזמנה…</p>;
   if (state === 'missing' || !order)

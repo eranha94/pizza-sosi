@@ -6,6 +6,7 @@ import { useStoreSettings, useNow } from '../lib/menu';
 import { useStoreStatus } from '../components/StoreStatus';
 import { createOrder, errorMessage } from '../lib/api';
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
+import { usePageTitle } from '../lib/a11y';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function CheckoutPage() {
   const belowMin = total < minOrder;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  usePageTitle(lines.length === 0 ? 'אין מה להזמין' : 'פרטי ההזמנה');
 
   if (lines.length === 0) {
     return (
@@ -94,6 +96,7 @@ export default function CheckoutPage() {
     <section className="page">
       <h1>פרטי ההזמנה</h1>
       {profile?.name && <p className="welcome">שמחים לראות אותך שוב, {profile.name.split(' ')[0]}! 👋 הפרטים מולאו מההזמנה הקודמת.</p>}
+      <p className="muted small">כל השדות חובה, אלא אם כתוב &quot;לא חובה&quot;.</p>
       <form className="form" key={profile ? "p" : "empty"} onSubmit={onSubmit} noValidate={false}>
         <fieldset className="segmented">
           <legend>איך מקבלים?</legend>
@@ -139,7 +142,7 @@ export default function CheckoutPage() {
         </fieldset>
 
         <label className="field"><span>שם</span><input name="name" defaultValue={profile?.name} required minLength={2} maxLength={60} autoComplete="name" /></label>
-        <label className="field"><span>טלפון</span><input name="phone" defaultValue={profile?.phone} type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" autoComplete="tel" placeholder="050-0000000" /></label>
+        <label className="field"><span>טלפון</span><input name="phone" defaultValue={profile?.phone} type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" title="מספר טלפון ישראלי, לדוגמה 050-1234567" autoComplete="tel" placeholder="050-0000000" /></label>
         <label className="field"><span>מייל (לאישור ההזמנה)</span><input name="email" defaultValue={profile?.email} type="email" required autoComplete="email" spellCheck={false} placeholder="name@example.com" /></label>
 
         {fulfillment === 'delivery' && (
@@ -148,7 +151,7 @@ export default function CheckoutPage() {
             {zones.length > 0 && (
               <label className="field">
                 <span>יישוב / אזור</span>
-                <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
+                <select name="zoneId" value={zoneId} onChange={(e) => setZoneId(e.target.value)} required>
                   <option value="">בחירה…</option>
                   {zones.map((z) => (
                     <option key={z.id} value={z.id}>
@@ -160,10 +163,10 @@ export default function CheckoutPage() {
             )}
             <label className="field"><span>רחוב</span><input name="street" defaultValue={profile?.street} required autoComplete="address-line1" /></label>
             <div className="row">
-              <label className="field"><span>מספר בית</span><input name="houseNumber" defaultValue={profile?.houseNumber} autoComplete="off" inputMode="numeric" /></label>
-              <label className="field"><span>דירה</span><input name="apartment" defaultValue={profile?.apartment} autoComplete="address-line2" /></label>
+              <label className="field"><span>מספר בית (לא חובה)</span><input name="houseNumber" defaultValue={profile?.houseNumber} autoComplete="off" inputMode="numeric" /></label>
+              <label className="field"><span>דירה (לא חובה)</span><input name="apartment" defaultValue={profile?.apartment} autoComplete="address-line2" /></label>
             </div>
-            <label className="field"><span>הערות לשליח</span><input name="addressNotes" defaultValue={profile?.addressNotes} autoComplete="off" /></label>
+            <label className="field"><span>הערות לשליח (לא חובה)</span><input name="addressNotes" defaultValue={profile?.addressNotes} autoComplete="off" /></label>
           </fieldset>
         )}
 
@@ -206,7 +209,7 @@ export default function CheckoutPage() {
         <label className="consent">
           <input type="checkbox" name="consent" required />
           <span>
-            קראתי ואני מסכים/ה ל<Link to="/terms" target="_blank">תקנון</Link> ול<Link to="/privacy" target="_blank">מדיניות הפרטיות</Link>.
+            קראתי ואני מסכים/ה ל<Link to="/terms" target="_blank">תקנון<span className="sr-only"> (נפתח בלשונית חדשה)</span></Link> ול<Link to="/privacy" target="_blank">מדיניות הפרטיות<span className="sr-only"> (נפתח בלשונית חדשה)</span></Link>.
             הפרטים ישמשו לטיפול בהזמנה בלבד.
           </span>
         </label>

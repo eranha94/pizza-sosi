@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { usePageTitle } from '../../lib/a11y';
 import { Link } from 'react-router';
 import { BUSINESS } from '../../config/business';
 
@@ -10,13 +11,8 @@ export const LEGAL_PAGES = [
 
 /** Shared frame for the legal pages: title, update date, table of contents, links to the other pages. */
 export function LegalLayout({ title, sections, children }: { title: string; sections: { id: string; title: string }[]; children: ReactNode }) {
-  useEffect(() => {
-    document.title = `${title} – ${BUSINESS.name}`;
-    window.scrollTo(0, 0);
-    return () => {
-      document.title = BUSINESS.name;
-    };
-  }, [title]);
+  usePageTitle(title);
+  useEffect(() => window.scrollTo(0, 0), [title]);
   return (
     <article className="page legal">
       <header className="legal__head">

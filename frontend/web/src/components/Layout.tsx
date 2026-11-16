@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { formatAgorot, CATEGORY_IDS, CATEGORY_LABELS } from '@pizza-sosi/contracts/constants';
 import { useCart, cartCount, cartTotal } from '../store/cart';
@@ -7,6 +7,7 @@ import { useMenu } from '../lib/menu';
 import { StoreDot } from './StoreStatus';
 import { ThemeMenu } from './ThemeMenu';
 import { Footer } from './Footer';
+import { announce } from '../lib/a11y';
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -22,6 +23,25 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const navRef = useRef<HTMLElement>(null);
+  const [added, setAdded] = useState<{ text: string; n: number } | null>(null);
+
+  // Added to the cart (from any page): toast, a little bounce on the cart, and a spoken confirmation.
+  useEffect(() => {
+    let timer = 0;
+    const onAdded = (e: Event) => {
+      const { name, quantity } = (e as CustomEvent<{ name: string; quantity: number }>).detail;
+      const text = quantity > 1 ? `${quantity} × ${name} נוספו לסל` : `${name} נוסף לסל`;
+      setAdded((prev) => ({ text, n: (prev?.n ?? 0) + 1 }));
+      announce(text);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setAdded(null), 2400);
+    };
+    window.addEventListener('cart:added', onAdded);
+    return () => {
+      window.removeEventListener('cart:added', onAdded);
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   const categories = useMemo(() => {
     const present = new Set((menu.data ?? []).map((i) => i.category));
@@ -73,7 +93,7 @@ export function Layout() {
         )}
         <div className="header-actions">
           <ThemeMenu />
-          <Link to="/cart" className="cart-button" aria-label={`סל הקניות, ${count} פריטים`}>
+          <Link to="/cart" key={added?.n ?? 0} className={`cart-button ${added ? 'is-bump' : ''}`} aria-label={`סל הקניות, ${count} פריטים`}>
             <CartIcon />
             {count > 0 ? (
               <span className="cart-button__meta">
@@ -96,6 +116,12 @@ export function Layout() {
           <strong className="cart-bar__total">{formatAgorot(total)}</strong>
         </Link>
       )}
+      {added && (
+        <p key={added.n} className={`toast ${count > 0 && location.pathname === '/' ? 'toast--above-bar' : ''}`} aria-hidden="true">
+          <span className="toast__check">✓</span> {added.text}
+        </p>
+      )}
+      <div id="a11y-announcer" className="sr-only" role="status" aria-live="polite" aria-atomic="true" />
       <Footer />
     </>
   );

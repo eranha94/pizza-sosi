@@ -3,6 +3,7 @@ import { formatAgorot, COVERAGE_LABELS, ITEM_TAG_LABELS } from '@pizza-sosi/cont
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
 import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
+import { announce, notifyAdded } from '../lib/a11y';
 
 /** Pick toppings and add to the cart – or, with `editing`, change a line that's already in the cart. */
 export function ItemDialog({ item, editing, onClose }: { item: MenuItem | null; editing?: CartLine | null; onClose: () => void }) {
@@ -79,7 +80,15 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
     <form
       method="dialog"
       className="sheet__body"
-      onSubmit={() => (editing ? replace(editing.key, item, chosenList, quantity, note.trim()) : add(item, chosenList, quantity, note.trim()))}
+      onSubmit={() => {
+        if (editing) {
+          replace(editing.key, item, chosenList, quantity, note.trim());
+          announce(`${item.name} עודכן בסל`);
+        } else {
+          add(item, chosenList, quantity, note.trim());
+          notifyAdded(item.name, quantity);
+        }
+      }}
     >
       <div className="sheet__head">
         <h2 id="sheet-title">{item.name}</h2>
@@ -104,7 +113,7 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
                 {g.name}
                 {!g.options.some((o) => chosen.has(o.id)) && <span className="choice__required"> · חובה לבחור</span>}
               </legend>
-              <div className="choice__row" role="radiogroup">
+              <div className="choice__row">
                 {g.options.map((o) => (
                   <label key={o.id} className={chosen.has(o.id) ? 'is-on' : ''}>
                     <input type="radio" name={`g-${g.id}`} checked={chosen.has(o.id)} onChange={() => pickOne(ids, o.id)} />

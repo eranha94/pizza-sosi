@@ -9,11 +9,14 @@ import { StoreStatusCard } from '../components/StoreStatus';
 import { useActiveCategory } from '../store/ui';
 import { scrollToCategory } from '../components/Layout';
 import { useLocation } from 'react-router';
+import { usePageTitle } from '../lib/a11y';
 
 export function HomePage() {
   const menu = useMenu();
   const bucket = useBucket();
   const [selected, setSelected] = useState<MenuItem | null>(null);
+  // Home: title only – the page keeps its scroll position / category jump.
+  usePageTitle('', { focus: false });
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState<ItemTag | null>(null);
   const q = search.trim();
@@ -113,7 +116,7 @@ export function HomePage() {
             )}
           </div>
         )}
-        {menu.isPending && <p className="page-loading">טוען את התפריט…</p>}
+        {menu.isPending && <MenuSkeleton />}
         {menu.isError && !menu.data?.length && <p className="notice notice--error">לא הצלחנו לטעון את התפריט. רעננו את הדף.</p>}
         {byCategory.map((c) => (
           <section key={c.id} id={`cat-${c.id}`} className="menu__category" aria-labelledby={`h-${c.id}`}>
@@ -173,5 +176,22 @@ function MenuImage({ src, srcSet }: { src: string; srcSet: string | null }) {
       decoding="async"
       onError={() => setUseOriginal(true)}
     />
+  );
+}
+
+/** Placeholder cards while the menu loads (shapes only; the text is for screen readers). */
+function MenuSkeleton() {
+  return (
+    <div role="status">
+      <span className="sr-only">טוען את התפריט…</span>
+      <ul className="skeleton-grid" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, i) => (
+          <li key={i} className="skeleton-card">
+            <span />
+            <div><i /><i /><i /></div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

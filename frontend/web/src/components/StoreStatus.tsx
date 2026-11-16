@@ -51,7 +51,7 @@ export function StoreStatusCard() {
     <section className={`oven-card ${isOpen ? 'is-open' : 'is-closed'} ${closingSoon ? 'is-soon' : ''} ${open ? 'is-expanded' : ''}`}>
       <button type="button" className="oven-card__head" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)}>
         <Oven lit={isOpen} />
-        <span className="oven-card__text" role="status" aria-live="polite">
+        <span className="oven-card__text">
           <strong>{title}</strong>
           <span>{line}</span>
           {closingSoon && status.state === 'open' && (
@@ -61,7 +61,8 @@ export function StoreStatusCard() {
           )}
         </span>
         <span className="oven-card__more">
-          שעות
+          <span aria-hidden="true">שעות</span>
+          <span className="sr-only">, הצגת שעות הפעילות</span>
           <svg className="oven-card__chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
       </button>

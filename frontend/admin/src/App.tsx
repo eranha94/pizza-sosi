@@ -65,7 +65,7 @@ const TABS: { id: Tab; label: string; ownerOnly?: boolean }[] = [
   { id: 'orders', label: 'הזמנות' },
   { id: 'store', label: 'שעות ופתיחה' },
   { id: 'menu', label: 'תפריט', ownerOnly: true },
-  { id: 'summary', label: 'סיכום', ownerOnly: true },
+  { id: 'summary', label: 'דוחות', ownerOnly: true },
 ];
 
 function readTab(): Tab {
