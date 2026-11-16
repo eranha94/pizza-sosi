@@ -12,7 +12,8 @@ export function secureCall<T>(handler: (req: CallableRequest) => Promise<T>, opt
   return onCall(
     {
       region: FUNCTIONS_REGION,
-      enforceAppCheck: true,
+      // The local emulator (used by the end-to-end tests) can't issue App Check tokens; production always enforces.
+      enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== 'true',
       cors: ALLOWED_ORIGINS,
       maxInstances: 10,
       concurrency: 40,

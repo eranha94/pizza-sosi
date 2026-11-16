@@ -14,7 +14,9 @@
     "build:backend": "pnpm --filter ./backend/functions run build",
     "test:rules": "firebase emulators:exec --only firestore,storage --project demo-pizza-sosi \"pnpm --filter ./tests/rules run test\"",
     "dev:web": "pnpm --filter ./frontend/web run dev",
-    "dev:admin": "pnpm --filter ./frontend/admin run dev"
+    "dev:admin": "pnpm --filter ./frontend/admin run dev",
+    "build:e2e": "pnpm --filter ./frontend/web run build && pnpm --filter ./backend/functions run build:deploy",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-pizza-sosi \"pnpm --filter ./tests/e2e run test\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,0 +1,12 @@
+{
+  "name": "@pizza-sosi/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "firebase-admin": "^14.0.0"
+  }
+}
