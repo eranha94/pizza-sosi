@@ -28,11 +28,11 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
 
   // Cart: line shows the choices; add a suggested drink.
   await expect(page.getByText('זיתים (חצי ימין)')).toBeVisible();
-  await page.getByRole('button', { name: /הוספת קולה בדיקה לסל/ }).click();
+  await page.getByRole('button', { name: /הוספה לסל: קולה בדיקה/ }).click();
   await expect(page.locator('.summary strong')).toHaveText(/78/);
 
   // Edit the pizza: tuna on the whole pizza too (+13).
-  await page.getByRole('button', { name: 'עריכת פיצה בדיקה' }).click();
+  await page.getByRole('button', { name: 'עריכה: פיצה בדיקה' }).click();
   const edit = page.locator('dialog.sheet[open]');
   await edit.locator('label', { hasText: 'טונה' }).click();
   const updateBtn = edit.getByRole('button', { name: /עדכון/ });

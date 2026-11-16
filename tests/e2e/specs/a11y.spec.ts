@@ -20,10 +20,10 @@ async function setTheme(page: Page, theme: 'light' | 'dark' | 'premium') {
 
 for (const theme of ['light', 'dark', 'premium'] as const) {
   test(`accessibility – customer pages (${theme})`, async ({ page }) => {
+    // No entrance animations: colours are measured at their final values, not mid fade-in.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await setTheme(page, theme);
-    // Let the entrance animations finish so colours are measured at their final values.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(page.getByRole('button', { name: /פיצה בדיקה/ }).first()).toBeVisible();
     await expectNoViolations(page, `menu (${theme})`);
 
@@ -59,6 +59,7 @@ for (const theme of ['light', 'dark', 'premium'] as const) {
 }
 
 test('accessibility – legal pages', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const path of ['/terms', '/privacy', '/accessibility', '/my-orders']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

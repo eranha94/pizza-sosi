@@ -62,8 +62,8 @@ export default function CartPage() {
                 {l.addOnLabels.length > 0 && <span className="muted">{l.addOnLabels.join(', ')}</span>}
                 {l.note && <span className="muted">הערה: {l.note}</span>}
                 {item && item.addOnGroups.length > 0 && (
-                  <button type="button" className="link-button" onClick={() => setOpen({ item, editing: l })} aria-label={`עריכת ${l.name}`}>
-                    ✎ עריכה
+                  <button type="button" className="link-button" onClick={() => setOpen({ item, editing: l })}>
+                    <span aria-hidden="true">✎ </span>עריכה<span className="sr-only">: {l.name}</span>
                   </button>
                 )}
               </div>
@@ -89,7 +89,8 @@ export default function CartPage() {
               const srcSet = thumbSrcSet(bucket, m.imagePath);
               return (
                 <li key={m.id}>
-                  <button type="button" className="upsell__card" onClick={() => quickAdd(m)} aria-label={`הוספת ${m.name} לסל, ${formatAgorot(m.priceAgorot)}`}>
+                  <button type="button" className="upsell__card" onClick={() => quickAdd(m)}>
+                    <span className="sr-only">הוספה לסל: </span>
                     {src ? <img src={src} srcSet={srcSet ?? undefined} sizes="64px" alt="" width="64" height="64" loading="lazy" /> : <span className="upsell__img" aria-hidden="true" />}
                     <span className="upsell__name">{m.name}</span>
                     <span className="upsell__price">{formatAgorot(m.priceAgorot)}</span>
