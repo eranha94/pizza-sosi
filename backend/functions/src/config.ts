@@ -8,6 +8,9 @@ const PROD_ORIGINS = [
   'https://pizza-sosi.web.app',
   'https://pizza-sosi.firebaseapp.com',
   'https://pizza-sosi-admin.web.app',
+  // the new site before the domain moves (and as a fallback address)
+  'https://pizza-sosi-next.web.app',
+  'https://pizza-sosi-next.firebaseapp.com',
   'https://pizza-sosi.co.il',
   'https://www.pizza-sosi.co.il',
   'https://admin.pizza-sosi.co.il',

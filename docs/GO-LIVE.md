@@ -14,9 +14,9 @@
 ### א1. תנאים מוקדמים
 - [ ] ה־PR האחרון מוזג ל־`main`, וכל הבדיקות האוטומטיות ירוקות.
 - [ ] הדומיין `pizza-sosi.co.il` במצב **Active** ב־Cloudflare.
-- [ ] **תשלום:** יש מפתחות סליקה מ־PayMe, או שמחליטים לעלות קודם עם "תשלום במקום" בלבד ולהוסיף אשראי אחר כך.
+- [x] **תשלום:** עולים קודם עם "תשלום במקום". האפשרות "אשראי אונליין" מוצגת באפור עם "בקרוב" עד ש־PayMe יחוברו (`frontend/web/src/config/payments.ts`). ישראכרט ו־PayMe צריכים לראות את האתר חי לפני שהם פותחים גישה.
 - [ ] **וואטסאפ:** הוחלט מאיזה מספר שולחים, ואימות העסק ב־Meta הושלם.
-- [ ] יש תמונות למנות, אלרגנים אמיתיים בתקנון וכתובת מלאה.
+- [ ] יש כתובת מלאה של העסק (חובה לבדיקה של חברת האשראי), אלרגנים אמיתיים בתקנון ותמונות למנות.
 
 ### א2. חיבור GitHub לפרויקט החי (פעם אחת)
 מעתיק מסביבת הבדיקות את ההגדרות שכבר עובדות. לא משנה כלום בסביבת הבדיקות ולא מעלה כלום לאוויר.
@@ -92,10 +92,32 @@ node set-staff-role.mjs --project pizza-sosi --email <המייל של הבעלי
 עובד נוסף: אותה פקודה עם `--role staff`. עובד כזה רואה הזמנות ושעות ויכול לסמן "נגמר", אבל לא יכול לערוך את התפריט.
 
 ### ב4. חיבור הדומיין
-1. Firebase Console ← Hosting ← אתר **pizza-sosi-next** ← Add custom domain ← `pizza-sosi.co.il`, ואחר כך גם `www.pizza-sosi.co.il`.
-2. Firebase Console ← Hosting ← אתר **pizza-sosi-admin** ← Add custom domain ← `admin.pizza-sosi.co.il`.
-3. מעתיקים את הרשומות ש־Firebase מציג ל־**Cloudflare ← DNS**. **חשוב:** לבחור "DNS only" (ענן אפור), אחרת תעודת האבטחה לא תונפק. מוחקים את רשומת ה־A הישנה (`185.56.72.74`).
-4. מחכים ש־Firebase מציג **Connected**. זה לוקח בין כמה דקות לכמה שעות.
+**איך זה בנוי:**
+
+| כתובת | מה מוצג | אתר ב־Firebase |
+|---|---|---|
+| `pizza-sosi.co.il` | האתר ללקוחות | `pizza-sosi-next` |
+| `www.pizza-sosi.co.il` | הפניה אוטומטית ל־`pizza-sosi.co.il` | `pizza-sosi-next` |
+| `admin.pizza-sosi.co.il` | דף הניהול | `pizza-sosi-admin` |
+
+**1. ב־Firebase** (Console ← פרויקט `pizza-sosi` ← Hosting):
+- באתר **pizza-sosi-next** ← **Add custom domain** ← `pizza-sosi.co.il` ← Continue. Firebase מציג רשומות: TXT לאימות ורשומות A או AAAA.
+- שוב **Add custom domain** ← `www.pizza-sosi.co.il` ← מסמנים **Redirect to an existing website** ← `pizza-sosi.co.il`.
+- באתר **pizza-sosi-admin** ← **Add custom domain** ← `admin.pizza-sosi.co.il`.
+
+**2. ב־Cloudflare** (pizza-sosi.co.il ← DNS ← Records):
+- **מוחקים** את רשומת ה־A הישנה (`185.56.72.74`) ואת ה־CNAME הישן של `www`.
+- **מוסיפים** בדיוק את מה ש־Firebase הציג: Name `@` לדומיין הראשי, `www`, ו־`admin`.
+- **בכל רשומה: Proxy status = DNS only** (ענן אפור). זה חובה, אחרת Firebase לא יכול להנפיק תעודת אבטחה.
+- **לא נוגעים** ברשומות המייל: שלוש רשומות ה־MX של `route1/2/3.mx.cloudflare.net`, ה־TXT שמתחיל ב־`v=spf1`, וה־TXT של `cf2024-1._domainkey`. שם TXT לאימות של Firebase נוסף לצידן ולא במקומן.
+- ב־Cloudflare ← **SSL/TLS** ← Overview: מצב **Full (strict)**. זה רלוונטי רק אם אחת הרשומות תעבור בעתיד ל־Proxied.
+
+**3. מחכים** ש־Firebase מציג **Connected** בכל שלוש הכתובות. זה לוקח בין כמה דקות לכמה שעות.
+
+**4. בודקים** שכל אחת מהכתובות נפתחת עם מנעול:
+`https://pizza-sosi.co.il`, `https://www.pizza-sosi.co.il` (אמור לעבור לכתובת הראשית), ו־`https://admin.pizza-sosi.co.il`.
+
+> 💡 את `admin.pizza-sosi.co.il` אפשר לחבר כבר בשלב א׳, אחרי א5. הכתובת לא בשימוש, ולכן אין סיכון, ותעודת האבטחה תהיה מוכנה מראש. את הדומיין הראשי ואת `www` מחברים רק ביום המעבר.
 
 ### ב5. הפעלת המיילים
 ```bash

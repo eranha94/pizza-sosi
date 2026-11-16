@@ -7,6 +7,7 @@ import { useStoreStatus } from '../components/StoreStatus';
 import { createOrder, errorMessage } from '../lib/api';
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 import { usePageTitle } from '../lib/a11y';
+import { CARD_PAYMENTS_ENABLED } from '../config/payments';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -183,7 +184,14 @@ export default function CheckoutPage() {
         <fieldset className="segmented">
           <legend>תשלום</legend>
           <label><input type="radio" name="payment" checked={paymentMethod === 'on_site'} onChange={() => setPaymentMethod('on_site')} /> תשלום במקום</label>
-          <label><input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /> אשראי אונליין</label>
+          {CARD_PAYMENTS_ENABLED ? (
+            <label><input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /> אשראי אונליין</label>
+          ) : (
+            <label className="is-disabled">
+              <input type="radio" name="payment" disabled aria-describedby="card-soon" /> אשראי אונליין
+              <span id="card-soon" className="soon-badge">בקרוב</span>
+            </label>
+          )}
         </fieldset>
         {paymentMethod === 'card' && <p className="muted small">התשלום מתבצע בדף מאובטח של חברת הסליקה. פרטי הכרטיס לא עוברים דרכנו.</p>}
 
