@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
-import { useNow } from '../lib/menu';
+import { useNow, useMenu } from '../lib/menu';
+import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, getOrderStatus, errorMessage } from '../lib/api';
 
@@ -110,7 +111,47 @@ export default function OrderPage() {
           {cancelling ? 'מבטל…' : 'ביטול ההזמנה'}
         </button>
       )}
+      <Reorder order={order} />
     </section>
+  );
+}
+
+/** "Order the same again": puts this order's items back in the cart with today's menu and prices. */
+function Reorder({ order }: { order: Order }) {
+  const { data: menu = [] } = useMenu();
+  const add = useCart((s) => s.add);
+  const navigate = useNavigate();
+  const [missing, setMissing] = useState<string[]>([]);
+  if (!['completed', 'ready', 'out_for_delivery', 'cancelled'].includes(order.status) || menu.length === 0) return null;
+  const byId = new Map(menu.map((m) => [m.id, m]));
+
+  function reorder() {
+    const gone: string[] = [];
+    for (const l of order.lines) {
+      const item = byId.get(l.itemId);
+      if (!item) {
+        gone.push(l.name);
+        continue;
+      }
+      const valid = new Set(item.addOnGroups.flatMap((g) => g.options.filter((o) => o.active).map((o) => o.id)));
+      const addOns = l.addOns.filter((a) => valid.has(a.id)).map((a) => ({ id: a.id, coverage: a.coverage ?? ('whole' as const) }));
+      add(item, addOns, l.quantity, l.note);
+    }
+    if (gone.length) setMissing(gone);
+    else navigate('/cart');
+  }
+
+  return (
+    <div className="reorder">
+      <button type="button" className="button button--primary button--block" onClick={reorder}>
+        🔁 להזמין שוב את אותו הדבר
+      </button>
+      {missing.length > 0 && (
+        <p className="notice" role="status">
+          נוסף לסל, חוץ מ: {missing.join(', ')} (כרגע לא בתפריט). <Link to="/cart">לסל</Link>
+        </p>
+      )}
+    </div>
   );
 }
 

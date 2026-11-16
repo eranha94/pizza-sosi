@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { formatAgorot, COVERAGE_LABELS } from '@pizza-sosi/contracts/constants';
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
-import { useCart, addOnsPrice, type Coverage } from '../store/cart';
+import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
 
-export function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: () => void }) {
+/** Pick toppings and add to the cart – or, with `editing`, change a line that's already in the cart. */
+export function ItemDialog({ item, editing, onClose }: { item: MenuItem | null; editing?: CartLine | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: 
   return (
     <dialog ref={ref} className="sheet" onClose={onClose} aria-labelledby="sheet-title">
       {/* keyed by item: every open starts with a fresh form */}
-      {item && <ItemForm key={item.id} item={item} onDone={() => ref.current?.close()} />}
+      {item && <ItemForm key={editing?.key ?? item.id} item={item} editing={editing ?? null} onDone={() => ref.current?.close()} />}
     </dialog>
   );
 }
@@ -27,14 +28,17 @@ function priceLabel(o: AddOnOption) {
   return `+${formatAgorot(o.wholeAgorot)}`;
 }
 
-function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
+function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine | null; onDone: () => void }) {
   const add = useCart((s) => s.add);
-  // Single-choice groups (dough, cheese…) start on their default option.
-  const [chosen, setChosen] = useState<Map<string, Coverage>>(
-    () => new Map(item.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => [g.defaultOptionId!, 'whole'])),
+  const replace = useCart((s) => s.replace);
+  // Editing: start from the line's choices. New: single-choice groups (dough, cheese…) start on their default option.
+  const [chosen, setChosen] = useState<Map<string, Coverage>>(() =>
+    editing
+      ? new Map(editing.addOns.map((a) => [a.id, a.coverage]))
+      : new Map(item.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => [g.defaultOptionId!, 'whole'])),
   );
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState('');
+  const [quantity, setQuantity] = useState(editing?.quantity ?? 1);
+  const [note, setNote] = useState(editing?.note ?? '');
 
   const groups = item.addOnGroups
     .map((g) => ({ ...g, options: g.options.filter((o) => o.active) }))
@@ -72,7 +76,11 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
   const setCoverage = (id: string, c: Coverage) => setChosen((m) => new Map(m).set(id, c));
 
   return (
-    <form method="dialog" className="sheet__body" onSubmit={() => add(item, chosenList, quantity, note.trim())}>
+    <form
+      method="dialog"
+      className="sheet__body"
+      onSubmit={() => (editing ? replace(editing.key, item, chosenList, quantity, note.trim()) : add(item, chosenList, quantity, note.trim()))}
+    >
       <div className="sheet__head">
         <h2 id="sheet-title">{item.name}</h2>
         <button type="button" className="icon-button" aria-label="סגירה" onClick={onDone}>×</button>
@@ -153,7 +161,7 @@ function ItemForm({ item, onDone }: { item: MenuItem; onDone: () => void }) {
           <button type="button" aria-label="הוספה" onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</button>
         </div>
         <button type="submit" className="button button--primary" disabled={missing.length > 0}>
-          {missing.length > 0 ? `בחרו ${missing[0]!.name}` : `הוספה לסל · ${formatAgorot(unit * quantity)}`}
+          {missing.length > 0 ? `בחרו ${missing[0]!.name}` : `${editing ? 'עדכון' : 'הוספה לסל'} · ${formatAgorot(unit * quantity)}`}
         </button>
       </div>
     </form>

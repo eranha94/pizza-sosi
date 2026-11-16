@@ -89,6 +89,13 @@ export function Layout() {
       <main id="main">
         <Outlet />
       </main>
+      {count > 0 && location.pathname === '/' && (
+        <Link to="/cart" className="cart-bar" aria-label={`לסל: ${count} פריטים, ${formatAgorot(total)}`}>
+          <span className="cart-bar__count">{count}</span>
+          <span className="cart-bar__label">לסל ולהזמנה</span>
+          <strong className="cart-bar__total">{formatAgorot(total)}</strong>
+        </Link>
+      )}
       <Footer />
     </>
   );

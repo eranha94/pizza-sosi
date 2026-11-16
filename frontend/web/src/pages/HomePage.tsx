@@ -4,6 +4,7 @@ import type { CategoryId, MenuItem } from '@pizza-sosi/contracts';
 import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet, prefetchOrdering } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
+import { OpeningHoursSchema } from '../components/OpeningHoursSchema';
 import { StoreStatusCard } from '../components/StoreStatus';
 import { useActiveCategory } from '../store/ui';
 import { scrollToCategory } from '../components/Layout';
@@ -110,6 +111,7 @@ export function HomePage() {
         ))}
       </section>
       <ItemDialog item={selected} onClose={() => setSelected(null)} />
+      <OpeningHoursSchema />
     </>
   );
 }

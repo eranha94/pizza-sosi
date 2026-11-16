@@ -26,6 +26,11 @@ export default tseslint.config(
     },
   },
   {
+    // Build config runs in Node at build time, never in the browser.
+    files: ['frontend/*/vite.config.ts'],
+    rules: { 'no-restricted-globals': 'off' },
+  },
+  {
     files: ['frontend/**/public/**/*.js'],
     languageOptions: { globals: globals.browser, sourceType: 'script' },
   },
