@@ -33,6 +33,8 @@ export const Address = z.object({
   houseNumber: z.string().trim().max(10).default(''),
   apartment: z.string().trim().max(20).default(''),
   notes: z.string().trim().max(200).default(''),
+  /** Delivery area chosen by the customer, when the pizzeria defines areas. */
+  zoneId: z.string().max(30).optional(),
 });
 
 export const CreateOrderRequest = z
@@ -47,8 +49,13 @@ export const CreateOrderRequest = z
       phone,
       email: z.string().trim().toLowerCase().email().max(120),
     }),
-    address: Address.optional(),
+    /** Pickup orders: absent or null (the callable SDK sends `undefined` as `null`). */
+    address: Address.nullish().transform((a) => a ?? undefined),
+    /** "asap", or a time (epoch ms) picked from the offered slots. */
+    when: z.union([z.literal('asap'), z.object({ at: z.number().int().positive() }).strict()]).default('asap'),
     note: z.string().trim().max(300).default(''),
+    /** The customer agreed to get order updates on WhatsApp (explicit opt-in, required by WhatsApp). */
+    notifyWhatsapp: z.boolean().default(false),
   })
   .strict()
   .refine((o) => o.fulfillment === 'pickup' || o.address !== undefined, {
@@ -60,6 +67,7 @@ export type CreateOrderInput = z.input<typeof CreateOrderRequest>;
 
 export const CreateOrderResponse = z.object({
   orderId: id,
+  number: z.number().int().optional(),
   status: OrderStatus,
   totalAgorot: z.number().int(),
   /** Hosted payment page of the payment provider, when paymentMethod is "card". */
@@ -68,6 +76,9 @@ export const CreateOrderResponse = z.object({
 export type CreateOrderResponse = z.infer<typeof CreateOrderResponse>;
 
 export const CancelOrderRequest = z.object({ orderId: id }).strict();
+/** Look up an order by its (unguessable) id, e.g. from the WhatsApp tracking link on another device. */
+export const GetOrderStatusRequest = z.object({ orderId: id }).strict();
+export type GetOrderStatusRequest = z.infer<typeof GetOrderStatusRequest>;
 export type CancelOrderRequest = z.infer<typeof CancelOrderRequest>;
 
 /** Priced line as stored on the order (snapshot at order time). */
@@ -96,5 +107,8 @@ export const OrderView = z.object({
   deliveryFeeAgorot: z.number().int(),
   totalAgorot: z.number().int(),
   customerName: z.string(),
+  /** Epoch ms when the order should be ready (estimate for asap orders). */
+  readyAt: z.number().int().nullable().default(null),
+  scheduled: z.boolean().default(false),
 });
 export type OrderView = z.infer<typeof OrderView>;

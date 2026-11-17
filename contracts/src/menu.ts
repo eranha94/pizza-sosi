@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CATEGORY_IDS } from './constants.js';
+import { CATEGORY_IDS, NOTIFY_STATUSES, ITEM_TAGS } from './constants.js';
 
 export const CategoryId = z.enum(CATEGORY_IDS);
 export type CategoryId = z.infer<typeof CategoryId>;
@@ -49,19 +49,40 @@ export const MenuItem = z.object({
   order: z.number().int(),
   active: z.boolean(),
   addOnGroups: z.array(AddOnGroup).max(10).default([]),
+  tags: z.array(z.enum(ITEM_TAGS)).max(ITEM_TAGS.length).default([]),
 });
 export type MenuItem = z.infer<typeof MenuItem>;
 
-/** `settings/store` – public opening state. */
+export const DeliveryZone = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+  name: z.string().trim().min(1).max(40),
+  feeAgorot: z.number().int().min(0).max(100_000),
+  minOrderAgorot: z.number().int().min(0).max(100_000),
+});
+export type DeliveryZone = z.infer<typeof DeliveryZone>;
+
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const DayHours = z.object({ open: hhmm, close: hhmm }).nullable();
+
+/** `settings/store` – public opening state, read by everyone, written only by the admin functions. */
 export const StoreSettings = z.object({
-  /** Local time "HH:MM" in Asia/Jerusalem. */
-  opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  /** Local time "HH:MM"; "00:00" means midnight. Admin can change it for today. */
-  closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  /** 0 = Sunday … 6 = Saturday; null = closed that day. close <= open means after midnight. */
+  weeklyHours: z.tuple([DayHours, DayHours, DayHours, DayHours, DayHours, DayHours, DayHours]),
+  /** One-day changes, e.g. close early tonight. */
+  overrides: z
+    .array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), closed: z.boolean().optional(), open: hhmm.optional(), close: hhmm.optional() }))
+    .max(60)
+    .default([]),
   /** Manual switch: when false, no orders are accepted regardless of hours. */
   acceptingOrders: z.boolean(),
+  /** Typical minutes from order to ready (shown to customers, minimum for scheduled orders). */
+  prepMinutes: z.number().int().min(5).max(180),
   deliveryEnabled: z.boolean(),
   deliveryFeeAgorot: z.number().int().min(0).max(10_000),
   minOrderAgorot: z.number().int().min(0).max(100_000),
+  /** Delivery areas with their own fee and minimum. Empty = one fee/minimum for everywhere (fields above). */
+  deliveryZones: z.array(DeliveryZone).max(30).default([]),
+  /** Which status changes send the customer a WhatsApp message (when they opted in). */
+  whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;

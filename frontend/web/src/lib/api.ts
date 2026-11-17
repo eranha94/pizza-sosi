@@ -5,6 +5,7 @@ import {
   type CreateOrderInput,
   type CreateOrderResponse,
   type CancelOrderRequest,
+  type OrderView,
 } from '@pizza-sosi/contracts';
 import { services, ensureSignedIn } from './firebase';
 
@@ -28,6 +29,16 @@ export function cancelOrder(input: CancelOrderRequest) {
 }
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof FunctionsError) return e.message || 'משהו השתבש. נסו שוב';
+  if (e instanceof FunctionsError) {
+    // Our server sends Hebrew messages; anything else (internal, network, timeout) gets a friendly text.
+    if (e.code === 'functions/internal' || e.code === 'functions/unavailable' || e.code === 'functions/deadline-exceeded' || !/[\u0590-\u05FF]/.test(e.message))
+      return 'משהו השתבש ולא הצלחנו לשלוח. נסו שוב בעוד רגע, או התקשרו אלינו';
+    return e.message;
+  }
   return 'אין חיבור. בדקו את האינטרנט ונסו שוב';
+}
+
+/** Read-only tracking for links opened on another device (e.g. from WhatsApp). */
+export function getOrderStatus(orderId: string) {
+  return call<{ orderId: string }, OrderView & { mine: boolean }>(API.getOrderStatus, { orderId });
 }

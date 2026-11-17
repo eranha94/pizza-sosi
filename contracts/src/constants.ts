@@ -3,23 +3,32 @@
  * The browser's first page load imports only this file (no validation library).
  */
 export * from './money.js';
+export * from './hours.js';
 
-export const CATEGORY_IDS = ['pizzas', 'specials', 'toasts', 'burgers', 'salads', 'drinks'] as const;
+/** Order of the categories on the site. מיוחדים last. */
+export const CATEGORY_IDS = ['pizzas', 'toasts', 'burgers', 'salads', 'drinks', 'specials'] as const;
 type Category = (typeof CATEGORY_IDS)[number];
 export const CATEGORY_LABELS: Record<Category, string> = {
   pizzas: 'פיצות',
-  specials: 'מבצעים',
+  specials: 'מיוחדים',
   toasts: 'טוסטים',
   burgers: 'המבורגרים',
   salads: 'סלטים',
   drinks: 'שתייה',
 };
 
+/**
+ * Order flow (the owner moves it forward from the admin page):
+ *   placed → accepted → preparing → almost_ready → ready (pickup)            → completed
+ *                                               ↘ out_for_delivery (delivery) → completed
+ * Card orders start as pending_payment and become "placed" when the payment is approved.
+ */
 export const ORDER_STATUSES = [
   'pending_payment',
-  'paid',
+  'placed',
   'accepted',
   'preparing',
+  'almost_ready',
   'ready',
   'out_for_delivery',
   'completed',
@@ -28,23 +37,49 @@ export const ORDER_STATUSES = [
 type Status = (typeof ORDER_STATUSES)[number];
 export const ORDER_STATUS_LABELS: Record<Status, string> = {
   pending_payment: 'ממתינה לתשלום',
-  paid: 'שולמה',
+  placed: 'הזמנה חדשה',
   accepted: 'התקבלה',
   preparing: 'בהכנה',
-  ready: 'מוכנה',
+  almost_ready: 'כמעט מוכנה',
+  ready: 'מוכנה לאיסוף',
   out_for_delivery: 'בדרך אליך',
   completed: 'הושלמה',
   cancelled: 'בוטלה',
+};
+
+/** Labels the owner can put on a menu item (shown as badges, usable as menu filters). */
+export const ITEM_TAGS = ['recommended', 'new', 'spicy', 'vegetarian', 'vegan'] as const;
+export type ItemTag = (typeof ITEM_TAGS)[number];
+export const ITEM_TAG_LABELS: Record<ItemTag, { label: string; icon: string }> = {
+  recommended: { label: 'מומלץ', icon: '⭐' },
+  new: { label: 'חדש', icon: '✨' },
+  spicy: { label: 'חריף', icon: '🌶️' },
+  vegetarian: { label: 'צמחוני', icon: '🌱' },
+  vegan: { label: 'טבעוני', icon: '🥦' },
+};
+
+/** Statuses that can trigger a WhatsApp update to the customer (the owner picks which in the admin). */
+export const NOTIFY_STATUSES = ['accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery', 'cancelled'] as const;
+export type NotifyStatus = (typeof NOTIFY_STATUSES)[number];
+
+/** The steps a customer sees, by fulfillment. */
+export const ORDER_STEPS: Record<'pickup' | 'delivery', readonly Status[]> = {
+  pickup: ['placed', 'accepted', 'preparing', 'almost_ready', 'ready'],
+  delivery: ['placed', 'accepted', 'preparing', 'almost_ready', 'out_for_delivery'],
 };
 
 /** Names of the callable functions – the API surface. */
 export const API = {
   createOrder: 'createOrder',
   cancelOrder: 'cancelOrder',
+  getOrderStatus: 'getOrderStatus',
   adminSetOrderStatus: 'adminSetOrderStatus',
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',
   adminDeleteMenuItem: 'adminDeleteMenuItem',
+  adminBulkUpdateOption: 'adminBulkUpdateOption',
+  requestPasswordReset: 'requestPasswordReset',
+  adminSetAvailability: 'adminSetAvailability',
 } as const;
 
 export const FUNCTIONS_REGION = 'europe-west1';

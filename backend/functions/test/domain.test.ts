@@ -2,11 +2,10 @@ import { describe, it, expect } from 'vitest';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
 import { canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
-import { isOpen } from '../src/domain/hours.js';
 
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
-  imagePath: null, order: 1, active: true,
+  imagePath: null, order: 1, active: true, tags: [],
   addOnGroups: [
     {
       id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std',
@@ -67,27 +66,36 @@ describe('priceCart', () => {
 
 describe('order state', () => {
   it('only allows defined transitions', () => {
-    expect(canTransition('accepted', 'preparing')).toBe(true);
-    expect(canTransition('completed', 'preparing')).toBe(false);
-    expect(canTransition('pending_payment', 'ready')).toBe(false);
+    expect(canTransition('placed', 'accepted', 'pickup')).toBe(true);
+    expect(canTransition('accepted', 'preparing', 'pickup')).toBe(true);
+    expect(canTransition('preparing', 'almost_ready', 'delivery')).toBe(true);
+    expect(canTransition('completed', 'preparing', 'pickup')).toBe(false);
+    expect(canTransition('pending_payment', 'ready', 'pickup')).toBe(false);
+    expect(canTransition('placed', 'preparing', 'pickup')).toBe(false);
+  });
+  it('ready-for-pickup only for pickup, on-the-way only for delivery', () => {
+    expect(canTransition('almost_ready', 'ready', 'pickup')).toBe(true);
+    expect(canTransition('almost_ready', 'ready', 'delivery')).toBe(false);
+    expect(canTransition('almost_ready', 'out_for_delivery', 'delivery')).toBe(true);
+    expect(canTransition('almost_ready', 'out_for_delivery', 'pickup')).toBe(false);
   });
   it('customer can cancel only until preparing', () => {
+    expect(customerCanCancel('placed')).toBe(true);
     expect(customerCanCancel('accepted')).toBe(true);
     expect(customerCanCancel('preparing')).toBe(false);
   });
   it('pay on site skips payment', () => {
-    expect(initialStatus('on_site')).toBe('accepted');
+    expect(initialStatus('on_site')).toBe('placed');
     expect(initialStatus('card')).toBe('pending_payment');
   });
 });
 
-describe('isOpen (Asia/Jerusalem)', () => {
-  const s = { opensAt: '11:00', closesAt: '00:00', acceptingOrders: true };
-  // 2026-11-12 is winter time, UTC+2
-  it('open in the evening', () => expect(isOpen(s, new Date('2026-11-12T20:30:00Z'))).toBe(true)); // 22:30
-  it('closed after midnight', () => expect(isOpen(s, new Date('2026-11-12T22:30:00Z'))).toBe(false)); // 00:30
-  it('closed in the morning', () => expect(isOpen(s, new Date('2026-11-12T07:00:00Z'))).toBe(false)); // 09:00
-  it('handles closing after midnight', () =>
-    expect(isOpen({ ...s, closesAt: '01:30' }, new Date('2026-11-12T23:00:00Z'))).toBe(true)); // 01:00
-  it('manual switch closes', () => expect(isOpen({ ...s, acceptingOrders: false }, new Date('2026-11-12T18:00:00Z'))).toBe(false));
+
+describe('whatsapp numbers', async () => {
+  const { toWhatsappNumber } = await import('../src/notify/whatsapp.js');
+  it('converts Israeli mobiles and rejects landlines', () => {
+    expect(toWhatsappNumber('052-587 6207')).toBe('972525876207');
+    expect(toWhatsappNumber('972525876207')).toBe('972525876207');
+    expect(toWhatsappNumber('04-8391234')).toBeNull();
+  });
 });

@@ -24,6 +24,8 @@ export interface CartLine {
 interface CartState {
   lines: CartLine[];
   add(item: MenuItem, addOns: ChosenAddOn[], quantity: number, note: string): void;
+  /** Edit a line in place (toppings, quantity, note). Merges with an identical line if one exists. */
+  replace(key: string, item: MenuItem, addOns: ChosenAddOn[], quantity: number, note: string): void;
   setQuantity(key: string, quantity: number): void;
   remove(key: string): void;
   clear(): void;
@@ -58,28 +60,29 @@ export function addOnsPrice(item: MenuItem, chosen: ChosenAddOn[]): { total: num
   return { total, labels };
 }
 
+const lineKey = (itemId: string, chosen: ChosenAddOn[], note: string) => `${itemId}|${chosen.map((c) => `${c.id}:${c.coverage}`).join(',')}|${note}`;
+
+function withLine(lines: CartLine[], item: MenuItem, addOns: ChosenAddOn[], quantity: number, note: string, at?: number): CartLine[] {
+  const chosen = [...addOns].sort((a, b) => a.id.localeCompare(b.id));
+  const key = lineKey(item.id, chosen, note);
+  if (lines.some((l) => l.key === key)) return lines.map((l) => (l.key === key ? { ...l, quantity: Math.min(20, l.quantity + quantity) } : l));
+  const { total, labels } = addOnsPrice(item, chosen);
+  const line: CartLine = { key, itemId: item.id, name: item.name, quantity, addOns: chosen, addOnLabels: labels, note, unitPriceAgorot: item.priceAgorot + total };
+  const next = [...lines];
+  next.splice(at ?? next.length, 0, line);
+  return next;
+}
+
 export const useCart = create<CartState>()(
   persist(
     (set) => ({
       lines: [],
-      add: (item, addOns, quantity, note) =>
+      add: (item, addOns, quantity, note) => set((s) => ({ lines: withLine(s.lines, item, addOns, quantity, note) })),
+      replace: (key, item, addOns, quantity, note) =>
         set((s) => {
-          const chosen = [...addOns].sort((a, b) => a.id.localeCompare(b.id));
-          const key = `${item.id}|${chosen.map((c) => `${c.id}:${c.coverage}`).join(',')}|${note}`;
-          const existing = s.lines.find((l) => l.key === key);
-          if (existing) {
-            return { lines: s.lines.map((l) => (l.key === key ? { ...l, quantity: Math.min(20, l.quantity + quantity) } : l)) };
-          }
-          const { total, labels } = addOnsPrice(item, chosen);
-          return {
-            lines: [
-              ...s.lines,
-              {
-                key, itemId: item.id, name: item.name, quantity, addOns: chosen, addOnLabels: labels, note,
-                unitPriceAgorot: item.priceAgorot + total,
-              },
-            ],
-          };
+          const at = s.lines.findIndex((l) => l.key === key);
+          const rest = s.lines.filter((l) => l.key !== key);
+          return { lines: withLine(rest, item, addOns, 0, note, at < 0 ? undefined : at).map((l) => (l.key === lineKey(item.id, [...addOns].sort((a, b) => a.id.localeCompare(b.id)), note) ? { ...l, quantity: Math.min(20, l.quantity + quantity) } : l)) };
         }),
       setQuantity: (key, quantity) =>
         set((s) => ({ lines: s.lines.map((l) => (l.key === key ? { ...l, quantity: Math.max(1, Math.min(20, quantity)) } : l)) })),

@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { MenuItem, StoreSettings } from '@pizza-sosi/contracts';
+import { DEFAULT_SCHEDULE, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
+import { useEffect, useState } from 'react';
 import { menuDb, firebaseApp } from './firebase';
 
 /*
@@ -8,7 +10,7 @@ import { menuDb, firebaseApp } from './firebase';
  * No validation library here on purpose (smaller first load); the server validates every order.
  */
 
-const CACHE_KEY = 'pizza-sosi-menu-v2';
+const CACHE_KEY = 'pizza-sosi-menu-v3';
 
 function readCache<T>(key: string): T | undefined {
   try {
@@ -38,6 +40,7 @@ function toMenuItem(id: string, d: Record<string, unknown>): MenuItem | null {
     order: typeof d.order === 'number' ? d.order : 0,
     active: d.active === true,
     addOnGroups: Array.isArray(d.addOnGroups) ? (d.addOnGroups as MenuItem['addOnGroups']) : [],
+    tags: Array.isArray(d.tags) ? (d.tags.filter((t) => t in ITEM_TAG_LABELS) as MenuItem['tags']) : [],
   };
 }
 
@@ -60,16 +63,42 @@ export function useMenu() {
   });
 }
 
+export type PublicStore = StoreSettings;
+
+const STORE_DEFAULTS: StoreSettings = {
+  ...DEFAULT_SCHEDULE,
+  overrides: [],
+  deliveryEnabled: false,
+  deliveryFeeAgorot: 0,
+  minOrderAgorot: 0,
+  whatsappStatuses: [],
+  deliveryZones: [],
+};
+
+/** Opening hours & switches. Refreshed every minute so a change in the admin shows up quickly. */
 export function useStoreSettings() {
   return useQuery({
     queryKey: ['store'],
-    staleTime: 60_000,
-    queryFn: async (): Promise<Partial<StoreSettings>> => {
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<StoreSettings> => {
       const [db, { doc, getDoc }] = await Promise.all([menuDb(), import('firebase/firestore/lite')]);
       const snap = await getDoc(doc(db, 'settings', 'store'));
-      return (snap.data() as Partial<StoreSettings> | undefined) ?? {};
+      const data = (snap.data() ?? {}) as Partial<StoreSettings>;
+      const weekly = Array.isArray(data.weeklyHours) && data.weeklyHours.length === 7 ? data.weeklyHours : STORE_DEFAULTS.weeklyHours;
+      return { ...STORE_DEFAULTS, ...data, weeklyHours: weekly as StoreSettings['weeklyHours'] };
     },
   });
+}
+
+/** Current time, ticking (default every 30 s) – for live status and countdowns. */
+export function useNow(everyMs = 30_000) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), everyMs);
+    return () => clearInterval(id);
+  }, [everyMs]);
+  return now;
 }
 
 export function useBucket() {

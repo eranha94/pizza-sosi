@@ -45,6 +45,8 @@ jobs:
       - run: pnpm build:frontend
         env:
           VITE_PUBLIC_RECAPTCHA_ENTERPRISE_KEY: ${{ vars.RECAPTCHA_ENTERPRISE_KEY }}
+          # Build-time only (not exposed to the browser): picks canonical URL, robots and sitemap.
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}

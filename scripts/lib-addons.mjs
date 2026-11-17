@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 
 const GROUP_ORDER = ['רגילות', 'FRESH', 'מיוחדות', 'סופר מיוחדים', 'תוספות'];
 const normaliseGroup = (g) => (/^סופר מיוחד/.test(g) ? 'סופר מיוחדים' : g.trim());
-const stableId = (...parts) => createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
+export const stableId = (...parts) => createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 16);
 
 /** @param {{name: string, priceAgorot: number, active: boolean}[]} rows */
 export function toAddOnGroups(rows) {
@@ -72,12 +72,17 @@ const single = (name, options, defaultName, order) => {
  * Required choices (pick exactly one). Thick dough costs 5 ₪. Returns the groups and the description without
  * the lines that are now real choices.
  */
+/** Display names that changed on the new site (the choice moved into a real option). */
+export function displayName(name) {
+  return /^רביולי\s+גבינה\s*\/\s*בטטה$/.test(name) ? 'רביולי' : name;
+}
+
 export function choiceGroupsFor({ name, category, description }) {
   const groups = [];
   const drop = [];
   if (category === 'pizzas') {
     groups.push(single('עובי בצק', ['סטנדרט', 'דק', ['עבה', 500]], 'סטנדרט', 1));
-    groups.push(single('גבינה', ['גבינת הבית', 'גבינת מוצרלה'], 'גבינת הבית', 2));
+    groups.push(single('גבינה', ['גבינת הבית', 'גבינת מוצרלה', 'מיקס גבינות קשות 33% שומן'], 'גבינת הבית', 2));
     drop.push(/ניתן לבחור עובי בצק/, /גבינה לבחירה/);
   }
   if (/פסטה/.test(name)) {
@@ -85,6 +90,7 @@ export function choiceGroupsFor({ name, category, description }) {
     drop.push(/^\s*שמנת\s*\/\s*רוזה\s*$/);
   }
   if (/רביולי/.test(name)) groups.push(single('מילוי', ['גבינה', 'בטטה'], null, 1));
+  if (/אצבעות נקניקיות/.test(name)) groups.push(single('סוג נקניקיות', ['נקניקיות רגילות', 'נקניקיות חריפות'], null, 1));
   const desc = description
     .split('\n')
     .filter((line) => !drop.some((re) => re.test(line)))

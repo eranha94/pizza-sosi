@@ -5,11 +5,16 @@ setGlobalOptions({ region: FUNCTIONS_REGION, maxInstances: 10 });
 
 export { createOrder } from './api/createOrder.js';
 export { cancelOrder } from './api/cancelOrder.js';
+export { getOrderStatus } from './api/getOrderStatus.js';
+export { requestPasswordReset } from './api/passwordReset.js';
 export {
   adminSetOrderStatus,
   adminUpdateStoreSettings,
   adminUpsertMenuItem,
   adminDeleteMenuItem,
+  adminBulkUpdateOption,
+  adminSetAvailability,
 } from './api/admin.js';
 export { paymentWebhook } from './api/paymentWebhook.js';
 export { onOrderConfirmed } from './api/orderEmails.js';
+export { onOrderStatusNotify } from './api/orderNotifications.js';

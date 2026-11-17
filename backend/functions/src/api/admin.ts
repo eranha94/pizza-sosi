@@ -5,6 +5,8 @@ import {
   UpdateStoreSettingsRequest,
   UpsertMenuItemRequest,
   DeleteMenuItemRequest,
+  BulkUpdateOptionRequest,
+  SetAvailabilityRequest,
   type OrderStatus,
 } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
@@ -22,7 +24,7 @@ export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (re
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError('not-found', 'ההזמנה לא נמצאה');
     const from = snap.data()!.status as OrderStatus;
-    if (!canTransition(from, status)) throw new HttpsError('failed-precondition', `אי אפשר לעבור מ-${from} ל-${status}`);
+    if (!canTransition(from, status, snap.data()!.fulfillment)) throw new HttpsError('failed-precondition', `אי אפשר לעבור מ-${from} ל-${status}`);
     tx.update(ref, {
       status,
       updatedAt: FieldValue.serverTimestamp(),
@@ -44,6 +46,16 @@ export const adminUpdateStoreSettings = secureCall<{ ok: true }>(async (req) => 
 export const adminUpsertMenuItem = secureCall<{ id: string }>(async (req) => {
   const { uid } = requireStaff(req, ['owner']);
   const input = validate(UpsertMenuItemRequest, req.data);
+  // Option ids must be unique inside a group, and a default must point to one of the group's options.
+  for (const g of input.addOnGroups) {
+    const ids = g.options.map((o) => o.id).filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw new HttpsError('invalid-argument', `אפשרות כפולה בקבוצה "${g.name}"`);
+    if (g.defaultOptionId && !ids.includes(g.defaultOptionId)) throw new HttpsError('invalid-argument', `ברירת מחדל לא תקינה בקבוצה "${g.name}"`);
+    if (g.selection === 'single' && g.options.some((o) => o.halfAgorot !== null))
+      throw new HttpsError('invalid-argument', `בבחירת חובה אין מחיר חצי ("${g.name}")`);
+  }
+  if (input.id && !(await db.collection(COL.menuItems).doc(input.id).get()).exists)
+    throw new HttpsError('not-found', 'הפריט לא נמצא');
   const ref = input.id ? db.collection(COL.menuItems).doc(input.id) : db.collection(COL.menuItems).doc();
   const newId = () => db.collection('_').doc().id;
   const addOnGroups = input.addOnGroups.map((g) => ({
@@ -64,4 +76,70 @@ export const adminDeleteMenuItem = secureCall<{ ok: true }>(async (req) => {
   await db.collection(COL.menuItems).doc(id).update({ active: false, deletedAt: FieldValue.serverTimestamp() });
   await audit(uid, 'menu.delete', id);
   return { ok: true };
+});
+
+/** Update one add-on (by name) on every menu item that has it. dryRun returns what would change. */
+export const adminBulkUpdateOption = secureCall<{ items: string[] }>(async (req) => {
+  const { uid } = requireStaff(req, ['owner']);
+  const input = validate(BulkUpdateOptionRequest, req.data);
+  const snap = await db.collection(COL.menuItems).get();
+  const batch = db.batch();
+  const items: string[] = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    if (d.deletedAt || (input.category && d.category !== input.category)) continue;
+    let touched = false;
+    const groups = (d.addOnGroups ?? []).map((g: { selection?: string; options: Record<string, unknown>[] }) => {
+      if ((g.selection ?? 'multi') !== 'multi') return g;
+      return {
+        ...g,
+        options: g.options.map((o) => {
+          if (o.name !== input.optionName) return o;
+          touched = true;
+          return {
+            ...o,
+            ...(input.wholeAgorot !== undefined && { wholeAgorot: input.wholeAgorot }),
+            ...(input.halfAgorot !== undefined && { halfAgorot: input.halfAgorot }),
+            ...(input.active !== undefined && { active: input.active }),
+          };
+        }),
+      };
+    });
+    if (!touched) continue;
+    items.push(String(d.name));
+    if (!input.dryRun) batch.update(doc.ref, { addOnGroups: groups, updatedAt: FieldValue.serverTimestamp() });
+  }
+  if (!input.dryRun && items.length) {
+    await batch.commit();
+    await audit(uid, 'menu.bulkOption', input.optionName, { ...input, count: items.length });
+  }
+  return { items };
+});
+
+/** "Sold out" / "back in stock" – a dish, or a topping everywhere it appears. Staff can do it during service. */
+export const adminSetAvailability = secureCall<{ count: number }>(async (req) => {
+  const { uid } = requireStaff(req, ['owner', 'staff']);
+  const input = validate(SetAvailabilityRequest, req.data);
+  if (input.kind === 'item') {
+    const ref = db.collection(COL.menuItems).doc(input.id);
+    if (!(await ref.get()).exists) throw new HttpsError('not-found', 'הפריט לא נמצא');
+    await ref.update({ active: input.active, updatedAt: FieldValue.serverTimestamp() });
+    await audit(uid, input.active ? 'menu.available' : 'menu.soldOut', input.id, {});
+    return { count: 1 };
+  }
+  const snap = await db.collection(COL.menuItems).get();
+  const batch = db.batch();
+  let count = 0;
+  for (const doc of snap.docs) {
+    const groups = (doc.data().addOnGroups ?? []) as { options: { name: string; active: boolean }[] }[];
+    if (!groups.some((g) => g.options.some((o) => o.name === input.name && o.active !== input.active))) continue;
+    batch.update(doc.ref, {
+      addOnGroups: groups.map((g) => ({ ...g, options: g.options.map((o) => (o.name === input.name ? { ...o, active: input.active } : o)) })),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    count++;
+  }
+  if (count) await batch.commit();
+  await audit(uid, input.active ? 'option.available' : 'option.soldOut', input.name, { count });
+  return { count };
 });
