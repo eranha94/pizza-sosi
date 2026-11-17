@@ -22,7 +22,7 @@ export default function TermsPage() {
     <LegalLayout title="תקנון האתר" sections={S}>
       <Section id="general" title="1. כללי">
         <p>
-          ברוכים הבאים לאתר ההזמנות של {BUSINESS.name} ({BUSINESS.legalType} {BUSINESS.id}, {BUSINESS.city}) (&quot;העסק&quot;, &quot;אנחנו&quot;). התקנון
+          ברוכים הבאים לאתר ההזמנות של {BUSINESS.name} ({BUSINESS.legalType} {BUSINESS.id}, {BUSINESS.address}) (&quot;העסק&quot;, &quot;אנחנו&quot;). התקנון
           מסדיר את השימוש באתר ואת ביצוע ההזמנות בו. ביצוע הזמנה באתר מהווה הסכמה לתקנון זה ול<Link to="/privacy">מדיניות הפרטיות</Link>.
         </p>
         <p>התקנון נכתב בלשון זכר או נקבה מטעמי נוחות בלבד, והוא מתייחס לכל המגדרים. במקרה של סתירה בין התקנון לבין פרסום אחר באתר, יגבר התקנון.</p>

@@ -24,7 +24,7 @@ export default function PrivacyPage() {
 
       <Section id="who" title="1. מי אחראי על המידע">
         <p>
-          בעל השליטה במידע: {BUSINESS.name}, {BUSINESS.legalType} {BUSINESS.id}, {BUSINESS.city}. ליצירת קשר בנושא פרטיות:{' '}
+          בעל השליטה במידע: {BUSINESS.name}, {BUSINESS.legalType} {BUSINESS.id}, {BUSINESS.address}. ליצירת קשר בנושא פרטיות:{' '}
           <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> או בטלפון <a href={`tel:${BUSINESS.phone}`} dir="ltr">{BUSINESS.phone}</a>.
         </p>
       </Section>
