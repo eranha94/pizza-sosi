@@ -45,6 +45,12 @@ curl -sS -X PATCH -H "Authorization: Bearer $(gcloud auth print-access-token)" -
 ### א5. אתר הניהול החי
 Firebase Console ← Hosting ← **Add another site** ← `pizza-sosi-admin`. האתר החדש עצמו יעלה ל־`pizza-sosi-next`. האתר הישן ממשיך לעבוד כרגיל עד יום המעבר.
 
+### א5א. קישור אפליקציות האינטרנט לאתרים (חובה)
+Firebase Console ← ⚙️ Project settings ← General ← Your apps:
+- אפליקציית אינטרנט אחת (למשל `pizza_menu (web)`) ← **Firebase Hosting** ← **Link** ← `pizza-sosi-next`.
+- אפליקציית אינטרנט אחרת (למשל `pizza-menu-react`) ← **Link** ← `pizza-sosi-admin`.
+בלי הקישור, הקובץ `/__/firebase/init.json` לא כולל `appId`, ו־App Check נכשל (`apps/undefined`). כתוצאה מזה אי אפשר לשלוח הזמנה ואי אפשר להתחבר לניהול.
+
 ### א6. העלאת האתר החדש (בלי השרת)
 GitHub ← Actions ← **Deploy frontend** ← Run workflow ← target: **prod** ← אישור.
 כך האתר החדש עולה לכתובת `pizza-sosi-next.web.app`, ואפשר לבדוק אותו. **השרת והחוקים עדיין לא עולים**, כדי שהאתר הישן ימשיך לעבוד.
