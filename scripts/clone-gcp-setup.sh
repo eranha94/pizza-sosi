@@ -17,7 +17,13 @@ echo "== APIs"
 gcloud services list --enabled --project "$FROM" --format='value(config.name)' | sort > /tmp/apis-from
 gcloud services list --enabled --project "$TO" --format='value(config.name)' | sort > /tmp/apis-to
 MISSING=$(comm -23 /tmp/apis-from /tmp/apis-to | tr '\n' ' ')
-if [ -n "$MISSING" ]; then gcloud services enable $MISSING --project "$TO" --quiet; fi
+# One by one: some APIs that dev has are retired for new projects (e.g. source.googleapis.com – Cloud Source
+# Repositories) and refuse to enable; that must not stop the rest. We don't use those.
+SKIPPED=""
+for API in $MISSING; do
+  if ! gcloud services enable "$API" --project "$TO" --quiet >/dev/null 2>&1; then SKIPPED="$SKIPPED $API"; fi
+done
+[ -n "$SKIPPED" ] && echo "  (skipped, not available / not needed:$SKIPPED)"
 echo "✓ APIs match dev"
 
 for NAME in deploy-frontend deploy-backend; do
