@@ -51,4 +51,4 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT_BACKEND }}
       - name: Deploy
-        run: pnpm exec firebase deploy --only functions,firestore,storage --project ${{ vars.FIREBASE_PROJECT_ID }} --non-interactive
+        run: pnpm exec firebase deploy --only functions,firestore,storage --project ${{ vars.FIREBASE_PROJECT_ID }} --non-interactive --force
