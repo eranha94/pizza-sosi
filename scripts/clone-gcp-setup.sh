@@ -48,6 +48,13 @@ for RUNTIME in "$TO_NUM-compute@developer.gserviceaccount.com" "$TO@appspot.gser
   fi
 done
 
+echo "== service agents Cloud Functions needs (dev got these automatically on its first deploy)"
+gcloud beta services identity create --service=pubsub.googleapis.com --project "$TO" >/dev/null 2>&1 || true
+gcloud beta services identity create --service=eventarc.googleapis.com --project "$TO" >/dev/null 2>&1 || true
+gcloud projects add-iam-policy-binding "$TO" --member="serviceAccount:service-$TO_NUM@gcp-sa-pubsub.iam.gserviceaccount.com" --role=roles/iam.serviceAccountTokenCreator --condition=None --quiet >/dev/null
+gcloud projects add-iam-policy-binding "$TO" --member="serviceAccount:$TO_NUM-compute@developer.gserviceaccount.com" --role=roles/run.invoker --condition=None --quiet >/dev/null
+gcloud projects add-iam-policy-binding "$TO" --member="serviceAccount:$TO_NUM-compute@developer.gserviceaccount.com" --role=roles/eventarc.eventReceiver --condition=None --quiet >/dev/null
+echo "✓ service agents ready"
 echo "== Workload Identity (GitHub → Google, no keys)"
 gcloud iam workload-identity-pools describe "$POOL" --project "$TO" --location=global >/dev/null 2>&1 \
   || gcloud iam workload-identity-pools create "$POOL" --project "$TO" --location=global --display-name="GitHub" --quiet
