@@ -67,6 +67,12 @@ jobs:
           name: playwright-report
           path: tests/e2e/playwright-report
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screens
+          path: tests/e2e/screens
+          retention-days: 14
 
   secrets:
     runs-on: ubuntu-latest
