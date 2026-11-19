@@ -25,6 +25,13 @@ export function Layout() {
   const navRef = useRef<HTMLElement>(null);
   const [added, setAdded] = useState<{ text: string; n: number } | null>(null);
 
+  // A toast belongs to the page it was shown on – moving to another page hides it.
+  const [toastPath, setToastPath] = useState(location.pathname);
+  if (toastPath !== location.pathname) {
+    setToastPath(location.pathname);
+    if (added) setAdded(null);
+  }
+
   // Added to the cart (from any page): toast, a little bounce on the cart, and a spoken confirmation.
   useEffect(() => {
     let timer = 0;
