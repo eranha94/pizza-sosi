@@ -45,6 +45,12 @@ curl -sS -X PATCH -H "Authorization: Bearer $(gcloud auth print-access-token)" -
 ### א5. אתר הניהול החי
 Firebase Console ← Hosting ← **Add another site** ← `pizza-sosi-admin`. האתר החדש עצמו יעלה ל־`pizza-sosi-next`. האתר הישן ממשיך לעבוד כרגיל עד יום המעבר.
 
+### א5א. קישור אפליקציות האינטרנט לאתרים (חובה)
+Firebase Console ← ⚙️ Project settings ← General ← Your apps:
+- אפליקציית אינטרנט אחת (למשל `pizza_menu (web)`) ← **Firebase Hosting** ← **Link** ← `pizza-sosi-next`.
+- אפליקציית אינטרנט אחרת (למשל `pizza-menu-react`) ← **Link** ← `pizza-sosi-admin`.
+בלי הקישור, הקובץ `/__/firebase/init.json` לא כולל `appId`, ו־App Check נכשל (`apps/undefined`). כתוצאה מזה אי אפשר לשלוח הזמנה ואי אפשר להתחבר לניהול.
+
 ### א6. העלאת האתר החדש (בלי השרת)
 GitHub ← Actions ← **Deploy frontend** ← Run workflow ← target: **prod** ← אישור.
 כך האתר החדש עולה לכתובת `pizza-sosi-next.web.app`, ואפשר לבדוק אותו. **השרת והחוקים עדיין לא עולים**, כדי שהאתר הישן ימשיך לעבוד.
@@ -148,6 +154,14 @@ node setup-email.mjs --project pizza-sosi --site https://pizza-sosi.co.il --admi
 | הניהול הישן נחוץ | Firebase Console ← Firestore ← Rules ← היסטוריה ← משחזרים את החוקים הקודמים (וגם ב־Storage ← Rules) |
 | מיילים שולחים משהו לא נכון | `node setup-email.mjs --project pizza-sosi --off` |
 | וואטסאפ שולח משהו לא נכון | בניהול ← "שעות ופתיחה" ← מכבים את כל המתגים של הודעות וואטסאפ |
+
+## תקלות שהיו בהעלאה הראשונה לפרויקט החי (ואיך פתרנו)
+| תקלה | פתרון |
+|---|---|
+| העלאת השרת נכשלה על הרשאות של "service agents" | `clone-gcp-setup.sh` מוסיף אותן עכשיו בעצמו |
+| הפונקציות נכשלו בהעלאה הראשונה (409 על bucket, Eventarc) | פשוט מריצים שוב את ההעלאה אחרי כמה דקות |
+| App Check: `apps/undefined` | מקשרים אפליקציית אינטרנט לכל אתר (א5א) |
+| הזמנה נכשלה: "The request was not authenticated" | הפונקציות נוצרו בלי הרשאת קריאה ציבורית. מוסיפים `allUsers` ← `roles/run.invoker` לכל פונקציה מסוג callable. ההגנה נשארת בקוד: App Check, התחברות והרשאות |
 
 ## בשבוע הראשון
 - כל יום: להסתכל על הסיכום היומי בניהול ועל מיילי ההתראות.

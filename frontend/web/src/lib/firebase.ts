@@ -23,7 +23,7 @@ async function loadConfig(): Promise<FirebaseOptions> {
       appId: env.VITE_PUBLIC_FIREBASE_APP_ID,
     };
   }
-  const res = await fetch('/__/firebase/init.json');
+  const res = await fetch('/__/firebase/init.json', { cache: 'no-cache' });
   if (!res.ok) throw new Error('Firebase config not available');
   return (await res.json()) as FirebaseOptions;
 }

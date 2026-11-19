@@ -43,7 +43,7 @@ export function Footer() {
           <Link key={p.path} to={p.path}>{p.label}</Link>
         ))}
       </nav>
-      <p className="site-footer__small">© {BUSINESS.name} · {BUSINESS.legalType} {BUSINESS.id}</p>
+      <p className="site-footer__small">© {BUSINESS.name} · {BUSINESS.legalType} {BUSINESS.id} · {BUSINESS.address}</p>
     </footer>
   );
 }

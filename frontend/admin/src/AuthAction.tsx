@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from 'firebase/auth';
+import { checkActionCode, confirmPasswordReset, applyActionCode, ActionCodeOperation } from 'firebase/auth';
 import { auth } from './firebase';
 
 /**
@@ -7,15 +7,13 @@ import { auth } from './firebase';
  *   /auth/action?mode=resetPassword&oobCode=…   → choose a new password
  *   /auth/action?mode=verifyEmail&oobCode=…     → confirm the email address
  * Hebrew, on our domain, instead of the generic Firebase page.
+ * What the link does is decided by Firebase from the one-time code itself, never by the `mode` in the address.
  */
 export function AuthAction() {
   const params = new URLSearchParams(location.search);
-  const mode = params.get('mode');
   const code = params.get('oobCode') ?? '';
   const [email, setEmail] = useState<string | null>(null);
-  const [state, setState] = useState<'checking' | 'form' | 'done' | 'bad'>(() =>
-    code && (mode === 'resetPassword' || mode === 'verifyEmail') ? 'checking' : 'bad',
-  );
+  const [state, setState] = useState<'checking' | 'form' | 'done' | 'bad'>(() => (code ? 'checking' : 'bad'));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -23,19 +21,20 @@ export function AuthAction() {
     // Don't keep the one-time code in the address bar / history.
     history.replaceState(null, '', '/auth/action');
     if (!code) return;
-    if (mode === 'resetPassword') {
-      verifyPasswordResetCode(auth, code)
-        .then((e) => {
-          setEmail(e);
+    checkActionCode(auth, code)
+      .then(async (info) => {
+        if (info.operation === ActionCodeOperation.PASSWORD_RESET) {
+          setEmail(info.data.email ?? null);
           setState('form');
-        })
-        .catch(() => setState('bad'));
-    } else if (mode === 'verifyEmail') {
-      applyActionCode(auth, code)
-        .then(() => setState('done'))
-        .catch(() => setState('bad'));
-    }
-  }, [code, mode]);
+        } else if (info.operation === ActionCodeOperation.VERIFY_EMAIL) {
+          await applyActionCode(auth, code);
+          setState('done');
+        } else {
+          setState('bad');
+        }
+      })
+      .catch(() => setState('bad'));
+  }, [code]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,7 +96,7 @@ export function AuthAction() {
         {state === 'done' && (
           <>
             <div className="auth-card__ok" aria-hidden="true">✓</div>
-            <h1>{mode === 'verifyEmail' ? 'המייל אומת' : 'הסיסמה נשמרה'}</h1>
+            <h1>{email ? 'הסיסמה נשמרה' : 'המייל אומת'}</h1>
             <a className="btn" href="/">להתחברות</a>
           </>
         )}

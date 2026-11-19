@@ -31,7 +31,7 @@ export function LegalLayout({ title, sections, children }: { title: string; sect
       {children}
       <footer className="legal__foot">
         <p className="muted small">
-          {BUSINESS.name} · {BUSINESS.legalType} {BUSINESS.id} · {BUSINESS.city} · טלפון{' '}
+          {BUSINESS.name} · {BUSINESS.legalType} {BUSINESS.id} · {BUSINESS.address} · טלפון{' '}
           <a href={`tel:${BUSINESS.phone}`} dir="ltr">{BUSINESS.phone}</a> ·{' '}
           <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>
         </p>
