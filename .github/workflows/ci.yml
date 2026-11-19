@@ -73,6 +73,10 @@ jobs:
           name: screens
           path: tests/e2e/screens
           retention-days: 14
+      # TEMP: print the phone screenshots into the log so they can be reviewed without downloading the artifact
+      - name: Phone screenshots (base64)
+        if: always()
+        run: for f in tests/e2e/screens/mobile-*.jpg; do echo "SHOT $(basename $f) $(base64 -w0 "$f")"; done
 
   secrets:
     runs-on: ubuntu-latest

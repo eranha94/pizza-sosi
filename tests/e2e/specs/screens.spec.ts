@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * so the look on a phone and on a computer can be reviewed without a device.
  */
 test('screenshots – customer journey', async ({ page }, info) => {
-  const shot = (name: string) => page.screenshot({ path: `screens/${info.project.name}-${name}.png`, fullPage: true, animations: 'disabled' });
+  const shot = (name: string) => page.screenshot({ path: `screens/${info.project.name}-${name}.jpg`, fullPage: true, animations: 'disabled', type: 'jpeg', quality: 60 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
   await page.goto('/');
@@ -15,7 +15,7 @@ test('screenshots – customer journey', async ({ page }, info) => {
   await page.getByRole('button', { name: /פיצה בדיקה/ }).first().click();
   const sheet = page.locator('dialog.sheet[open]');
   await sheet.locator('label', { hasText: 'זיתים' }).click();
-  await page.screenshot({ path: `screens/${info.project.name}-2-dish.png`, animations: 'disabled' });
+  await page.screenshot({ path: `screens/${info.project.name}-2-dish.jpg`, animations: 'disabled', type: 'jpeg', quality: 60 });
   await sheet.getByRole('button', { name: /הוספה לסל/ }).click();
   await shot('3-menu-with-cart');
 
