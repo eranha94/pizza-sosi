@@ -4,6 +4,8 @@ import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
 import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
 import { announce, notifyAdded } from '../lib/a11y';
+import { flyToCart, flyVisual } from '../lib/motion';
+import { AnimatedNumber } from './AnimatedNumber';
 
 /** Pick toppings and add to the cart – or, with `editing`, change a line that's already in the cart. */
 export function ItemDialog({ item, editing, onClose }: { item: MenuItem | null; editing?: CartLine | null; onClose: () => void }) {
@@ -80,13 +82,21 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
     <form
       method="dialog"
       className="sheet__body"
-      onSubmit={() => {
+      onSubmit={(e) => {
         if (editing) {
           replace(editing.key, item, chosenList, quantity, note.trim());
           announce(`${item.name} עודכן בסל`);
         } else {
           add(item, chosenList, quantity, note.trim());
-          notifyAdded(item.name, quantity);
+          // The dish flies into the cart; the cart bounces and the toast shows when it lands.
+          const form = e.currentTarget;
+          const from = form.querySelector('.sheet__foot button[type=submit]')?.getBoundingClientRect();
+          const picture =
+            flyVisual(form.querySelector('.pizza-preview svg')) ??
+            flyVisual(document.querySelector(`[data-item-id="${item.id}"] img`));
+          const done = () => notifyAdded(item.name, quantity);
+          if (from) void flyToCart(from, picture).then(done);
+          else done();
         }
       }}
     >
@@ -175,7 +185,13 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
           <button type="button" aria-label="הוספה" onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</button>
         </div>
         <button type="submit" className="button button--primary" disabled={missing.length > 0}>
-          {missing.length > 0 ? `בחרו ${missing[0]!.name}` : `${editing ? 'עדכון' : 'הוספה לסל'} · ${formatAgorot(unit * quantity)}`}
+          {missing.length > 0 ? (
+            `בחרו ${missing[0]!.name}`
+          ) : (
+            <>
+              {editing ? 'עדכון' : 'הוספה לסל'} · <AnimatedNumber value={unit * quantity} format={formatAgorot} />
+            </>
+          )}
         </button>
       </div>
     </form>

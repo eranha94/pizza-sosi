@@ -83,7 +83,7 @@ export function StoreDot() {
   return <span className={`store-dot ${open ? 'is-open' : ''}`} title={open ? 'פתוח עכשיו' : 'סגור כרגע'} aria-label={open ? 'פתוח עכשיו' : 'סגור כרגע'} role="img" />;
 }
 
-function Oven({ lit }: { lit: boolean }) {
+export function Oven({ lit }: { lit: boolean }) {
   return (
     <svg className="oven" viewBox="0 0 64 56" width="64" height="56" aria-hidden="true">
       <defs>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { formatAgorot, CATEGORY_IDS, CATEGORY_LABELS } from '@pizza-sosi/contracts/constants';
 import { useCart, cartCount, cartTotal } from '../store/cart';
@@ -8,6 +8,7 @@ import { StoreDot } from './StoreStatus';
 import { ThemeMenu } from './ThemeMenu';
 import { Footer } from './Footer';
 import { announce } from '../lib/a11y';
+import { AnimatedNumber } from './AnimatedNumber';
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -67,6 +68,19 @@ export function Layout() {
     nav.scrollBy({ left: r.left + r.width / 2 - (n.left + n.width / 2), behavior: reduceMotion() ? 'auto' : 'smooth' });
   }, [active]);
 
+  // One yellow line that slides under the category you're looking at.
+  const onMenu = location.pathname === '/';
+  const [ink, setInk] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = active && onMenu ? navRef.current?.querySelector<HTMLElement>(`[data-cat="${active}"]`) : null;
+      setInk(el ? { x: el.offsetLeft + 10, w: el.offsetWidth - 20 } : null);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [active, onMenu, categories]);
+
   const onCategory = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     if (location.pathname === '/') {
@@ -95,6 +109,7 @@ export function Layout() {
                   </a>
                 </li>
               ))}
+              <li aria-hidden="true" className={`cat-nav__ink ${ink ? 'is-on' : ''}`} style={ink ? { transform: `translateX(${ink.x}px)`, width: ink.w } : undefined} />
             </ul>
           </nav>
         )}
@@ -107,7 +122,7 @@ export function Layout() {
                 <span className="sr-only">הסל: </span>
                 <span className="cart-button__count">{count}</span>
                 <span className="sr-only"> פריטים, </span>
-                <span className="cart-button__total">{formatAgorot(total)}</span>
+                <span className="cart-button__total"><AnimatedNumber value={total} format={formatAgorot} /></span>
               </span>
             ) : (
               <span>הסל<span className="sr-only"> ריק</span></span>
@@ -122,7 +137,7 @@ export function Layout() {
         <Link to="/cart" className="cart-bar">
           <span className="cart-bar__count">{count}<span className="sr-only"> פריטים</span></span>
           <span className="cart-bar__label">לסל ולהזמנה</span>
-          <strong className="cart-bar__total">{formatAgorot(total)}</strong>
+          <strong className="cart-bar__total"><AnimatedNumber value={total} format={formatAgorot} /></strong>
         </Link>
       )}
       {added && (

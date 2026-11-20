@@ -554,3 +554,72 @@ body:has(.cart-bar) .site-footer { padding-bottom: 96px; }
 .badge--spicy { background: #fde3dc; color: #a3260f; }
 .badge--vegetarian, .badge--vegan { background: #dff3e1; color: #1d6b2d; }
 .badge--new { background: #e6e3fb; color: #4a3aa8; }
+
+/* ===================== Motion & effects ===================== */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Fly to cart: a small round picture of the dish */
+.fly-ghost { position: fixed; z-index: 80; pointer-events: none; will-change: transform; }
+.fly-ghost__inner { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-size: 34px;
+  background: var(--paper); box-shadow: 0 10px 24px rgb(0 0 0 / .28), 0 0 0 3px var(--yellow); will-change: transform; }
+.fly-ghost__inner img { width: 100%; height: 100%; object-fit: cover; }
+.fly-ghost__inner svg { width: 112%; height: 112%; }
+
+/* Dish cards fade up as they come into view */
+.reveal { opacity: 0; transform: translateY(18px) scale(.98); }
+.reveal.is-in { opacity: 1; transform: none; transition: opacity .5s ease-out, transform .55s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--i, 0) * 55ms); }
+
+/* Slow, gentle zoom on the hero photo */
+.hero__photo { animation: ken-burns 22s ease-in-out infinite alternate; transform-origin: 60% 55%; }
+@keyframes ken-burns { from { transform: scale(1); } to { transform: scale(1.09) translate(-1%, -1%); } }
+
+/* Category bar: one line that slides to the current category */
+.cat-nav ul { position: relative; }
+.cat-nav a[aria-current='true']::after { transform: scaleX(0); }
+.cat-nav__ink { position: absolute; left: 0; bottom: 4px; height: 3px; border-radius: 3px; background: currentColor; opacity: 0; pointer-events: none;
+  transition: transform .45s cubic-bezier(.2, .9, .25, 1.15), width .45s cubic-bezier(.2, .9, .25, 1.15), opacity .2s; }
+.cat-nav__ink.is-on { opacity: 1; }
+:root[data-theme='dark'] .cat-nav__ink { background: var(--yellow); }
+:root[data-theme='premium'] .cat-nav__ink { background: var(--accent-grad); }
+
+/* Order tracking scene */
+.order-scene { position: relative; height: 120px; margin: 4px 0 8px; display: grid; place-items: center; overflow: hidden; border-radius: var(--radius);
+  background: radial-gradient(circle at 50% 120%, color-mix(in srgb, var(--yellow) 30%, transparent), transparent 70%); }
+.scene-note { display: flex; align-items: center; gap: 10px; font-size: 52px; }
+.scene-note__paper { animation: note-wiggle 2.4s ease-in-out infinite; display: inline-block; }
+@keyframes note-wiggle { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-3px); } }
+.scene-note__dots { display: flex; gap: 6px; }
+.scene-note__dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-soft); animation: dot-bounce 1.2s ease-in-out infinite; }
+.scene-note__dots i:nth-child(2) { animation-delay: .15s; }
+.scene-note__dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot-bounce { 0%, 60%, 100% { transform: none; opacity: .4; } 30% { transform: translateY(-8px); opacity: 1; } }
+.scene-oven { position: relative; }
+.scene-oven .oven { width: 128px; height: 112px; }
+.scene-steam { position: absolute; inset-inline: 0; top: -6px; display: flex; justify-content: center; gap: 14px; }
+.scene-steam i { width: 8px; height: 30px; border-radius: 8px; background: linear-gradient(to top, rgb(255 255 255 / .0), rgb(255 255 255 / .85)); filter: blur(2px); animation: steam 2.2s ease-in infinite; }
+:root[data-theme='light'] .scene-steam i, :root:not([data-theme]) .scene-steam i { background: linear-gradient(to top, rgb(120 110 100 / 0), rgb(120 110 100 / .5)); }
+.scene-steam i:nth-child(2) { animation-delay: .7s; }
+.scene-steam i:nth-child(3) { animation-delay: 1.4s; }
+@keyframes steam { from { transform: translateY(10px) scaleY(.6); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(-34px) scaleY(1.2) translateX(6px); opacity: 0; } }
+.scene-box { font-size: 64px; animation: box-pop .7s cubic-bezier(.3, 1.6, .5, 1) both, box-float 2.6s 0.7s ease-in-out infinite; }
+@keyframes box-pop { from { transform: scale(.2) rotate(-20deg); opacity: 0; } }
+@keyframes box-float { 0%, 100% { transform: none; } 50% { transform: translateY(-6px) rotate(3deg); } }
+.scene-road { position: absolute; inset: 0; }
+.scene-road__line { position: absolute; inset-inline: 0; bottom: 26px; height: 4px; background: repeating-linear-gradient(90deg, var(--ink-soft) 0 18px, transparent 18px 34px); opacity: .5; animation: road-move .6s linear infinite; }
+@keyframes road-move { to { background-position: 34px 0; } }
+.scene-road__scooter { position: absolute; bottom: 26px; font-size: 54px; animation: scooter 4.5s linear infinite; }
+/* Facing: the emoji looks right-to-left in most fonts, so it travels from right to left */
+@keyframes scooter { 0% { right: -70px; transform: translateY(0); } 25% { transform: translateY(-2px); } 50% { transform: translateY(0); } 75% { transform: translateY(-2px); } 100% { right: 110%; transform: translateY(0); } }
+.scene-done { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--ok); color: #fff; font-size: 40px; font-weight: 800; animation: check-pop .6s cubic-bezier(.3, 1.6, .5, 1) both; }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i { position: absolute; top: -14px; width: 8px; height: 13px; border-radius: 2px; opacity: 0; animation: confetti-fall 1.9s cubic-bezier(.25, .7, .45, 1) forwards; }
+@keyframes confetti-fall { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--drift), 150px) rotate(var(--turn)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.is-in { opacity: 1; transform: none; transition: none; }
+  .hero__photo { animation: none; }
+  .cat-nav__ink { transition: none; }
+  .scene-note__paper, .scene-note__dots i, .scene-steam i, .scene-box, .scene-road__line, .scene-road__scooter, .scene-done, .confetti i { animation: none; }
+  .scene-road__scooter { right: 50%; transform: translateX(50%); }
+  .confetti { display: none; }
+}

@@ -7,6 +7,7 @@ import { useStoreStatus } from '../components/StoreStatus';
 import { createOrder, errorMessage } from '../lib/api';
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 import { usePageTitle } from '../lib/a11y';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { CARD_PAYMENTS_ENABLED } from '../config/payments';
 
 export default function CheckoutPage() {
@@ -222,7 +223,7 @@ export default function CheckoutPage() {
           </span>
         </label>
         {deliveryFee > 0 && <div className="summary"><span>משלוח{zone ? ` (${zone.name})` : ''}</span><span>{formatAgorot(deliveryFee)}</span></div>}
-        <div className="summary"><span>סה״כ משוער</span><strong>{formatAgorot(total + deliveryFee)}</strong></div>
+        <div className="summary"><span>סה״כ משוער</span><strong><AnimatedNumber value={total + deliveryFee} format={formatAgorot} /></strong></div>
         {belowMin && <p className="notice" role="status">מינימום הזמנה{zone ? ` ל${zone.name}` : ''}: {formatAgorot(minOrder)}. חסרים עוד {formatAgorot(minOrder - total)}.</p>}
         {error && <p className="notice notice--error" role="alert">{error}</p>}
         <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder || belowMin}>
