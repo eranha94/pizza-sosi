@@ -623,3 +623,8 @@ body:has(.cart-bar) .site-footer { padding-bottom: 96px; }
   .scene-road__scooter { right: 50%; transform: translateX(50%); }
   .confetti { display: none; }
 }
+
+/* A fieldset grows to fit its widest child by default; keep the time strip scrolling inside the page instead */
+fieldset { min-inline-size: 0; min-width: 0; }
+.slots { max-width: 100%; }
+.slots label { position: relative; }
