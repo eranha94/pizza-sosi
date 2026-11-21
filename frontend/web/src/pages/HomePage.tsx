@@ -17,6 +17,7 @@ export function HomePage() {
   const [selected, setSelected] = useState<MenuItem | null>(null);
   // Home: title only – the page keeps its scroll position / category jump.
   usePageTitle('', { focus: false });
+  useReveal();
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState<ItemTag | null>(null);
   const q = search.trim();
@@ -122,12 +123,12 @@ export function HomePage() {
           <section key={c.id} id={`cat-${c.id}`} className="menu__category" aria-labelledby={`h-${c.id}`}>
             <h2 id={`h-${c.id}`}>{CATEGORY_LABELS[c.id]}</h2>
             <ul className="menu__grid">
-              {c.items.map((item) => {
+              {c.items.map((item, i) => {
                 const src = imageUrl(bucket.data ?? '', item.imagePath);
                 const srcSet = thumbSrcSet(bucket.data ?? '', item.imagePath);
                 return (
-                  <li key={item.id}>
-                    <button type="button" className="item-card" onClick={() => setSelected(item)}>
+                  <li key={item.id} className="reveal" style={{ '--i': Math.min(i, 6) } as React.CSSProperties}>
+                    <button type="button" className="item-card" data-item-id={item.id} onClick={() => setSelected(item)}>
                       {src ? (
                         <MenuImage src={src} srcSet={srcSet} />
                       ) : (
@@ -194,4 +195,28 @@ function MenuSkeleton() {
       </ul>
     </div>
   );
+}
+
+/** Dish cards fade up as they scroll into view (a few at a time, slightly staggered). */
+function useReveal() {
+  // Runs after every render: cards that appear later (search, tag filter) get picked up too.
+  useEffect(() => {
+    const items = [...document.querySelectorAll<HTMLElement>('.reveal:not(.is-in)')];
+    if (typeof IntersectionObserver === 'undefined' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      items.forEach((el) => el.classList.add('is-in'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add('is-in');
+          io.unobserve(e.target);
+        }
+      },
+      { rootMargin: '0px 0px -8% 0px' },
+    );
+    items.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  });
 }

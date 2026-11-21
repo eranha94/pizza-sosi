@@ -7,6 +7,8 @@ import { useMenu, useBucket } from '../lib/menu';
 import { imageUrl, thumbSrcSet } from '../lib/firebase';
 import { ItemDialog } from '../components/ItemDialog';
 import { announce, notifyAdded, usePageTitle } from '../lib/a11y';
+import { flyToCart, flyVisual } from '../lib/motion';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 
 /** Items worth suggesting next to an order: drinks first, then specials, not already in the cart. */
 function suggestions(menu: MenuItem[], lines: CartLine[]): MenuItem[] {
@@ -39,14 +41,15 @@ export default function CartPage() {
 
   const extras = suggestions(menu, lines);
 
-  function quickAdd(m: MenuItem) {
+  function quickAdd(m: MenuItem, card?: HTMLElement) {
     if (!quickAddable(m) || m.category === 'pizzas') {
       setOpen({ item: m, editing: null });
       return;
     }
     const defaults = m.addOnGroups.filter((g) => g.selection === 'single' && g.defaultOptionId).map((g) => ({ id: g.defaultOptionId!, coverage: 'whole' as const }));
     add(m, defaults, 1, '');
-    notifyAdded(m.name);
+    if (card) void flyToCart(card.getBoundingClientRect(), flyVisual(card.querySelector('img'))).then(() => notifyAdded(m.name));
+    else notifyAdded(m.name);
   }
 
   return (
@@ -89,7 +92,7 @@ export default function CartPage() {
               const srcSet = thumbSrcSet(bucket, m.imagePath);
               return (
                 <li key={m.id}>
-                  <button type="button" className="upsell__card" onClick={() => quickAdd(m)}>
+                  <button type="button" className="upsell__card" onClick={(e) => quickAdd(m, e.currentTarget)}>
                     <span className="sr-only">הוספה לסל: </span>
                     {src ? <img src={src} srcSet={srcSet ?? undefined} sizes="64px" alt="" width="64" height="64" loading="lazy" /> : <span className="upsell__img" aria-hidden="true" />}
                     <span className="upsell__name">{m.name}</span>
@@ -105,7 +108,7 @@ export default function CartPage() {
 
       <div className="summary">
         <span>סה״כ</span>
-        <strong>{formatAgorot(total)}</strong>
+        <strong><AnimatedNumber value={total} format={formatAgorot} /></strong>
       </div>
       <p className="muted small">הסכום הסופי מאושר בעת ההזמנה.</p>
       <Link to="/checkout" className="button button--primary button--block">להמשך הזמנה</Link>

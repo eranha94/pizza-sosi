@@ -7,6 +7,7 @@ import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, getOrderStatus, errorMessage } from '../lib/api';
 import { usePageTitle } from '../lib/a11y';
+import { Oven } from '../components/StoreStatus';
 
 export default function OrderPage() {
   const { orderId = '' } = useParams();
@@ -76,6 +77,7 @@ export default function OrderPage() {
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      <OrderScene status={order.status} />
       <OrderSteps order={order} />
       {order.readyAt && active && <ReadyTimer readyAt={order.readyAt} scheduled={order.scheduled} />}
       <ul className="cart-list">
@@ -213,5 +215,75 @@ function ReadyTimer({ readyAt, scheduled }: { readyAt: number; scheduled: boolea
       </div>
       <p className="muted small">{scheduled ? 'הזמנה מראש' : 'מוכן בערך'} ב-{formatTime(readyAt)}</p>
     </div>
+  );
+}
+
+/**
+ * A small live picture of where the order is: a note being read, the oven burning, steam when it's
+ * almost ready, a box with confetti when it's ready, a scooter on the road on its way.
+ * Decoration only (the status text above says the same thing in words).
+ */
+function OrderScene({ status }: { status: Order['status'] }) {
+  const scene =
+    status === 'preparing' || status === 'almost_ready' ? 'oven'
+    : status === 'ready' ? 'box'
+    : status === 'out_for_delivery' ? 'road'
+    : status === 'completed' ? 'done'
+    : status === 'cancelled' ? null
+    : 'note';
+  if (!scene) return null;
+  return (
+    <div className={`order-scene order-scene--${scene}`} aria-hidden="true">
+      {scene === 'note' && (
+        <div className="scene-note">
+          <span className="scene-note__paper">🧾</span>
+          <span className="scene-note__dots"><i /><i /><i /></span>
+        </div>
+      )}
+      {scene === 'oven' && (
+        <div className="scene-oven">
+          <Oven lit />
+          {status === 'almost_ready' && (
+            <span className="scene-steam"><i /><i /><i /></span>
+          )}
+        </div>
+      )}
+      {scene === 'box' && (
+        <>
+          <span className="scene-box">🍕</span>
+          <Confetti />
+        </>
+      )}
+      {scene === 'road' && (
+        <>
+          <div className="scene-road">
+            <span className="scene-road__scooter">🛵</span>
+            <span className="scene-road__line" />
+          </div>
+          <Confetti />
+        </>
+      )}
+      {scene === 'done' && <span className="scene-done">✓</span>}
+    </div>
+  );
+}
+
+const CONFETTI_COLORS = ['#feb800', '#e4572e', '#2e7d32', '#1e88e5', '#ff8fab', '#ffffff'];
+/** A short burst of confetti – plays once when the scene appears. */
+function Confetti() {
+  return (
+    <span className="confetti">
+      {Array.from({ length: 22 }, (_, i) => {
+        const left = (i * 37) % 100;
+        const style = {
+          left: `${left}%`,
+          background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+          animationDelay: `${(i % 7) * 70}ms`,
+          '--drift': `${((i * 53) % 60) - 30}px`,
+          '--turn': `${((i * 97) % 720) - 360}deg`,
+        } as React.CSSProperties;
+        return <i key={i} style={style} />;
+      })}
+    </span>
   );
 }
