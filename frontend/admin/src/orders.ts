@@ -44,24 +44,34 @@ export const isLate = (o: AdminOrder, prepMinutes: number, now: number) => {
 
 const SOUND_KEY = 'pizza-sosi-admin-sound';
 
-/** Short two-tone "ding-dong" made with Web Audio (no audio file to load). */
+/**
+ * Loud alarm made with Web Audio (no file to load): square waves in the 1–2 kHz range the ear hears best,
+ * pushed through a compressor so it plays at full volume without distorting.
+ */
 function ring(ctx: AudioContext) {
   const t = ctx.currentTime;
-  const loud = document.body.classList.contains('kitchen');
-  const notes = loud ? [880, 660, 880, 660, 880, 660, 988, 784] : [880, 660, 880, 660];
+  const out = ctx.createDynamicsCompressor();
+  out.threshold.value = -10;
+  out.ratio.value = 12;
+  const master = ctx.createGain();
+  master.gain.value = 1;
+  out.connect(master).connect(ctx.destination);
+  const notes = [1568, 1175, 1568, 1175, 1568, 1175, 1760, 1397];
   for (const [i, freq] of notes.entries()) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
+    osc.type = 'square';
     osc.frequency.value = freq;
-    const start = t + i * 0.28;
+    const start = t + i * 0.26;
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(loud ? 0.95 : 0.5, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
-    osc.connect(gain).connect(ctx.destination);
+    gain.gain.exponentialRampToValueAtTime(1, start + 0.01);
+    gain.gain.setValueAtTime(1, start + 0.2);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.24);
+    osc.connect(gain).connect(out);
     osc.start(start);
-    osc.stop(start + 0.27);
+    osc.stop(start + 0.25);
   }
+  navigator.vibrate?.([300, 120, 300, 120, 300]);
 }
 
 /**
@@ -94,6 +104,13 @@ export function useActiveOrders() {
 
   /** Must be called from a click. */
   const enableAudio = useCallback(async () => {
+    // iPhone/iPad: treat the alarm as media playback so the silent switch doesn't mute it.
+    try {
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = 'playback';
+    } catch {
+      /* not supported */
+    }
     ctxRef.current ??= new AudioContext();
     await ctxRef.current.resume();
     setAudioReady(ctxRef.current.state === 'running');
