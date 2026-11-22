@@ -76,7 +76,7 @@ export function useScreenData(): ScreenData | null {
               snap.docs
                 .map((d) => toItem(d.id, d.data()))
                 .filter((x): x is MenuItem => x !== null)
-                .toSorted((a, b) => a.order - b.order),
+                .sort((a, b) => a.order - b.order),
             );
           },
           offline,
