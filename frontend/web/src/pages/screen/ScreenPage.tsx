@@ -53,7 +53,7 @@ export function ScreenView({ data, startAt = 0 }: { data: ScreenData | null; sta
             </div>
           )}
         </main>
-        <Rail store={data?.store ?? null} board={data?.board ?? { preparing: [], ready: [] }} showReady={data?.screen.showReady ?? true} showQr={data?.screen.showQr ?? true} online={data?.online ?? true} />
+        <Rail store={data?.store ?? null} board={data?.board ?? { preparing: [], ready: [] }} boardLoaded={data?.boardLoaded ?? false} showReady={data?.screen.showReady ?? true} showQr={data?.screen.showQr ?? true} online={data?.online ?? true} />
       </div>
     </div>
   );
@@ -158,11 +158,11 @@ function EmptyStage() {
 
 /* ---------------- side rail ---------------- */
 
-function Rail({ store, board, showReady, showQr, online }: { store: StoreSettings | null; board: ScreenBoard; showReady: boolean; showQr: boolean; online: boolean }) {
+function Rail({ store, board, boardLoaded, showReady, showQr, online }: { store: StoreSettings | null; board: ScreenBoard; boardLoaded: boolean; showReady: boolean; showQr: boolean; online: boolean }) {
   const now = useTick(15_000);
   const status = store ? storeStatus(store, now) : null;
   const hasNumbers = showReady && (board.ready.length > 0 || board.preparing.length > 0);
-  const fresh = useFreshNumbers(board.ready);
+  const fresh = useFreshNumbers(board.ready, boardLoaded);
   return (
     <aside className="tv-rail">
       <img className="rail__logo" src="/brand/pizza-sosi-badge.svg" alt="פיצה סוסי" />
@@ -301,11 +301,12 @@ function useTick(ms: number) {
 }
 
 /** Numbers that just became ready get a highlight for a minute (nothing is "new" on first load). */
-function useFreshNumbers(ready: number[]) {
+function useFreshNumbers(ready: number[], loaded: boolean) {
   const [fresh, setFresh] = useState<Set<number>>(() => new Set());
   const known = useRef<Set<number> | null>(null);
   const key = ready.join(',');
   useEffect(() => {
+    if (!loaded) return;
     const list = key ? key.split(',').map(Number) : [];
     if (known.current === null) {
       known.current = new Set(list);
@@ -317,7 +318,7 @@ function useFreshNumbers(ready: number[]) {
     setFresh((f) => new Set([...f, ...added]));
     const t = window.setTimeout(() => setFresh((f) => new Set([...f].filter((n) => !added.includes(n)))), 60_000);
     return () => window.clearTimeout(t);
-  }, [key]);
+  }, [key, loaded]);
   return fresh;
 }
 
