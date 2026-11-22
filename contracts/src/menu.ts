@@ -65,6 +65,47 @@ const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const DayHours = z.object({ open: hhmm, close: hhmm }).nullable();
 
 /** `settings/store` – public opening state, read by everyone, written only by the admin functions. */
+/** A promotion slide on the in-store screen. */
+export const ScreenPromo = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+  title: z.string().trim().min(1).max(50),
+  text: z.string().trim().max(120).default(''),
+  emoji: z.string().max(8).default(''),
+  active: z.boolean().default(true),
+});
+export type ScreenPromo = z.infer<typeof ScreenPromo>;
+
+/** The TV menu board in the pizzeria (pizza-sosi.co.il/screen). Stored inside settings/store. */
+export const ScreenSettings = z.object({
+  /** Seconds each slide stays up. */
+  slideSeconds: z.number().int().min(5).max(30).default(9),
+  /** Dishes to feature with a big photo. Empty = automatic (recommended/new dishes that have a photo). */
+  featuredItemIds: z.array(id).max(12).default([]),
+  promos: z.array(ScreenPromo).max(8).default([]),
+  /** Which categories get a full-screen price list. */
+  menuCategories: z.array(CategoryId).max(CATEGORY_IDS.length).default([...CATEGORY_IDS]),
+  /** Order numbers being prepared / ready for pickup, along the side. */
+  showReady: z.boolean().default(true),
+  /** "Order online" QR code. */
+  showQr: z.boolean().default(true),
+});
+export type ScreenSettings = z.infer<typeof ScreenSettings>;
+
+export const DEFAULT_SCREEN: ScreenSettings = {
+  slideSeconds: 9,
+  featuredItemIds: [],
+  promos: [{ id: 'free-topping', title: 'התוספת הראשונה עלינו', text: 'על כל פיצה – תוספת רגילה ראשונה בחינם', emoji: '🎁', active: true }],
+  menuCategories: [...CATEGORY_IDS],
+  showReady: true,
+  showQr: true,
+};
+
+/** Public doc screen/board: pickup order numbers for the screen. Numbers only, no names. */
+export interface ScreenBoard {
+  preparing: number[];
+  ready: number[];
+}
+
 export const StoreSettings = z.object({
   /** 0 = Sunday … 6 = Saturday; null = closed that day. close <= open means after midnight. */
   weeklyHours: z.tuple([DayHours, DayHours, DayHours, DayHours, DayHours, DayHours, DayHours]),
@@ -84,30 +125,7 @@ export const StoreSettings = z.object({
   deliveryZones: z.array(DeliveryZone).max(30).default([]),
   /** Which status changes send the customer a WhatsApp message (when they opted in). */
   whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
+  /** The in-store TV screen. Missing = defaults. */
+  screen: ScreenSettings.optional(),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;
-
-/**
- * Free toppings: the first regular topping ("רגילות") on each item is on the house.
- * Returns how many toppings in the group are free.
- */
-export const freeInGroup = (g: Pick<AddOnGroup, 'name' | 'selection'>): number => (g.selection === 'multi' && /^\s*רגיל/.test(g.name) ? 1 : 0);
-
-/**
- * Which chosen toppings are free. In each group that gives some away, the most expensive picks are the free ones
- * (so the customer always gets the better deal). Shared by the site and the server so both show the same price.
- */
-export function freeAddOnIds(groups: readonly AddOnGroup[], picks: readonly { id: string; priceAgorot: number }[]): Set<string> {
-  const free = new Set<string>();
-  for (const g of groups) {
-    const n = freeInGroup(g);
-    if (n === 0) continue;
-    const inGroup = new Set(g.options.map((o) => o.id));
-    picks
-      .filter((p) => inGroup.has(p.id))
-      .sort((a, b) => b.priceAgorot - a.priceAgorot || a.id.localeCompare(b.id))
-      .slice(0, n)
-      .forEach((p) => free.add(p.id));
-  }
-  return free;
-}

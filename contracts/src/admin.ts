@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { CATEGORY_IDS, ITEM_TAGS } from './constants.js';
 import { OrderStatus } from './orders.js';
-import { CategoryId, StoreSettings, DeliveryZone } from './menu.js';
+import { CategoryId, StoreSettings, DeliveryZone, ScreenSettings } from './menu.js';
 
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -23,6 +23,7 @@ export const UpdateStoreSettingsRequest = z
     minOrderAgorot: z.number().int().min(0).max(100_000).optional(),
     whatsappStatuses: StoreSettings.shape.whatsappStatuses.optional(),
     deliveryZones: z.array(DeliveryZone).max(30).optional(),
+    screen: ScreenSettings.optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;

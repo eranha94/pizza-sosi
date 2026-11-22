@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatAgorot, COVERAGE_LABELS, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
-import { freeInGroup, type MenuItem, type AddOnOption } from '@pizza-sosi/contracts';
+import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
+import { freeInGroup } from '@pizza-sosi/contracts/pricing';
 import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
 import { announce, notifyAdded } from '../lib/a11y';
 import { flyToCart, flyVisual } from '../lib/motion';

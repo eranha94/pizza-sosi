@@ -1,0 +1,148 @@
+/*
+ * In-store TV menu board. A fixed 1920×1080 canvas, scaled to the screen.
+ * Palette from the shop itself: Sosi yellow, dough cream, tomato sauce, basil, and the logo's ink.
+ */
+.tv-viewport {
+  --tv-yellow: #feb800;
+  --tv-yellow-deep: #e9a400;
+  --tv-ink: #1e1a1b;
+  --tv-crust: #fff3d1;
+  --tv-tomato: #c8321e;
+  --tv-basil: #2f7a3e;
+  position: fixed;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+html.tv-mode, html.tv-mode body { overflow: hidden; background: #000; }
+html.tv-idle, html.tv-idle * { cursor: none !important; }
+
+.tv { position: absolute; top: 50%; left: 50%; transform-origin: center; display: flex; flex-direction: row; background: var(--tv-ink); color: var(--tv-ink); }
+
+/* ---------- stage ---------- */
+.tv-stage { position: relative; flex: 1; overflow: hidden; background: var(--tv-yellow); }
+.tv-loading { position: absolute; inset: 0; display: grid; place-items: center; font-size: 160px; animation: tv-spin 3s linear infinite; }
+
+.tv-slide { position: absolute; inset: 0; overflow: hidden; }
+.tv-slide.is-in { z-index: 2; animation: tv-wipe 0.95s cubic-bezier(0.7, 0, 0.2, 1) both; }
+.tv-slide.is-out { z-index: 1; }
+/* The new slide sweeps in from the right edge (where Hebrew starts reading). */
+@keyframes tv-wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+
+.tv-progress { position: absolute; z-index: 3; inset-inline: 0; bottom: 0; height: 8px; background: rgb(30 26 27 / 0.12); }
+.tv-progress i { display: block; height: 100%; background: rgb(30 26 27 / 0.45); transform-origin: right; animation: tv-progress linear both; }
+@keyframes tv-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ---------- price ---------- */
+.tv-price { display: inline-flex; align-items: baseline; gap: 0.12em; font-weight: 800; line-height: 1; white-space: nowrap; }
+.tv-price__cur { font-size: 0.5em; font-weight: 700; }
+
+/* ---------- featured dish ---------- */
+.tv-slide--featured { background: var(--tv-yellow); }
+.feat__plate {
+  position: absolute;
+  top: 50%;
+  left: -250px;
+  width: 1000px;
+  height: 1000px;
+  margin-top: -500px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--tv-crust);
+  box-shadow: 0 0 0 30px var(--tv-yellow-deep), 0 40px 90px rgb(90 50 0 / 0.35);
+}
+.feat__plate img { width: 100%; height: 100%; object-fit: cover; animation: tv-zoom 14s ease-out both; }
+.feat__plate.is-spinning img, .feat__plate.is-spinning .pizza-preview { animation: tv-spin 140s linear infinite; }
+.feat__plate .pizza-preview { width: 88%; margin: 0; }
+.feat__plate .pizza-preview svg { filter: drop-shadow(0 26px 40px rgb(90 50 0 / 0.3)); }
+.feat__emoji { font-size: 420px; line-height: 1; }
+@keyframes tv-spin { to { transform: rotate(360deg); } }
+@keyframes tv-zoom { from { transform: scale(1.08); } to { transform: scale(1); } }
+
+.feat__text { position: absolute; top: 0; bottom: 0; right: 0; width: 690px; padding: 0 96px 0 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+.feat__flag { display: inline-flex; gap: 12px; align-items: center; padding: 10px 26px; margin-bottom: 30px; border-radius: 999px; background: var(--tv-ink); color: var(--tv-yellow); font-size: 34px; font-weight: 700; }
+.feat__name { margin: 0; font-size: 128px; font-weight: 800; line-height: 0.95; letter-spacing: -0.02em; text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.feat__desc { text-wrap: balance; margin: 34px 0 0; max-width: 590px; font-size: 36px; line-height: 1.38; font-weight: 450; color: rgb(30 26 27 / 0.82); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.feat__stamp {
+  margin-top: 54px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--tv-tomato);
+  color: var(--tv-crust);
+  box-shadow: 0 18px 40px rgb(120 20 0 / 0.35), inset 0 0 0 10px rgb(255 243 209 / 0.18);
+  transform: rotate(-8deg);
+  animation: tv-stamp 0.7s 0.75s cubic-bezier(0.3, 1.7, 0.5, 1) both;
+}
+.feat__stamp .tv-price { font-size: 112px; }
+@keyframes tv-stamp { from { transform: rotate(-30deg) scale(0.3); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: 1; } }
+
+/* ---------- menu board ---------- */
+.tv-slide--menu { background: var(--tv-crust); padding: 78px 96px 70px; display: flex; flex-direction: column; }
+.board__head { display: flex; align-items: baseline; gap: 28px; padding-bottom: 26px; margin-bottom: 40px; border-bottom: 10px solid var(--tv-tomato); }
+.board__head h2 { margin: 0; font-size: 108px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+.board__part { font-size: 40px; font-weight: 600; color: rgb(30 26 27 / 0.55); }
+.board__list { flex: 1; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(var(--rows, 7), auto); grid-auto-flow: column; column-gap: 110px; row-gap: 34px; align-content: start; }
+.board__list li { min-width: 0; display: flex; flex-direction: column; justify-content: center; animation: tv-row 0.5s calc(0.55s + var(--i) * 45ms) ease-out both; }
+@keyframes tv-row { from { opacity: 0; transform: translateY(14px); } }
+.board__list.is-short { grid-template-columns: minmax(0, 1150px); row-gap: 46px; align-content: center; }
+.board__list.is-short .board__name { font-size: 62px; }
+.board__list.is-short .board__price { font-size: 72px; }
+.board__list.is-short .board__desc { font-size: 30px; }
+.board__row { display: flex; align-items: baseline; gap: 18px; }
+.board__name { font-size: 46px; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%; }
+.board__tag { margin-inline-start: 10px; font-size: 34px; }
+.board__flag { margin-inline-start: 14px; padding: 4px 16px; border-radius: 999px; background: var(--tv-tomato); color: var(--tv-crust); font-size: 26px; font-weight: 700; vertical-align: 6px; }
+.board__dots { flex: 1; min-width: 40px; border-bottom: 5px dotted rgb(30 26 27 / 0.28); transform: translateY(-10px); }
+.board__price { font-size: 54px; color: var(--tv-tomato); }
+.board__desc { margin: 6px 0 0; font-size: 25px; line-height: 1.3; color: rgb(30 26 27 / 0.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85%; }
+
+/* ---------- promotion ---------- */
+.tv-slide--promo { background: var(--tv-tomato); color: var(--tv-crust); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 120px; }
+.promo__emoji { width: 380px; height: 380px; border-radius: 50%; display: grid; place-items: center; background: var(--tv-yellow); font-size: 230px; line-height: 1; margin-bottom: 64px; box-shadow: 0 30px 70px rgb(60 0 0 / 0.35); animation: tv-bob 3.2s ease-in-out infinite; }
+@keyframes tv-bob { 50% { transform: translateY(-16px) rotate(-4deg); } }
+.promo__title { margin: 0; font-size: 140px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; text-wrap: balance; }
+.promo__text { margin: 36px 0 0; max-width: 1100px; font-size: 54px; line-height: 1.3; font-weight: 500; opacity: 0.92; text-wrap: balance; }
+
+/* ---------- side rail ---------- */
+.tv-rail { width: 430px; flex: none; background: var(--tv-ink); color: var(--tv-crust); padding: 44px 40px 40px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.rail__logo { width: 280px; height: auto; }
+.rail__clock { font-size: 100px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; margin-top: 6px; }
+.rail__status { margin: 0; padding: 8px 22px; border-radius: 999px; font-size: 26px; font-weight: 600; background: rgb(255 243 209 / 0.1); }
+.rail__status--open { color: #8fe09d; }
+.rail__status--closed, .rail__status--paused { color: #ffb4a6; }
+
+.rail__orders { width: 100%; flex: 1; display: flex; flex-direction: column; gap: 26px; margin-top: 18px; min-height: 0; overflow: hidden; }
+.rail__spacer { flex: 1; }
+.orders h3 { margin: 0 0 14px; font-size: 30px; font-weight: 700; color: var(--tv-yellow); }
+.orders ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.orders--ready ul { grid-template-columns: repeat(3, 1fr); }
+.orders--ready li { display: grid; place-items: center; height: 92px; border-radius: 18px; background: var(--tv-basil); color: #fff; font-size: 60px; font-weight: 800; }
+.orders--ready li.is-fresh { animation: tv-called 1.1s ease-in-out 8; }
+@keyframes tv-called { 50% { background: var(--tv-yellow); color: var(--tv-ink); transform: scale(1.08); } }
+.orders--prep ul { grid-template-columns: repeat(4, 1fr); }
+.orders--prep li { display: grid; place-items: center; height: 56px; border-radius: 12px; background: rgb(255 243 209 / 0.08); font-size: 36px; font-weight: 600; color: rgb(255 243 209 / 0.75); }
+
+.rail__qr { display: flex; align-items: center; gap: 20px; width: 100%; padding: 18px; border-radius: 22px; background: rgb(255 243 209 / 0.08); }
+.rail__qr .qr { width: 150px; height: 150px; flex: none; border-radius: 10px; }
+.rail__qr p { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; font-size: 21px; white-space: nowrap; color: rgb(255 243 209 / 0.75); }
+.rail__qr strong { white-space: normal; font-size: 32px; color: var(--tv-crust); line-height: 1.15; }
+.rail__qr.is-large { flex-direction: column; text-align: center; padding: 28px; }
+.rail__qr.is-large .qr { width: 250px; height: 250px; }
+.rail__qr.is-large p { align-items: center; }
+.rail__offline { margin: 0; font-size: 20px; color: #ffb4a6; text-align: center; }
+.rail__full { position: absolute; top: 22px; right: 22px; z-index: 5; padding: 12px 22px; border: 0; border-radius: 999px; background: var(--tv-ink); color: var(--tv-crust); font: 700 24px var(--font); cursor: pointer; }
+html.tv-idle .rail__full { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-slide.is-in { animation: tv-fade 0.4s both; }
+  @keyframes tv-fade { from { opacity: 0; } }
+  .feat__plate img, .feat__plate.is-spinning img, .feat__plate.is-spinning .pizza-preview, .feat__stamp, .board__list li, .promo__emoji, .orders--ready li.is-fresh, .tv-loading { animation: none; }
+  .tv-progress { display: none; }
+}

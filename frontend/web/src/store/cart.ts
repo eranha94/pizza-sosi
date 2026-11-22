@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import { freeAddOnIds, type MenuItem } from '@pizza-sosi/contracts';
+import type { MenuItem } from '@pizza-sosi/contracts';
+import { freeAddOnIds } from '@pizza-sosi/contracts/pricing';
 
 export type Coverage = 'whole' | 'right' | 'left';
 export interface ChosenAddOn {

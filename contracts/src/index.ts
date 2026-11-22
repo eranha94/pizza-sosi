@@ -7,6 +7,7 @@
  */
 export * from './constants.js';
 export * from './menu.js';
+export * from './pricing.js';
 export * from './orders.js';
 export * from './admin.js';
 

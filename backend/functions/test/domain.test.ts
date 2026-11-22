@@ -125,3 +125,21 @@ describe('first regular topping free', () => {
     expect(price([{ id: 'tuna', coverage: 'whole' }]).lines[0]!.unitPriceAgorot).toBe(6300);
   });
 });
+
+describe('screen board', async () => {
+  const { boardFrom } = await import('../src/domain/screenBoard.js');
+  const now = Date.now();
+  it('lists pickup orders only, by status, without stale ones', () => {
+    const b = boardFrom(
+      [
+        { number: 12, status: 'preparing', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 9, status: 'accepted', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 10, status: 'ready', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 11, status: 'preparing', fulfillment: 'delivery', createdAtMs: now - 60_000 },
+        { number: 3, status: 'ready', fulfillment: 'pickup', createdAtMs: now - 8 * 3600_000 },
+      ],
+      now,
+    );
+    expect(b).toEqual({ preparing: [9, 12], ready: [10] });
+  });
+});

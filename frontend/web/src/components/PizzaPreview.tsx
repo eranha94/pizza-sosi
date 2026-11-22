@@ -104,6 +104,16 @@ const KINDS: [RegExp, Kind, number /* pieces on whole */][] = [
   [/שום/, 'garlic', 12],
 ];
 
+/** Toppings the preview can draw that are mentioned in a dish's name/description (for pictures without a photo). */
+export function toppingsFromText(text: string): PreviewTopping[] {
+  const out: PreviewTopping[] = [];
+  for (const [re, kind] of KINDS) {
+    const m = re.exec(text);
+    if (m && !out.some((t) => kindOf(t.name).kind === kind)) out.push({ id: kind, name: m[0], placement: 'whole' });
+  }
+  return out.slice(0, 4);
+}
+
 function kindOf(name: string): { kind: Kind; count: number } {
   for (const [re, kind, count] of KINDS) if (re.test(name)) return { kind, count };
   return { kind: 'generic', count: 12 };

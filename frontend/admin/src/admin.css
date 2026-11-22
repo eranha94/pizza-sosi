@@ -326,3 +326,16 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 @keyframes late-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 35%, transparent); } }
 .order--late { border-color: var(--danger); border-width: 2px; background: color-mix(in srgb, var(--danger) 7%, var(--card, #fff)); }
 @media (prefers-reduced-motion: reduce) { .late-alert { animation: none; } }
+
+/* Screen (TV) settings */
+.screen-admin__cats, .screen-admin__feat { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.screen-admin__cats legend, .screen-admin__feat legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+.screen-admin__feat .chip { display: inline-flex; align-items: center; }
+.screen-admin__feat .chip:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
+.screen-admin__promos { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.screen-admin__promos li { display: grid; grid-template-columns: 90px minmax(160px, 1fr) minmax(200px, 2fr) auto auto; gap: 10px; align-items: end; padding: 12px; border-radius: 12px; background: var(--yellow-soft, #fff6d6); }
+.screen-admin__promos li.is-off { opacity: .6; }
+.screen-admin__emoji input { text-align: center; font-size: 1.3rem; }
+@media (max-width: 760px) { .screen-admin__promos li { grid-template-columns: 80px 1fr; } .screen-admin__text { grid-column: 1 / -1; } }
+.screen-admin__save { margin-top: 16px; padding: 12px 0; display: grid; gap: 8px; }
+.screen-admin__save.is-dirty { position: sticky; bottom: 0; z-index: 5; background: var(--bg); box-shadow: 0 -10px 20px var(--bg); }
