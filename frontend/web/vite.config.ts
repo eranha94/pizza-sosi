@@ -69,12 +69,18 @@ export default defineConfig({
   plugins: [
     react(),
     seo(),
-    // Older browsers too: LG/Samsung TVs (the in-store screen) run Chromium 79–87, and some phones' in-app browsers lag.
-    // Code is compiled down for them and only the missing features are added, so modern phones lose nothing.
-    legacy({ modernTargets: ['chrome>=79', 'safari>=13.1', 'firefox>=78', 'edge>=79', 'samsung>=12'], modernPolyfills: true, renderLegacyChunks: false }),
+    // Older browsers too: TV browsers and Android TV WebViews (the in-store screen) are often years behind.
+    // Browsers with modules (Chrome 64+) get a compiled-down build plus only the missing features;
+    // anything older gets a fully transpiled fallback. Modern phones load exactly what they did before.
+    legacy({
+      targets: ['chrome >= 49', 'android >= 5', 'safari >= 10', 'firefox >= 52', 'samsung >= 5'],
+      modernTargets: ['chrome >= 64', 'safari >= 12', 'firefox >= 67', 'edge >= 79', 'samsung >= 9'],
+      modernPolyfills: true,
+      renderLegacyChunks: true,
+    }),
   ],
   // Only VITE_PUBLIC_* variables may reach the browser bundle.
   envPrefix: 'VITE_PUBLIC_',
-  build: { sourcemap: false, cssTarget: ['chrome79', 'safari13.1'] },
+  build: { sourcemap: false, cssTarget: ['chrome61', 'safari12'] },
   server: { port: 5173 },
 });
