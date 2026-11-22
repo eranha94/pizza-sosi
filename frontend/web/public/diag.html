@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>בדיקת דפדפן</title>
+<style>
+  body { margin: 0; padding: 40px; background: #1e1a1b; color: #fff3d1; font: 28px/1.5 Arial, sans-serif; }
+  h1 { color: #feb800; margin: 0 0 20px; font-size: 44px; }
+  .ua { direction: ltr; text-align: left; font-size: 24px; background: #2c2627; padding: 16px; border-radius: 10px; word-break: break-all; }
+  li { margin: 6px 0; }
+  .ok { color: #8fe09d; } .bad { color: #ffb4a6; }
+</style>
+</head>
+<body>
+<h1>בדיקת דפדפן – פיצה סוסי</h1>
+<p>צלמו את המסך הזה ושלחו.</p>
+<div class="ua" id="ua"></div>
+<ul id="list"></ul>
+<script>
+  // Plain old JavaScript on purpose, so it runs on any browser.
+  document.getElementById('ua').textContent = navigator.userAgent;
+  var m = navigator.userAgent.match(/Chrome\/(\d+)/);
+  var checks = [
+    ['גרסת Chrome', m ? m[1] : 'לא ידוע', m ? +m[1] >= 64 : false],
+    ['מודולים (module)', 'noModule' in document.createElement('script') ? 'כן' : 'לא', 'noModule' in document.createElement('script')],
+    ['BigInt', typeof BigInt !== 'undefined' ? 'כן' : 'לא', typeof BigInt !== 'undefined'],
+    ['fetch', typeof fetch !== 'undefined' ? 'כן' : 'לא', typeof fetch !== 'undefined'],
+    ['IndexedDB', typeof indexedDB !== 'undefined' ? 'כן' : 'לא', typeof indexedDB !== 'undefined'],
+    ['גודל מסך', window.innerWidth + '×' + window.innerHeight, true]
+  ];
+  var ul = document.getElementById('list');
+  for (var i = 0; i < checks.length; i++) {
+    var li = document.createElement('li');
+    li.className = checks[i][2] ? 'ok' : 'bad';
+    li.textContent = (checks[i][2] ? '✓ ' : '✗ ') + checks[i][0] + ': ' + checks[i][1];
+    ul.appendChild(li);
+  }
+  var t0 = Date.now();
+  var x = new XMLHttpRequest();
+  x.open('GET', '/__/firebase/init.json');
+  x.onload = function () { add(x.status === 200, 'חיבור לשרת: ' + x.status + ' (' + (Date.now() - t0) + 'ms)'); };
+  x.onerror = function () { add(false, 'חיבור לשרת נכשל'); };
+  x.send();
+  function add(ok, text) { var li = document.createElement('li'); li.className = ok ? 'ok' : 'bad'; li.textContent = (ok ? '✓ ' : '✗ ') + text; ul.appendChild(li); }
+</script>
+</body>
+</html>
