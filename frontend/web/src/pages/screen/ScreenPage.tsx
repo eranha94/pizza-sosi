@@ -34,7 +34,7 @@ export function ScreenView({ data, startAt = 0 }: { data: ScreenData | null; sta
   const { current, next, leaving, progressKey } = useCarousel(slides, (data?.screen.slideSeconds ?? 9) * 1000, startAt);
 
   // Load the next dish photo in advance so it never appears half-drawn.
-  const nextSrc = data && next?.kind === 'featured' ? imageUrl(data.bucket, next.item.imagePath) : null;
+  const nextSrc = data && next?.kind === 'featured' ? squareUrl(data.bucket, next.item.imagePath) : null;
   useEffect(() => {
     if (nextSrc) new Image().src = nextSrc;
   }, [nextSrc]);
@@ -113,12 +113,13 @@ function SlideView({ slide, bucket, state }: { slide: Slide; bucket: string; sta
 
 function Featured({ item, bucket, className }: { item: MenuItem; bucket: string; className: string }) {
   const src = imageUrl(bucket, item.imagePath);
+  const square = squareUrl(bucket, item.imagePath);
   const isPizza = item.category === 'pizzas' || item.category === 'specials';
   const flag = item.tags.includes('new') ? ITEM_TAG_LABELS.new : item.tags.includes('recommended') ? ITEM_TAG_LABELS.recommended : null;
   return (
     <section className={className}>
       <div className={`feat__plate ${isPizza && !src ? 'is-spinning' : ''}`} aria-hidden="true">
-        {src ? <img src={src} alt="" decoding="async" /> : isPizza ? <PizzaPreview toppings={toppingsFromText(`${item.name} ${item.description}`)} /> : <span className="feat__emoji">{CATEGORY_EMOJI[item.category] ?? '🍽️'}</span>}
+        {src ? <img src={square ?? src} alt="" decoding="async" onError={(e) => src && e.currentTarget.src !== src && (e.currentTarget.src = src)} /> : isPizza ? <PizzaPreview toppings={toppingsFromText(`${item.name} ${item.description}`)} /> : <span className="feat__emoji">{CATEGORY_EMOJI[item.category] ?? '🍽️'}</span>}
       </div>
       <div className="feat__text">
         {flag && (
@@ -134,6 +135,11 @@ function Featured({ item, bucket, className }: { item: MenuItem; bucket: string;
       </div>
     </section>
   );
+}
+
+/** The large square chosen when the photo was cropped in the admin (older photos only have the full image). */
+function squareUrl(bucket: string, path: string | null): string | null {
+  return path && bucket ? imageUrl(bucket, `menu_thumbs/${path.replace(/^menu_images\//, '').replace(/\.[^.]+$/, '')}_1200.webp`) : null;
 }
 
 function Price({ agorot, className = '' }: { agorot: number; className?: string }) {
