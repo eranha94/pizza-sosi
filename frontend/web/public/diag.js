@@ -39,20 +39,43 @@ document.body.appendChild(root);
 var xh = new XMLHttpRequest();
 xh.open('GET', '/screen');
 xh.onload = function () {
-  // Run the app as if this were the screen page (the address bar changes, the page stays).
+  var html = xh.responseText;
   try { history.replaceState(null, '', '/screen?diag=1'); } catch (err) { add(false, 'history: ' + err.message); }
-  var re = /<script type="module" crossorigin src="([^"]+)"/g, m, n = 0;
-  while ((m = re.exec(xh.responseText))) {
+  var mod = /<script type="module" crossorigin src="([^"]+)"/.exec(html);
+  var poly = /id="vite-legacy-polyfill" src="([^"]+)"/.exec(html);
+  var entry = /id="vite-legacy-entry" data-src="([^"]+)"/.exec(html);
+  add(!!(mod && poly && entry), 'קבצים: ' + (mod ? 'מודרני ✓ ' : 'מודרני ✗ ') + (poly && entry ? 'קלאסי ✓' : 'קלאסי ✗'));
+  // A. Raw download of a code file (status, type, size).
+  if (mod) probe(mod[1], 'הורדה מודרני');
+  if (poly) probe(poly[1], 'הורדה קלאסי');
+  // B. Classic build, the way the screen falls back to it.
+  if (poly && entry) {
     var s = document.createElement('script');
-    s.type = 'module';
-    s.src = m[1];
-    s.onerror = (function (src) { return function () { add(false, 'לא נטען: ' + src); }; })(m[1]);
-    document.body.appendChild(s);
-    n++;
+    s.src = poly[1];
+    s.onload = function () {
+      add(!!window.System, 'קלאסי: polyfills נטען' + (window.System ? '' : ' (בלי System)'));
+      if (!window.System) return;
+      window.System.import(entry[1]).then(
+        function () { add(true, 'קלאסי: הקוד נטען'); },
+        function (err) { add(false, 'קלאסי נכשל: ' + (err && err.message ? err.message : String(err))); }
+      );
+    };
+    s.onerror = function () { add(false, 'קלאסי: polyfills לא נטען'); };
+    document.head.appendChild(s);
   }
-  add(n > 0, 'קבצי קוד שנמצאו: ' + n);
   setTimeout(function () {
     add(root.children.length > 0, root.children.length > 0 ? 'האתר רץ בהצלחה' : 'האתר לא הצליח לרוץ');
-  }, 8000);
+  }, 12000);
 };
 xh.send();
+
+function probe(url, label) {
+  var r = new XMLHttpRequest();
+  var t = Date.now();
+  r.open('GET', url);
+  r.onload = function () {
+    add(r.status === 200, label + ': ' + r.status + ' · ' + (r.getResponseHeader('content-type') || '?') + ' · ' + Math.round(r.responseText.length / 1024) + 'KB · ' + (Date.now() - t) + 'ms');
+  };
+  r.onerror = function () { add(false, label + ': נכשל'); };
+  r.send();
+}
