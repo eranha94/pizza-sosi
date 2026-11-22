@@ -3,7 +3,8 @@
  */
 export type Agorot = number;
 
-const whole = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 });
+// minimumFractionDigits must be set too: older browsers (e.g. 2018 TV WebViews) throw a RangeError when only the maximum is lowered.
+const whole = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const cents = new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** "18 ₪", or "7.50 ₪" when there are agorot. */
