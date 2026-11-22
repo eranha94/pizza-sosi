@@ -318,3 +318,11 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .bars--dense { gap: 2px; }
 .bars--dense .bars__x { font-size: .6rem; }
 .bars--dense li:nth-child(even) .bars__x { visibility: hidden; }
+
+/* Orders past their prep time */
+.late-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 0 14px; padding: 12px 16px; border-radius: 12px;
+  background: var(--danger); color: #fff; font-size: 1.05rem; animation: late-pulse 1.6s ease-in-out infinite; }
+.late-alert strong { font-size: 1.15rem; }
+@keyframes late-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 35%, transparent); } }
+.order--late { border-color: var(--danger); border-width: 2px; background: color-mix(in srgb, var(--danger) 7%, var(--card, #fff)); }
+@media (prefers-reduced-motion: reduce) { .late-alert { animation: none; } }

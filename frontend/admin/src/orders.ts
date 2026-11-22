@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { collection, onSnapshot, orderBy, query, where, limit, type Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, where, limit, doc, type Timestamp } from 'firebase/firestore';
 import type { OrderStatus } from '@pizza-sosi/contracts';
 import { db } from './firebase';
 
@@ -24,6 +24,24 @@ export const ACTIVE: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost
 /** Orders nobody has confirmed yet ("התקבלה" not pressed). */
 export const isNew = (o: AdminOrder) => o.status === 'placed';
 
+/** How often the bell repeats while an order hasn't been confirmed. */
+const NAG_MS = 5_000;
+const KITCHEN_STATUSES = new Set(['placed', 'accepted', 'preparing', 'almost_ready']);
+
+/**
+ * When an order should be ready: a scheduled order by its chosen time, otherwise the time it came in
+ * plus the prep time currently set on the store page (so changing 25 → 30 minutes applies right away).
+ */
+export function dueAt(o: AdminOrder, prepMinutes: number): number | null {
+  if (o.scheduled && o.readyAt) return o.readyAt;
+  const created = o.createdAt?.toMillis?.();
+  return created ? created + prepMinutes * 60_000 : (o.readyAt ?? null);
+}
+export const isLate = (o: AdminOrder, prepMinutes: number, now: number) => {
+  const due = dueAt(o, prepMinutes);
+  return KITCHEN_STATUSES.has(o.status) && due !== null && now >= due;
+};
+
 const SOUND_KEY = 'pizza-sosi-admin-sound';
 
 /** Short two-tone "ding-dong" made with Web Audio (no audio file to load). */
@@ -47,7 +65,8 @@ function ring(ctx: AudioContext) {
 }
 
 /**
- * Live list of open orders + a sound when a new one arrives (and every 45 s while new orders wait to be confirmed).
+ * Live list of open orders + a sound when a new one arrives (and every 5 s while new orders wait to be confirmed).
+ * Also flags orders that reached the prep time set on the store page (red banner + one alarm per order).
  * Browsers only allow sound after a click, so the board has a "turn on sound" button.
  */
 export function useActiveOrders() {
@@ -106,7 +125,7 @@ export function useActiveOrders() {
   const waiting = orders.some(isNew);
   useEffect(() => {
     if (!waiting) return;
-    const t = window.setInterval(play, 45_000);
+    const t = window.setInterval(play, NAG_MS);
     return () => window.clearInterval(t);
   }, [waiting, play]);
 
@@ -123,7 +142,33 @@ export function useActiveOrders() {
     void enableAudio();
   }, [enableAudio]);
 
-  return { orders, error, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
+  // Prep time from the store page, live.
+  const [prepMinutes, setPrepMinutes] = useState(25);
+  useEffect(
+    () =>
+      onSnapshot(doc(db, 'settings', 'store'), (snap) => {
+        const v = Number(snap.data()?.prepMinutes);
+        if (v > 0) setPrepMinutes(v);
+      }),
+    [],
+  );
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const late = orders.filter((o) => isLate(o, prepMinutes, now));
+  // One alarm when an order first crosses its time.
+  const alarmed = useRef(new Set<string>());
+  const lateKey = late.map((o) => o.id).join(',');
+  useEffect(() => {
+    const fresh = lateKey.split(',').filter((id) => id && !alarmed.current.has(id));
+    if (fresh.length === 0) return;
+    fresh.forEach((id) => alarmed.current.add(id));
+    play();
+  }, [lateKey, play]);
+
+  return { orders, error, late, prepMinutes, now, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
 }
 
 export type ActiveOrders = ReturnType<typeof useActiveOrders>;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/firestore';
 import { API, ORDER_STATUS_LABELS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
-import { isNew, type AdminOrder, type ActiveOrders } from './orders';
+import { isNew, isLate, dueAt, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
 import { SoldOut } from './SoldOut';
 
@@ -31,7 +31,6 @@ function shortcut(o: AdminOrder): { to: OrderStatus; label: string } | null {
   return o.fulfillment === 'delivery' ? { to: 'out_for_delivery', label: 'ישר לשליח' } : { to: 'ready', label: 'ישר למוכנה' };
 }
 const canCancel = (s: OrderStatus) => s === 'placed' || s === 'accepted' || s === 'preparing' || s === 'almost_ready';
-const KITCHEN: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready'];
 
 const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[] = [
   { id: 'new', title: 'חדשות', match: isNew },
@@ -41,7 +40,7 @@ const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[
   { id: 'ready', title: 'מוכנות לאיסוף / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
 ];
 
-function useNow(ms = 30_000) {
+function useNow(ms = 15_000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), ms);
@@ -50,7 +49,7 @@ function useNow(ms = 30_000) {
   return now;
 }
 
-export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
+export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -88,6 +87,14 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
         </div>
       </div>
       {soundOn && !audioReady && <p className="notice">לחץ בכל מקום בדף כדי לאפשר צליל להזמנות חדשות.</p>}
+      {late.length > 0 && (
+        <div className="late-alert" role="alert">
+          <strong>⏰ {late.length === 1 ? 'הזמנה עברה את זמן ההכנה' : `${late.length} הזמנות עברו את זמן ההכנה`}</strong>
+          <span>
+            {late.map((o) => `#${o.number}`).join(' · ')} — מוגדר {prepMinutes} דק׳ בדף ״החנות״
+          </span>
+        </div>
+      )}
       {(error || actionError) && <p className="error" role="alert">{error ?? actionError}</p>}
 
       <div className="board">
@@ -101,7 +108,7 @@ export function OrdersBoard({ orders, error, soundOn, audioReady, toggleSound, t
               {list.length === 0 && <p className="muted empty">אין כרגע</p>}
               <ul className="orders">
                 {list.map((o) => (
-                  <OrderCard key={o.id} order={o} now={now} busy={busy === o.id} onMove={(s) => move(o, s)} />
+                  <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} busy={busy === o.id} onMove={(s) => move(o, s)} />
                 ))}
               </ul>
             </section>
@@ -123,16 +130,19 @@ function minutesAgo(o: AdminOrder, now: number) {
   return created ? Math.max(0, Math.round((now - created) / 60000)) : null;
 }
 
-function OrderCard({ order: o, now, busy, onMove }: { order: AdminOrder; now: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
+function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
   const step = nextStep(o);
   const ago = minutesAgo(o, now);
-  const late = o.readyAt !== undefined && o.readyAt < now && KITCHEN.includes(o.status);
+  const late = isLate(o, prepMinutes, now);
+  const due = dueAt(o, prepMinutes);
+  const over = late && due !== null ? Math.floor((now - due) / 60000) : 0;
   return (
     <li className={`order order--${o.status} ${late ? 'order--late' : ''}`}>
       <div className="order__head">
         <strong className="order__num">#{o.number}</strong>
         <span className="pill">{ORDER_STATUS_LABELS[o.status]}</span>
         {ago !== null && <span className="muted small">לפני {ago} דק׳</span>}
+        {late && <span className="tag tag--late">⏰ {over > 0 ? `באיחור ${over} דק׳` : 'הגיע הזמן'}</span>}
         <strong className="order__total">{formatAgorot(o.totalAgorot)}</strong>
       </div>
       <div className="order__meta">
