@@ -1,4 +1,4 @@
-import type { CartLineInput, MenuItem, PricedLine } from '@pizza-sosi/contracts';
+import { freeAddOnIds, type CartLineInput, type MenuItem, type PricedLine } from '@pizza-sosi/contracts';
 
 export class PricingError extends Error {
   constructor(
@@ -48,6 +48,7 @@ function resolveChoices(item: MenuItem, sent: Chosen[]) {
 /**
  * The only place a price is decided. Uses the menu from the database, never values from the browser.
  * Each topping is charged its own price: whole pizza, or half pizza when the topping offers it.
+ * The first regular topping on each item is free.
  */
 export function priceCart(
   lines: CartLineInput[],
@@ -58,7 +59,7 @@ export function priceCart(
   const priced: PricedLine[] = lines.map((line) => {
     const item = menu.get(line.itemId);
     if (!item || !item.active) throw new PricingError(`פריט לא זמין: ${line.itemId}`, 'item_unavailable');
-    const addOns = resolveChoices(item, line.addOns).map(({ option: o, coverage }) => {
+    const charged = resolveChoices(item, line.addOns).map(({ option: o, coverage }) => {
       // Half price only where the topping offers halves; otherwise it covers the whole pizza.
       const half = coverage !== 'whole' && o.halfAgorot !== null;
       return {
@@ -68,6 +69,9 @@ export function priceCart(
         coverage: o.halfAgorot === null ? null : half ? coverage : ('whole' as const),
       };
     });
+    // The first regular topping is free (see freeAddOnIds).
+    const free = freeAddOnIds(item.addOnGroups, charged);
+    const addOns = charged.map((a) => (free.has(a.id) ? { ...a, priceAgorot: 0 } : a));
     const unit = item.priceAgorot + addOns.reduce((s, a) => s + a.priceAgorot, 0);
     return {
       itemId: item.id,

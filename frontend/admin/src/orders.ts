@@ -45,33 +45,44 @@ export const isLate = (o: AdminOrder, prepMinutes: number, now: number) => {
 const SOUND_KEY = 'pizza-sosi-admin-sound';
 
 /**
- * Loud alarm made with Web Audio (no file to load): square waves in the 1–2 kHz range the ear hears best,
- * pushed through a compressor so it plays at full volume without distorting.
+ * "Ka-ching": coins falling, made with Web Audio (no file to load). Each coin is a few short metallic,
+ * slightly out-of-tune partials; a cascade of them bounces and settles, then a bright register bell.
+ * Pushed through a compressor so it plays at full volume without distorting.
  */
 function ring(ctx: AudioContext) {
-  const t = ctx.currentTime;
+  const t0 = ctx.currentTime;
   const out = ctx.createDynamicsCompressor();
-  out.threshold.value = -10;
-  out.ratio.value = 12;
+  out.threshold.value = -12;
+  out.ratio.value = 10;
   const master = ctx.createGain();
   master.gain.value = 1;
   out.connect(master).connect(ctx.destination);
-  const notes = [1568, 1175, 1568, 1175, 1568, 1175, 1760, 1397];
-  for (const [i, freq] of notes.entries()) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    const start = t + i * 0.26;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(1, start + 0.01);
-    gain.gain.setValueAtTime(1, start + 0.2);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.24);
-    osc.connect(gain).connect(out);
-    osc.start(start);
-    osc.stop(start + 0.25);
+
+  const clink = (at: number, base: number, level: number, decay: number) => {
+    for (const [ratio, amp] of [[1, 1], [2.76, 0.6], [5.4, 0.4], [8.93, 0.25]] as const) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = base * ratio;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(level * amp, at + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + decay / ratio ** 0.3);
+      osc.connect(gain).connect(out);
+      osc.start(at);
+      osc.stop(at + decay + 0.05);
+    }
+  };
+
+  // Register bell first ("ka-ching"), then the coins pouring and bouncing to a stop.
+  clink(t0, 2093, 1, 0.9);
+  clink(t0 + 0.09, 2637, 0.9, 1.1);
+  let at = t0 + 0.25;
+  for (let i = 0; i < 14; i++) {
+    const base = 2600 + ((i * 7919) % 1700); // varied coin sizes, deterministic
+    clink(at, base, 0.95 - i * 0.04, 0.18 + (i % 3) * 0.05);
+    at += 0.045 + i * 0.012; // bounces spread out as the pile settles
   }
-  navigator.vibrate?.([300, 120, 300, 120, 300]);
+  navigator.vibrate?.([200, 80, 200, 80, 400]);
 }
 
 /**

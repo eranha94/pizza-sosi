@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatAgorot, COVERAGE_LABELS, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
-import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
+import { freeInGroup, type MenuItem, type AddOnOption } from '@pizza-sosi/contracts';
 import { useCart, addOnsPrice, type Coverage, type CartLine } from '../store/cart';
 import { announce, notifyAdded } from '../lib/a11y';
 import { flyToCart, flyVisual } from '../lib/motion';
@@ -67,7 +67,8 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
       next.set(id, 'whole');
       return next;
     });
-  const unit = item.priceAgorot + addOnsPrice(item, chosenList).total;
+  const priced = addOnsPrice(item, chosenList);
+  const unit = item.priceAgorot + priced.total;
 
   const toggle = (id: string) =>
     setChosen((m) => {
@@ -140,6 +141,7 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
           <fieldset key={g.id} className="addons">
             <legend>
               {g.name}
+              {freeInGroup(g) > 0 && <span className="free-badge">🎁 הראשונה חינם</span>}
               {half && (
                 <span className="addons__hint">
                   {' '}· כל הפיצה {formatAgorot(half.wholeAgorot)} · חצי {formatAgorot(half.halfAgorot!)}
@@ -153,6 +155,7 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
                   <label className="addon__main">
                     <input type="checkbox" checked={coverage !== undefined} onChange={() => toggle(o.id)} />
                     <span className="addon__name">{o.name}</span>
+                    {priced.free.has(o.id) && <span className="free-badge free-badge--on">חינם</span>}
                     {o.halfAgorot === null && <span className="addon__price">{priceLabel(o)}</span>}
                   </label>
                   {coverage && o.halfAgorot !== null && (
