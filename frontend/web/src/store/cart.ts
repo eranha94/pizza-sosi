@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import type { MenuItem } from '@pizza-sosi/contracts';
+import { freeAddOnIds } from '@pizza-sosi/contracts/pricing';
 
 export type Coverage = 'whole' | 'right' | 'left';
 export interface ChosenAddOn {
@@ -45,19 +46,22 @@ const safeStorage: StateStorage = {
 };
 
 /** Price of the chosen toppings for one unit, the same rule the server applies. */
-export function addOnsPrice(item: MenuItem, chosen: ChosenAddOn[]): { total: number; labels: string[] } {
+export function addOnsPrice(item: MenuItem, chosen: ChosenAddOn[]): { total: number; labels: string[]; free: Set<string> } {
   const options = new Map(item.addOnGroups.flatMap((g) => g.options.map((o) => [o.id, o] as const)));
-  let total = 0;
-  const labels: string[] = [];
+  const priced: { id: string; priceAgorot: number; label: string }[] = [];
   for (const c of chosen) {
     const o = options.get(c.id);
     if (!o) continue;
     const half = c.coverage !== 'whole' && o.halfAgorot !== null;
-    total += half ? o.halfAgorot! : o.wholeAgorot;
     const where = { whole: 'כל הפיצה', right: 'חצי ימין', left: 'חצי שמאל' }[c.coverage];
-    labels.push(o.halfAgorot === null ? o.name : `${o.name} (${half ? where : 'כל הפיצה'})`);
+    priced.push({ id: o.id, priceAgorot: half ? o.halfAgorot! : o.wholeAgorot, label: o.halfAgorot === null ? o.name : `${o.name} (${half ? where : 'כל הפיצה'})` });
   }
-  return { total, labels };
+  const free = freeAddOnIds(item.addOnGroups, priced);
+  return {
+    total: priced.reduce((s, p) => s + (free.has(p.id) ? 0 : p.priceAgorot), 0),
+    labels: priced.map((p) => (free.has(p.id) ? `${p.label} – חינם` : p.label)),
+    free,
+  };
 }
 
 const lineKey = (itemId: string, chosen: ChosenAddOn[], note: string) => `${itemId}|${chosen.map((c) => `${c.id}:${c.coverage}`).join(',')}|${note}`;

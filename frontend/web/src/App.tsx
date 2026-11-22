@@ -12,6 +12,7 @@ const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/legal/AccessibilityPage'));
+const ScreenPage = lazy(() => import('./pages/screen/ScreenPage'));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
@@ -21,6 +22,7 @@ export function App() {
       <BrowserRouter>
         <Suspense fallback={<p className="page-loading">טוען…</p>}>
           <Routes>
+            <Route path="screen" element={<ScreenPage />} />
             <Route element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="cart" element={<CartPage />} />

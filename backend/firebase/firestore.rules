@@ -24,6 +24,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // In-store TV screen: pickup order numbers only (no names, no phones)
+    match /screen/board {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Orders: the customer who created it, or staff
     match /orders/{orderId} {
       allow get: if signedIn() && (resource.data.uid == request.auth.uid || isStaff());

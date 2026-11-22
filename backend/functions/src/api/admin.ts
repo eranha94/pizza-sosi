@@ -15,6 +15,7 @@ import { requireStaff } from '../security/auth.js';
 import { validate } from '../security/errors.js';
 import { audit } from '../security/audit.js';
 import { canTransition } from '../domain/orderState.js';
+import { refreshScreenBoard } from '../domain/screenBoard.js';
 
 export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (req) => {
   const { uid } = requireStaff(req);
@@ -31,7 +32,7 @@ export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (re
       statusHistory: FieldValue.arrayUnion({ status, at: new Date().toISOString(), by: uid }),
     });
   });
-  await audit(uid, 'order.status', orderId, { status });
+  await Promise.all([audit(uid, 'order.status', orderId, { status }), refreshScreenBoard()]);
   return { status };
 });
 

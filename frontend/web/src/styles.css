@@ -623,3 +623,14 @@ body:has(.cart-bar) .site-footer { padding-bottom: 96px; }
   .scene-road__scooter { right: 50%; transform: translateX(50%); }
   .confetti { display: none; }
 }
+
+/* A fieldset grows to fit its widest child by default; keep the time strip scrolling inside the page instead */
+fieldset { min-inline-size: 0; min-width: 0; }
+.slots { max-width: 100%; }
+.slots label { position: relative; }
+
+/* First regular topping free */
+.free-badge { display: inline-block; margin-inline-start: 8px; padding: 2px 8px; border-radius: 999px; font-size: .78rem; font-weight: 700; vertical-align: middle;
+  background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ink); border: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); }
+.free-badge--on { background: var(--ok); color: #fff; border-color: var(--ok); }
+:root[data-theme='dark'] .free-badge--on, :root[data-theme='premium'] .free-badge--on { color: #0f2a12; }

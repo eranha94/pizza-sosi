@@ -41,7 +41,7 @@ export function flyToCart(from: DOMRect, visual?: HTMLElement | null): Promise<v
   outer.append(inner);
   document.body.append(outer);
 
-  const duration = 700;
+  const duration = 1200;
   const lift = Math.min(160, Math.max(70, Math.abs(dy) * 0.35));
   outer.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${dx}px)` }], { duration, easing: 'cubic-bezier(.45,.05,.55,.95)', fill: 'forwards' });
   const flight = inner.animate(

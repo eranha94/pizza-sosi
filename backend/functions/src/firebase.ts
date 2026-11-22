@@ -15,4 +15,5 @@ export const COL = {
   idempotency: 'idempotency',
   rateLimits: 'rateLimits',
   auditLog: 'auditLog',
+  screen: 'screen',
 } as const;

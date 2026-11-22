@@ -99,3 +99,47 @@ describe('whatsapp numbers', async () => {
     expect(toWhatsappNumber('04-8391234')).toBeNull();
   });
 });
+
+describe('first regular topping free', () => {
+  const opt = (id: string, whole: number, half: number | null) => ({ id, name: id, wholeAgorot: whole, halfAgorot: half, active: true });
+  const item = {
+    id: 'pz', name: 'פיצה', description: '', category: 'pizzas', priceAgorot: 5000, imagePath: null, order: 1, active: true, tags: [],
+    addOnGroups: [
+      { id: 'reg', name: 'רגילות', order: 1, selection: 'multi', defaultOptionId: null, options: [opt('olive', 1000, 600), opt('corn', 1000, 600), opt('onion', 800, 500)] },
+      { id: 'sp', name: 'מיוחדות', order: 2, selection: 'multi', defaultOptionId: null, options: [opt('tuna', 1300, 800)] },
+    ],
+  } as unknown as MenuItem;
+  const m = new Map([[item.id, item]]);
+  const price = (addOns: { id: string; coverage: 'whole' | 'right' | 'left' }[]) => priceCart([{ itemId: 'pz', quantity: 2, addOns, note: '' }], m, 0);
+
+  it('one regular topping costs nothing', () => {
+    expect(price([{ id: 'olive', coverage: 'whole' }]).lines[0]!.unitPriceAgorot).toBe(5000);
+  });
+  it('only the first is free; the dearest one is the free one', () => {
+    const r = price([{ id: 'onion', coverage: 'whole' }, { id: 'corn', coverage: 'whole' }]);
+    expect(r.lines[0]!.unitPriceAgorot).toBe(5800);
+    expect(r.lines[0]!.addOns.find((a) => a.id === 'corn')!.priceAgorot).toBe(0);
+    expect(r.totalAgorot).toBe(11600);
+  });
+  it('special toppings are never free', () => {
+    expect(price([{ id: 'tuna', coverage: 'whole' }]).lines[0]!.unitPriceAgorot).toBe(6300);
+  });
+});
+
+describe('screen board', async () => {
+  const { boardFrom } = await import('../src/domain/screenBoard.js');
+  const now = Date.now();
+  it('lists pickup orders only, by status, without stale ones', () => {
+    const b = boardFrom(
+      [
+        { number: 12, status: 'preparing', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 9, status: 'accepted', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 10, status: 'ready', fulfillment: 'pickup', createdAtMs: now - 60_000 },
+        { number: 11, status: 'preparing', fulfillment: 'delivery', createdAtMs: now - 60_000 },
+        { number: 3, status: 'ready', fulfillment: 'pickup', createdAtMs: now - 8 * 3600_000 },
+      ],
+      now,
+    );
+    expect(b).toEqual({ preparing: [9, 12], ready: [10] });
+  });
+});
