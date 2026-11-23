@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatAgorot, COVERAGE_LABELS, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
 import { PizzaPreview, type PreviewTopping } from './PizzaPreview';
 import type { MenuItem, AddOnOption } from '@pizza-sosi/contracts';
@@ -11,20 +11,113 @@ import { AnimatedNumber } from './AnimatedNumber';
 /** Pick toppings and add to the cart – or, with `editing`, change a line that's already in the cart. */
 export function ItemDialog({ item, editing, onClose }: { item: MenuItem | null; editing?: CartLine | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const closing = useRef(false);
+
+  /** Close with the slide-down animation (× button, Esc, tap outside, swipe). Adding to the cart closes at once – the dish flies to the cart instead. */
+  const close = useCallback(() => {
+    const d = ref.current;
+    if (!d?.open || closing.current) return;
+    if (reduceMotion()) return d.close();
+    closing.current = true;
+    d.classList.add('is-closing');
+    window.setTimeout(() => {
+      d.classList.remove('is-closing');
+      d.style.removeProperty('--drag');
+      closing.current = false;
+      d.close();
+    }, 240);
+  }, []);
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (item && !d.open) d.showModal();
-    else if (!item && d.open) d.close();
+    if (item && !d.open) {
+      // The page steps back around what's on screen now, not around the middle of the whole page.
+      const main = document.getElementById('main');
+      document.documentElement.style.setProperty('--recede-y', `${window.scrollY + window.innerHeight / 2 - (main?.offsetTop ?? 0)}px`);
+      d.showModal();
+      document.documentElement.classList.add('sheet-open');
+    } else if (!item && d.open) d.close();
   }, [item]);
 
+  useSwipeDown(ref, close);
+
   return (
-    <dialog ref={ref} className="sheet" onClose={onClose} aria-labelledby="sheet-title">
+    <dialog
+      ref={ref}
+      className="sheet"
+      onClose={() => {
+        document.documentElement.classList.remove('sheet-open');
+        onClose();
+      }}
+      onCancel={(e) => {
+        e.preventDefault();
+        close();
+      }}
+      onClick={(e) => e.target === e.currentTarget && close()}
+      aria-labelledby="sheet-title"
+    >
+      <div className="sheet__grab" aria-hidden="true" />
       {/* keyed by item: every open starts with a fresh form */}
-      {item && <ItemForm key={editing?.key ?? item.id} item={item} editing={editing ?? null} onDone={() => ref.current?.close()} />}
+      {item && <ItemForm key={editing?.key ?? item.id} item={item} editing={editing ?? null} onDone={close} />}
     </dialog>
   );
+}
+
+const reduceMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Phones: pull the sheet down to close it, like an app. Only starts when the sheet is scrolled to the top
+ * (otherwise the finger is scrolling the toppings), follows the finger, and closes past a distance or on a flick.
+ */
+function useSwipeDown(ref: React.RefObject<HTMLDialogElement | null>, close: () => void) {
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    let startY = 0;
+    let startT = 0;
+    let dy = 0;
+    let active = false;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || d.scrollTop > 0 || !window.matchMedia('(max-width: 640px)').matches) return;
+      const t = e.target as HTMLElement;
+      if (t.closest('input, textarea, select')) return;
+      startY = e.touches[0]!.clientY;
+      startT = performance.now();
+      dy = 0;
+      active = true;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!active) return;
+      dy = e.touches[0]!.clientY - startY;
+      if (dy <= 0 || d.scrollTop > 0) {
+        if (dy < 0) active = false; // scrolling up into the sheet: let it scroll
+        d.style.removeProperty('--drag');
+        return;
+      }
+      e.preventDefault(); // we're moving the sheet, not the page
+      d.classList.add('is-dragging');
+      d.style.setProperty('--drag', `${dy}px`);
+    };
+    const onEnd = () => {
+      if (!active) return;
+      active = false;
+      d.classList.remove('is-dragging');
+      const speed = dy / Math.max(1, performance.now() - startT);
+      if (dy > 130 || (dy > 40 && speed > 0.6)) close();
+      else d.style.removeProperty('--drag');
+    };
+    d.addEventListener('touchstart', onStart, { passive: true });
+    d.addEventListener('touchmove', onMove, { passive: false });
+    d.addEventListener('touchend', onEnd);
+    d.addEventListener('touchcancel', onEnd);
+    return () => {
+      d.removeEventListener('touchstart', onStart);
+      d.removeEventListener('touchmove', onMove);
+      d.removeEventListener('touchend', onEnd);
+      d.removeEventListener('touchcancel', onEnd);
+    };
+  }, [ref, close]);
 }
 
 function priceLabel(o: AddOnOption) {
