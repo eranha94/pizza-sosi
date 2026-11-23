@@ -78,8 +78,8 @@ export default function OrderPage() {
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
       <OrderScene status={order.status} />
+      {order.readyAt && active && <ReadyTimer order={order} readyAt={order.readyAt} />}
       <OrderSteps order={order} />
-      {order.readyAt && active && <ReadyTimer readyAt={order.readyAt} scheduled={order.scheduled} />}
       <ul className="cart-list">
         {order.lines.map((l, i) => (
           <li key={i} className="cart-line">
@@ -174,46 +174,73 @@ function OrderSteps({ order }: { order: Order }) {
   if (order.status === 'cancelled' || order.status === 'pending_payment') return null;
   const steps = ORDER_STEPS[order.fulfillment];
   const at = order.status === 'completed' ? steps.length : steps.indexOf(order.status);
+  // When each step was reached (the last time, if it moved back and forth).
+  const when = new Map<string, number>();
+  for (const h of order.statusHistory) {
+    const t = Date.parse(h.at);
+    if (!Number.isNaN(t)) when.set(h.status, t);
+  }
   return (
     <ol className="order-steps" aria-label="מצב ההזמנה">
-      {steps.map((s, i) => (
-        <li key={s} className={i < at ? 'is-done' : i === at ? 'is-current' : ''} aria-current={i === at ? 'step' : undefined}>
-          <span className="order-steps__dot" aria-hidden="true">{i < at ? '✓' : i + 1}</span>
-          <span className="order-steps__label">{STEP_LABELS[s]}</span>
-        </li>
-      ))}
+      {steps.map((s, i) => {
+        const t = i <= at ? when.get(s) : undefined;
+        return (
+          <li key={s} className={i < at ? 'is-done' : i === at ? 'is-current' : ''} aria-current={i === at ? 'step' : undefined}>
+            <span className="order-steps__dot" aria-hidden="true">{i < at ? '✓' : i + 1}</span>
+            <span className="order-steps__label">{STEP_LABELS[s]}</span>
+            {t !== undefined && <time className="order-steps__time" dateTime={new Date(t).toISOString()}>{formatTime(t)}</time>}
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
-/** Ring that fills up as the ready time gets closer. */
-function ReadyTimer({ readyAt, scheduled }: { readyAt: number; scheduled: boolean }) {
-  const now = useNow(15_000).getTime();
-  const left = Math.max(0, Math.round((readyAt - now) / 60000));
-  const total = scheduled ? Math.max(left, 1) : 30;
-  const progress = scheduled && left > 60 ? 0.04 : Math.min(1, Math.max(0.04, 1 - left / total));
+/**
+ * Countdown to the estimated time: minutes:seconds in a ring that fills up from the moment the order
+ * came in, and the clock time it should be ready (pickup) or leave the pizzeria (delivery).
+ */
+function ReadyTimer({ order, readyAt }: { order: Order; readyAt: number }) {
+  const now = useNow(1_000).getTime();
+  const placed = order.statusHistory.map((h) => Date.parse(h.at)).find((t) => !Number.isNaN(t)) ?? readyAt - 30 * 60_000;
+  const leftMs = Math.max(0, readyAt - now);
+  const leftMin = leftMs / 60_000;
+  const far = leftMin > 90; // e.g. ordered in the morning for the evening: a countdown would just be noise
+  const span = Math.max(60_000, readyAt - placed);
+  const progress = far ? 0.03 : Math.min(1, Math.max(0.03, 1 - leftMs / span));
+  const mm = Math.floor(leftMs / 60_000);
+  const ss = Math.floor((leftMs % 60_000) / 1000);
+  const label = order.fulfillment === 'delivery' ? 'ההזמנה יוצאת אליכם בערך ב' : order.scheduled ? 'מוכן לאיסוף בשעה שבחרתם' : 'השעה המשוערת לאיסוף';
   const C = 2 * Math.PI * 44;
   return (
     <div className="ready-timer">
-      <svg viewBox="0 0 100 100" width="120" height="120" aria-hidden="true">
-        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" strokeWidth="8" />
-        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--yellow)" strokeWidth="8" strokeLinecap="round"
+      <svg viewBox="0 0 100 100" width="150" height="150" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" strokeWidth="7" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="var(--ok)" strokeWidth="7" strokeLinecap="round"
           strokeDasharray={C} strokeDashoffset={C * (1 - progress)} transform="rotate(-90 50 50)" className="ready-timer__ring" />
       </svg>
-      <div className="ready-timer__text">
-        {left > 0 ? (
+      <div className="ready-timer__text" aria-hidden="true">
+        {leftMs === 0 ? (
+          <strong className="ready-timer__soon">כמעט מוכן</strong>
+        ) : far ? (
           <>
-            <strong>{left > 90 ? formatTime(readyAt) : `${left}`}</strong>
-            <span>{left > 90 ? (scheduled ? 'השעה שבחרתם' : 'מוכן בערך') : 'דקות'}</span>
+            <span>מוכן ב</span>
+            <strong>{formatTime(readyAt)}</strong>
           </>
         ) : (
           <>
-            <strong>כמעט</strong>
-            <span>מוכן</span>
+            <span>נותרו</span>
+            <strong dir="ltr">{String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}</strong>
+            <span>דקות</span>
           </>
         )}
       </div>
-      <p className="muted small">{scheduled ? 'הזמנה מראש' : 'מוכן בערך'} ב-{formatTime(readyAt)}</p>
+      <p className="ready-timer__eta">
+        <span>{order.fulfillment === 'delivery' ? 'ההזמנה יוצאת אליכם בערך' : label}</span>
+        <strong>{formatTime(readyAt)}</strong>
+      </p>
+      {/* One calm sentence for screen readers instead of a ticking number. */}
+      <p className="sr-only">{leftMs === 0 ? 'ההזמנה כמעט מוכנה' : `${label} ${formatTime(readyAt)}, בעוד כ-${Math.max(1, Math.round(leftMin))} דקות`}</p>
     </div>
   );
 }

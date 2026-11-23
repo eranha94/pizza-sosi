@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import legacy from '@vitejs/plugin-legacy';
 
 /**
  * Search engines & link previews, per environment (set by the deploy workflow):
@@ -65,9 +66,21 @@ function seo(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), seo()],
+  plugins: [
+    react(),
+    seo(),
+    // Older browsers too: TV browsers and Android TV WebViews (the in-store screen) are often years behind.
+    // Browsers with modules (Chrome 64+) get a compiled-down build plus only the missing features;
+    // anything older gets a fully transpiled fallback. Modern phones load exactly what they did before.
+    legacy({
+      targets: ['chrome >= 49', 'android >= 5', 'safari >= 10', 'firefox >= 52', 'samsung >= 5'],
+      modernTargets: ['chrome >= 64', 'safari >= 12', 'firefox >= 67', 'edge >= 79', 'samsung >= 9'],
+      modernPolyfills: true,
+      renderLegacyChunks: true,
+    }),
+  ],
   // Only VITE_PUBLIC_* variables may reach the browser bundle.
   envPrefix: 'VITE_PUBLIC_',
-  build: { sourcemap: false, target: 'es2022' },
+  build: { sourcemap: false, cssTarget: ['chrome61', 'safari12'] },
   server: { port: 5173 },
 });

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { API, CATEGORY_IDS, CATEGORY_LABELS, ITEM_TAGS, ITEM_TAG_LABELS, type CategoryId, type MenuItem, type ItemTag } from '@pizza-sosi/contracts';
 import { callAdmin, bucket } from './firebase';
-import { uploadMenuPhoto, photoUrl } from './image';
+import { uploadMenuPhoto, photoUrl, fetchMenuPhoto } from './image';
+import { CropDialog, type Crop } from './CropDialog';
 import { toRequest, type AdminMenuItem } from './MenuEditor';
 
 /* Draft model: prices as text (₪) while typing; converted to agorot on save. */
@@ -47,6 +48,7 @@ export function ItemEditor({
   const [imagePath, setImagePath] = useState<string | null>(item?.imagePath ?? null);
   const [groups, setGroups] = useState<DGroup[]>(() => toDraft(item?.addOnGroups ?? []));
   const [photoState, setPhotoState] = useState<string | null>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -79,11 +81,30 @@ export function ItemEditor({
     onClose();
   }
 
-  async function onPhoto(file: File | undefined) {
+  /** A new photo (or the current one, to re-crop) goes through the crop step first. */
+  function onPhoto(file: File | undefined) {
     if (!file) return;
     setError(null);
+    setCropping(file);
+  }
+
+  async function recrop() {
+    if (!imagePath) return;
+    setError(null);
+    setPhotoState('טוען תמונה…');
     try {
-      const path = await uploadMenuPhoto(file, setPhotoState);
+      setCropping(await fetchMenuPhoto(bucket, imagePath));
+      setPhotoState(null);
+    } catch (e) {
+      setPhotoState(null);
+      setError((e as Error).message);
+    }
+  }
+
+  async function uploadCropped(file: File, crop: Crop) {
+    setCropping(null);
+    try {
+      const path = await uploadMenuPhoto(file, setPhotoState, crop);
       setImagePath(path);
       setDirty(true);
       setPhotoState('התמונה הועלתה – לחץ "שמירה" כדי לעדכן את האתר');
@@ -201,14 +222,28 @@ export function ItemEditor({
               )}
               <label className="btn btn--sm btn--ghost">
                 {imagePath ? 'החלפת תמונה' : 'העלאת תמונה'}
-                <input type="file" accept="image/*" hidden onChange={(e) => void onPhoto(e.target.files?.[0])} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    onPhoto(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
               </label>
+              {imagePath && (
+                <button type="button" className="link-btn small" onClick={() => void recrop()}>
+                  חיתוך מחדש
+                </button>
+              )}
               {imagePath && (
                 <button type="button" className="link-btn small" onClick={() => touch(setImagePath)(null)}>
                   הסרת תמונה
                 </button>
               )}
               {photoState && <p className="small muted" role="status">{photoState}</p>}
+              {cropping && <CropDialog file={cropping} onCancel={() => setCropping(null)} onDone={(c) => void uploadCropped(cropping, c)} />}
             </div>
             <div className="stack stack--grow">
               <label className="field">

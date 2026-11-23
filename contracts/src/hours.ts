@@ -45,14 +45,15 @@ export const isHHMM = (s: unknown): s is string => typeof s === 'string' && HHMM
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
 const partsFmt = new Intl.DateTimeFormat('en-CA', {
-  timeZone: STORE_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23',
+  timeZone: STORE_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23', hour12: false,
 });
+// hour12:false is for older browsers that ignore hourCycle; some of those print midnight as "24", hence the % 24 below.
 const WD: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
 /** Israel calendar date, weekday and minutes since midnight for an instant. */
 export function localParts(at: Date) {
   const p = Object.fromEntries(partsFmt.formatToParts(at).map((x) => [x.type, x.value]));
-  return { date: `${p.year}-${p.month}-${p.day}`, weekday: WD[p.weekday as string]!, minutes: Number(p.hour) * 60 + Number(p.minute) };
+  return { date: `${p.year}-${p.month}-${p.day}`, weekday: WD[p.weekday as string]!, minutes: (Number(p.hour) % 24) * 60 + Number(p.minute) };
 }
 
 /** Epoch ms for an Israel local date + minutes (DST-safe). */
@@ -154,6 +155,6 @@ export function isValidScheduledTime(schedule: Schedule, now: Date, at: number):
   return openWindows(schedule, now, 1).some((w) => at >= w.start + schedule.prepMinutes * 60000 - 60000 && at <= w.end);
 }
 
-const timeFmt = new Intl.DateTimeFormat('he-IL', { timeZone: STORE_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const timeFmt = new Intl.DateTimeFormat('he-IL', { timeZone: STORE_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23', hour12: false });
 /** "20:35" in Israel time. */
-export const formatTime = (ms: number) => timeFmt.format(new Date(ms));
+export const formatTime = (ms: number) => timeFmt.format(new Date(ms)).replace(/^24/, '00');

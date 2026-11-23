@@ -20,6 +20,7 @@ const order: OrderView = {
   totalAgorot: 8500,
   readyAt: Date.UTC(2026, 10, 16, 18, 30),
   scheduled: false,
+  statusHistory: [],
 };
 
 describe('email templates', () => {

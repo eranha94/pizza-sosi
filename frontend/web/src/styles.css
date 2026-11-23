@@ -437,11 +437,16 @@ h1[tabindex='-1']:focus { outline: none; }
 .slots label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 
 /* Order page: ready timer */
-.ready-timer { position: relative; display: grid; justify-items: center; gap: 6px; }
-.ready-timer__ring { transition: stroke-dashoffset 1s ease; }
-.ready-timer__text { position: absolute; top: 0; height: 120px; display: grid; place-content: center; text-align: center; line-height: 1.1; }
-.ready-timer__text strong { font-size: 1.8rem; font-variant-numeric: tabular-nums; }
-.ready-timer__text span { font-size: 0.85rem; color: var(--ink-soft); }
+.ready-timer { position: relative; display: grid; justify-items: center; gap: 4px; margin: 4px 0 10px; }
+.ready-timer__ring { transition: stroke-dashoffset 1s linear; }
+.ready-timer__text { position: absolute; top: 0; height: 150px; display: grid; place-content: center; justify-items: center; gap: 4px; text-align: center; line-height: 1; }
+.ready-timer__text span { font-size: .78rem; color: var(--ink-soft); font-weight: 600; }
+.ready-timer__text strong { font-size: 2.1rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.ready-timer__text .ready-timer__soon { font-size: 1.15rem; }
+.ready-timer__eta { margin: 0; display: grid; justify-items: center; gap: 2px; text-align: center; }
+.ready-timer__eta span { font-size: .9rem; color: var(--ink-soft); }
+.ready-timer__eta strong { font-size: 1.45rem; font-weight: 800; color: var(--accent, var(--ink)); font-variant-numeric: tabular-nums; }
+.order-steps__time { font-size: .72rem; font-weight: 500; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 .choice__row label.is-on .price-tag { background: var(--on-accent); color: var(--yellow); }
 

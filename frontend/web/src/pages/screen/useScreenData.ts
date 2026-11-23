@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MenuItem, ScreenBoard, ScreenSettings, StoreSettings } from '@pizza-sosi/contracts';
 import { DEFAULT_SCHEDULE, ITEM_TAG_LABELS } from '@pizza-sosi/contracts/constants';
-import { firebaseApp } from '../../lib/firebase';
+
+/*
+ * Data for the in-store TV screen, read with plain HTTPS requests (Firestore REST API) instead of the
+ * Firebase SDK. TV browsers are often years old (the first screen runs Chrome 66, from 2018) and the
+ * Firestore SDK doesn't even load there. Everything read here is public (see firestore.rules).
+ */
 
 /** Same defaults as contracts DEFAULT_SCREEN (copied so the zod package stays out of the browser). */
 export const SCREEN_DEFAULTS: ScreenSettings = {
@@ -18,8 +23,87 @@ export interface ScreenData {
   store: StoreSettings | null;
   screen: ScreenSettings;
   board: ScreenBoard;
+  /** False until the order numbers have been read once (so nothing flashes as "new" on start-up). */
+  boardLoaded: boolean;
   bucket: string;
   online: boolean;
+}
+
+/** How often each part is refreshed. Order numbers matter most; prices rarely change. */
+const BOARD_MS = 8_000;
+const STORE_MS = 30_000;
+const MENU_MS = 90_000;
+
+type FsValue = {
+  nullValue?: null;
+  booleanValue?: boolean;
+  integerValue?: string;
+  doubleValue?: number;
+  stringValue?: string;
+  timestampValue?: string;
+  arrayValue?: { values?: FsValue[] };
+  mapValue?: { fields?: Record<string, FsValue> };
+};
+
+/** Firestore REST values → plain JSON. */
+function decode(v: FsValue | undefined): unknown {
+  if (!v) return undefined;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return (v.arrayValue?.values ?? []).map(decode);
+  if ('mapValue' in v) return decodeFields(v.mapValue?.fields);
+  return null;
+}
+function decodeFields(fields: Record<string, FsValue> | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(fields ?? {})) out[k] = decode(fields![k]);
+  return out;
+}
+
+interface Endpoint {
+  base: string;
+  bucket: string;
+}
+
+async function loadEndpoint(): Promise<Endpoint> {
+  const env = import.meta.env;
+  let projectId = env.VITE_PUBLIC_FIREBASE_PROJECT_ID as string | undefined;
+  let bucket = (env.VITE_PUBLIC_FIREBASE_STORAGE_BUCKET as string | undefined) ?? '';
+  if (!projectId) {
+    const res = await fetch('/__/firebase/init.json', { cache: 'no-cache' });
+    const cfg = (await res.json()) as { projectId: string; storageBucket?: string };
+    projectId = cfg.projectId;
+    bucket = cfg.storageBucket ?? '';
+  }
+  const host = env.VITE_PUBLIC_USE_EMULATORS === 'true' ? 'http://localhost:8080' : 'https://firestore.googleapis.com';
+  return { base: `${host}/v1/projects/${projectId}/databases/(default)/documents`, bucket };
+}
+
+async function getDoc(ep: Endpoint, path: string): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${ep.base}/${path}`, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return decodeFields(((await res.json()) as { fields?: Record<string, FsValue> }).fields);
+}
+
+async function listMenu(ep: Endpoint): Promise<MenuItem[]> {
+  const items: MenuItem[] = [];
+  let pageToken = '';
+  for (let page = 0; page < 5; page++) {
+    const res = await fetch(`${ep.base}/menuItems?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = (await res.json()) as { documents?: { name: string; fields?: Record<string, FsValue> }[]; nextPageToken?: string };
+    for (const d of body.documents ?? []) {
+      const item = toItem(d.name.slice(d.name.lastIndexOf('/') + 1), decodeFields(d.fields));
+      if (item && item.active) items.push(item);
+    }
+    if (!body.nextPageToken) break;
+    pageToken = body.nextPageToken;
+  }
+  return items.sort((a, b) => a.order - b.order);
 }
 
 function toItem(id: string, d: Record<string, unknown>): MenuItem | null {
@@ -34,75 +118,99 @@ function toItem(id: string, d: Record<string, unknown>): MenuItem | null {
     order: typeof d.order === 'number' ? d.order : 0,
     active: d.active === true,
     addOnGroups: [],
-    tags: Array.isArray(d.tags) ? (d.tags.filter((t) => t in ITEM_TAG_LABELS) as MenuItem['tags']) : [],
+    tags: Array.isArray(d.tags) ? (d.tags.filter((t) => typeof t === 'string' && t in ITEM_TAG_LABELS) as MenuItem['tags']) : [],
   };
 }
 
 const nums = (v: unknown) => (Array.isArray(v) ? v.filter((n): n is number => typeof n === 'number') : []);
 
-/**
- * Live data for the in-store screen. Realtime listeners, so a price changed in the admin
- * (or a dish marked sold out) shows up within seconds, and only changes are downloaded.
- */
+/** Run `fn` now and every `ms` (paused while the page is hidden); `onError` marks the screen offline. */
+function poll(fn: () => Promise<void>, ms: number, onError: () => void) {
+  let stopped = false;
+  let timer = 0;
+  const tick = async () => {
+    if (stopped) return;
+    if (document.visibilityState !== 'hidden') {
+      try {
+        await fn();
+      } catch {
+        onError();
+      }
+    }
+    if (!stopped) timer = window.setTimeout(() => void tick(), ms);
+  };
+  void tick();
+  return () => {
+    stopped = true;
+    window.clearTimeout(timer);
+  };
+}
+
 export function useScreenData(): ScreenData | null {
   const [menu, setMenu] = useState<MenuItem[] | null>(null);
   const [store, setStore] = useState<StoreSettings | null>(null);
   const [board, setBoard] = useState<ScreenBoard>({ preparing: [], ready: [] });
+  const [boardLoaded, setBoardLoaded] = useState(false);
   const [bucket, setBucket] = useState('');
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
-    let stop: (() => void)[] = [];
+    let stops: (() => void)[] = [];
     let cancelled = false;
-    void (async () => {
-      const [{ app, bucket: b }, fs] = await Promise.all([firebaseApp(), import('firebase/firestore')]);
-      if (cancelled) return;
-      setBucket(b);
-      const db = fs.getFirestore(app);
-      if (import.meta.env.VITE_PUBLIC_USE_EMULATORS === 'true') {
-        try {
-          fs.connectFirestoreEmulator(db, 'localhost', 8080);
-        } catch {
-          /* already connected */
-        }
+    let retry = 0;
+    const offline = () => setOnline(false);
+    const start = async () => {
+      let ep: Endpoint;
+      try {
+        ep = await loadEndpoint();
+      } catch {
+        offline();
+        retry = window.setTimeout(() => void start(), 15_000);
+        return;
       }
-      const offline = () => setOnline(false);
-      stop = [
-        fs.onSnapshot(
-          fs.query(fs.collection(db, 'menuItems'), fs.where('active', '==', true)),
-          (snap) => {
-            setOnline(!snap.metadata.fromCache);
-            setMenu(
-              snap.docs
-                .map((d) => toItem(d.id, d.data()))
-                .filter((x): x is MenuItem => x !== null)
-                .toSorted((a, b) => a.order - b.order),
-            );
+      if (cancelled) return;
+      setBucket(ep.bucket);
+      stops = [
+        poll(
+          async () => {
+            const items = await listMenu(ep);
+            // Keep the same array when nothing changed, so the slideshow doesn't restart.
+            setMenu((prev) => (prev && JSON.stringify(prev) === JSON.stringify(items) ? prev : items));
+            setOnline(true);
           },
+          MENU_MS,
           offline,
         ),
-        fs.onSnapshot(
-          fs.doc(db, 'settings', 'store'),
-          (snap) => {
-            const d = (snap.data() ?? {}) as Partial<StoreSettings>;
-            setStore({ ...DEFAULT_SCHEDULE, overrides: [], deliveryEnabled: false, deliveryFeeAgorot: 0, minOrderAgorot: 0, whatsappStatuses: [], deliveryZones: [], ...d } as StoreSettings);
+        poll(
+          async () => {
+            const d = (await getDoc(ep, 'settings/store')) ?? {};
+            const next = { ...DEFAULT_SCHEDULE, overrides: [], deliveryEnabled: false, deliveryFeeAgorot: 0, minOrderAgorot: 0, whatsappStatuses: [], deliveryZones: [], ...d } as StoreSettings;
+            setStore((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
           },
+          STORE_MS,
           offline,
         ),
-        fs.onSnapshot(
-          fs.doc(db, 'screen', 'board'),
-          (snap) => setBoard({ preparing: nums(snap.get('preparing')), ready: nums(snap.get('ready')) }),
+        poll(
+          async () => {
+            const d = await getDoc(ep, 'screen/board');
+            const next = { preparing: nums(d?.preparing), ready: nums(d?.ready) };
+            setBoard((prev) => (prev.preparing.join() === next.preparing.join() && prev.ready.join() === next.ready.join() ? prev : next));
+            setBoardLoaded(true);
+          },
+          BOARD_MS,
           () => {},
         ),
       ];
-    })();
+    };
+    void start();
     return () => {
       cancelled = true;
-      stop.forEach((s) => s());
+      window.clearTimeout(retry);
+      stops.forEach((s) => s());
     };
   }, []);
 
   const screenJson = JSON.stringify(store?.screen ?? {});
   const screen = useMemo<ScreenSettings>(() => ({ ...SCREEN_DEFAULTS, ...(JSON.parse(screenJson) as Partial<ScreenSettings>) }), [screenJson]);
-  return useMemo(() => (menu ? { menu, store, screen, board, bucket, online } : null), [menu, store, screen, board, bucket, online]);
+  return useMemo(() => (menu ? { menu, store, screen, board, boardLoaded, bucket, online } : null), [menu, store, screen, board, boardLoaded, bucket, online]);
 }

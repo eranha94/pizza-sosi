@@ -64,7 +64,6 @@ export type DeliveryZone = z.infer<typeof DeliveryZone>;
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const DayHours = z.object({ open: hhmm, close: hhmm }).nullable();
 
-/** `settings/store` – public opening state, read by everyone, written only by the admin functions. */
 /** A promotion slide on the in-store screen. */
 export const ScreenPromo = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,30}$/),
@@ -106,6 +105,7 @@ export interface ScreenBoard {
   ready: number[];
 }
 
+/** `settings/store` – public opening state, read by everyone, written only by the admin functions. */
 export const StoreSettings = z.object({
   /** 0 = Sunday … 6 = Saturday; null = closed that day. close <= open means after midnight. */
   weeklyHours: z.tuple([DayHours, DayHours, DayHours, DayHours, DayHours, DayHours, DayHours]),

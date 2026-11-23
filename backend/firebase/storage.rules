@@ -21,8 +21,8 @@ service firebase.storage {
     match /menu_thumbs/{file} {
       allow read: if true;
       allow create, update: if isOwner()
-        && file.matches('[A-Za-z0-9_-]+_(320|640)[.]webp')
-        && request.resource.size < 1024 * 1024
+        && file.matches('[A-Za-z0-9_-]+_(320|640|1200)[.]webp')
+        && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType == 'image/webp';
       allow delete: if isOwner();
     }

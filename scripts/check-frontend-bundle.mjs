@@ -49,3 +49,18 @@ if (failures) {
   process.exit(1);
 }
 console.log('✓ Frontend bundles contain no backend code or secrets.');
+
+// Inline scripts in the customer site must be allowed by the CSP (hashes in firebase.json), or old browsers get a blank page.
+{
+  const { createHash } = await import('node:crypto');
+  const html = readFileSync('frontend/web/dist/index.html', 'utf8');
+  const csp = readFileSync('firebase.json', 'utf8');
+  for (const m of html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)) {
+    if (m[1].includes('ld+json')) continue;
+    const h = createHash('sha256').update(m[2]).digest('base64');
+    if (!csp.includes(`'sha256-${h}'`)) {
+      console.error(`✗ inline script in frontend/web/dist/index.html is blocked by the CSP: add 'sha256-${h}' to script-src in firebase.json`);
+      process.exitCode = 1;
+    }
+  }
+}

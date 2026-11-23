@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
+import { ScreenErrorBoundary } from './components/ScreenErrorBoundary';
 import { HomePage } from './pages/HomePage';
 
 const CartPage = lazy(() => import('./pages/CartPage'));
@@ -22,7 +23,7 @@ export function App() {
       <BrowserRouter>
         <Suspense fallback={<p className="page-loading">טוען…</p>}>
           <Routes>
-            <Route path="screen" element={<ScreenPage />} />
+            <Route path="screen" element={<ScreenErrorBoundary><ScreenPage /></ScreenErrorBoundary>} />
             <Route element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="cart" element={<CartPage />} />

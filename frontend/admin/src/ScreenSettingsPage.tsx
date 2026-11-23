@@ -8,6 +8,8 @@ function siteOrigin(): string {
   const { protocol, hostname, port } = location;
   if (hostname === 'localhost' || hostname === '127.0.0.1') return `${protocol}//${hostname}:${port === '5174' ? '5173' : port}`;
   if (hostname.startsWith('admin.')) return `${protocol}//${hostname.slice('admin.'.length)}`;
+  // Production admin on its Firebase address: the customer site lives on the real domain.
+  if (hostname.startsWith('pizza-sosi-admin.')) return 'https://pizza-sosi.co.il';
   return `${protocol}//${hostname.replace(/-admin(\.web\.app|\.firebaseapp\.com)$/, '$1')}`;
 }
 
