@@ -110,5 +110,7 @@ export const OrderView = z.object({
   /** Epoch ms when the order should be ready (estimate for asap orders). */
   readyAt: z.number().int().nullable().default(null),
   scheduled: z.boolean().default(false),
+  /** When each status was reached (ISO time). Who changed it is internal and stays out. */
+  statusHistory: z.array(z.object({ status: OrderStatus, at: z.string() })).max(60).default([]),
 });
 export type OrderView = z.infer<typeof OrderView>;
