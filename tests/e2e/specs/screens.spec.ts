@@ -19,7 +19,7 @@ test('screenshots – customer journey', async ({ page }, info) => {
   await sheet.getByRole('button', { name: /הוספה לסל/ }).click();
   await shot('3-menu-with-cart');
 
-  await page.locator('.cart-bar').click();
+  await page.locator('.cart-bar:visible, .tabbar__cart:visible').first().click();
   await expect(page).toHaveURL(/\/cart/);
   await shot('4-cart');
 

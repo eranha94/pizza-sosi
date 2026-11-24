@@ -37,5 +37,11 @@ export function announce(message: string) {
 
 /** Something was added to the cart: the Layout shows a toast, bumps the cart button and announces it. */
 export function notifyAdded(name: string, quantity = 1) {
+  // A tiny tap of feedback on phones that allow it (Android); silently nothing elsewhere.
+  try {
+    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) navigator.vibrate?.(14);
+  } catch {
+    /* not allowed */
+  }
   window.dispatchEvent(new CustomEvent('cart:added', { detail: { name, quantity } }));
 }

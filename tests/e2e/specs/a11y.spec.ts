@@ -36,7 +36,7 @@ for (const theme of ['light', 'dark', 'premium'] as const) {
     // Added: spoken confirmation for screen readers.
     await expect(page.locator('#a11y-announcer')).toHaveText(/פיצה בדיקה נוסף לסל/);
 
-    await page.locator('.cart-bar').click();
+    await page.locator('.cart-bar:visible, .tabbar__cart:visible').first().click();
     await expect(page).toHaveTitle(/הסל שלך/);
     // After moving page, focus is on the new page's heading.
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();

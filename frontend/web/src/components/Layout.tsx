@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { formatAgorot, CATEGORY_IDS, CATEGORY_LABELS } from '@pizza-sosi/contracts/constants';
 import { useCart, cartCount, cartTotal } from '../store/cart';
 import { useActiveCategory } from '../store/ui';
@@ -9,6 +9,7 @@ import { ThemeMenu } from './ThemeMenu';
 import { Footer } from './Footer';
 import { announce } from '../lib/a11y';
 import { AnimatedNumber } from './AnimatedNumber';
+import { BottomBar } from './BottomBar';
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -24,6 +25,9 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const navRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  // Back/forward decides which way the next page slides in.
+  const navType = useNavigationType();
   const [added, setAdded] = useState<{ text: string; n: number } | null>(null);
 
   // A toast belongs to the page it was shown on – moving to another page hides it.
@@ -81,6 +85,44 @@ export function Layout() {
     return () => window.removeEventListener('resize', measure);
   }, [active, onMenu, categories]);
 
+  // Phones: tuck the logo row away while scrolling down the menu (the categories stay), bring it back on scroll up.
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const phone = window.matchMedia('(max-width: 640px)');
+    let lastY = window.scrollY;
+    let tucked = false;
+    let frame = 0;
+    const set = (on: boolean) => {
+      if (on === tucked) return;
+      tucked = on;
+      header.classList.toggle('is-tucked', on);
+    };
+    const measure = () => {
+      const nav = navRef.current;
+      header.style.setProperty('--tuck', nav && phone.matches ? `${nav.offsetTop}px` : '0px');
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (!phone.matches || y < 160) set(false);
+        else if (y > lastY + 6) set(true);
+        else if (y < lastY - 6) set(false);
+        lastY = y;
+      });
+    };
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measure);
+      header.classList.remove('is-tucked');
+    };
+  }, [categories.length]);
+
   const onCategory = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     if (location.pathname === '/') {
@@ -94,7 +136,7 @@ export function Layout() {
   return (
     <>
       <a className="skip-link" href="#main">דילוג לתוכן</a>
-      <header className="site-header">
+      <header className="site-header" ref={headerRef}>
         <Link to="/" className="brand" aria-label="פיצה סוסי – דף הבית">
           <img src="/brand/pizza-sosi-header.svg" alt="" width="150" height="63" />
           <StoreDot />
@@ -130,7 +172,7 @@ export function Layout() {
           </Link>
         </div>
       </header>
-      <main id="main">
+      <main id="main" data-nav={navType === 'POP' ? 'back' : 'forward'}>
         <Outlet />
       </main>
       {count > 0 && location.pathname === '/' && (
@@ -145,6 +187,7 @@ export function Layout() {
           <span className="toast__check">✓</span> {added.text}
         </p>
       )}
+      <BottomBar count={count} total={total} bump={added?.n ?? 0} />
       <div id="a11y-announcer" className="sr-only" role="status" aria-live="polite" aria-atomic="true" />
       <Footer />
     </>

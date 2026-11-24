@@ -23,8 +23,8 @@ test('customer orders a pizza with half toppings and follows it live', async ({ 
   await addBtn.click();
 
   // Sticky cart bar on the menu.
-  await expect(page.locator('.cart-bar')).toContainText('70');
-  await page.locator('.cart-bar').click();
+  await expect(page.locator('.cart-bar:visible, .tabbar__cart:visible').first()).toContainText('70');
+  await page.locator('.cart-bar:visible, .tabbar__cart:visible').first().click();
 
   // Cart: line shows the choices; add a suggested drink.
   await expect(page.getByText('זיתים (חצי ימין)')).toBeVisible();
