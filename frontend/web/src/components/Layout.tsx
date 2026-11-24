@@ -74,11 +74,12 @@ export function Layout() {
 
   // One yellow line that slides under the category you're looking at.
   const onMenu = location.pathname === '/';
-  const [ink, setInk] = useState<{ x: number; w: number } | null>(null);
+  const [ink, setInk] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   useLayoutEffect(() => {
     const measure = () => {
       const el = active && onMenu ? navRef.current?.querySelector<HTMLElement>(`[data-cat="${active}"]`) : null;
-      setInk(el ? { x: el.offsetLeft + 10, w: el.offsetWidth - 20 } : null);
+      // A pressed-in groove sitting just inside the active link.
+      setInk(el ? { x: el.offsetLeft + 1, y: el.offsetTop + 6, w: el.offsetWidth - 2, h: el.offsetHeight - 12 } : null);
     };
     measure();
     window.addEventListener('resize', measure);
@@ -151,7 +152,7 @@ export function Layout() {
                   </a>
                 </li>
               ))}
-              <li aria-hidden="true" className={`cat-nav__ink ${ink ? 'is-on' : ''}`} style={ink ? { transform: `translateX(${ink.x}px)`, width: ink.w } : undefined} />
+              <li aria-hidden="true" className={`cat-nav__ink ${ink ? 'is-on' : ''}`} style={ink ? { transform: `translate(${ink.x}px, ${ink.y}px)`, width: ink.w, height: ink.h } : undefined} />
             </ul>
           </nav>
         )}
