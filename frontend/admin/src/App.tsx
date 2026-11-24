@@ -9,10 +9,11 @@ import { useActiveOrders, isNew } from './orders';
 
 const MenuEditor = lazy(() => import('./MenuEditor').then((m) => ({ default: m.MenuEditor })));
 const ScreenSettingsPage = lazy(() => import('./ScreenSettingsPage').then((m) => ({ default: m.ScreenSettingsPage })));
+const PromosPage = lazy(() => import('./PromosPage').then((m) => ({ default: m.PromosPage })));
 const SalesSummary = lazy(() => import('./SalesSummary').then((m) => ({ default: m.SalesSummary })));
 
 interface Session { user: User; role: 'owner' | 'staff' | null; mfa: boolean; enrolled: boolean }
-type Tab = 'orders' | 'store' | 'menu' | 'summary' | 'screen';
+type Tab = 'orders' | 'store' | 'menu' | 'promos' | 'summary' | 'screen';
 
 export function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -66,13 +67,14 @@ const TABS: { id: Tab; label: string; ownerOnly?: boolean }[] = [
   { id: 'orders', label: 'הזמנות' },
   { id: 'store', label: 'שעות ופתיחה' },
   { id: 'menu', label: 'תפריט', ownerOnly: true },
+  { id: 'promos', label: 'מבצעים', ownerOnly: true },
   { id: 'summary', label: 'דוחות', ownerOnly: true },
   { id: 'screen', label: 'מסך' },
 ];
 
 function readTab(): Tab {
   const h = location.hash.replace('#', '');
-  return h === 'store' || h === 'menu' || h === 'summary' || h === 'screen' ? h : 'orders';
+  return h === 'store' || h === 'menu' || h === 'promos' || h === 'summary' || h === 'screen' ? h : 'orders';
 }
 
 function Shell({ session }: { session: Session }) {
@@ -119,6 +121,11 @@ function Shell({ session }: { session: Session }) {
         {current === 'screen' && (
           <Suspense fallback={<p className="muted">טוען…</p>}>
             <ScreenSettingsPage />
+          </Suspense>
+        )}
+        {current === 'promos' && (
+          <Suspense fallback={<p className="muted">טוען…</p>}>
+            <PromosPage />
           </Suspense>
         )}
         {current === 'menu' && (

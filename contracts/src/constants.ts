@@ -16,6 +16,15 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   salads: 'סלטים',
   drinks: 'שתייה',
 };
+/** One item of the category, e.g. for "פיצה חינם". */
+export const CATEGORY_SINGULAR: Record<Category, string> = {
+  pizzas: 'פיצה',
+  specials: 'מנה מיוחדת',
+  toasts: 'טוסט',
+  burgers: 'המבורגר',
+  salads: 'סלט',
+  drinks: 'שתייה',
+};
 
 /**
  * Order flow (the owner moves it forward from the admin page):
@@ -85,6 +94,13 @@ export const API = {
   getOrderStatus: 'getOrderStatus',
   adminSetOrderStatus: 'adminSetOrderStatus',
   adminCorrectOrderStatus: 'adminCorrectOrderStatus',
+  adminUpsertDeal: 'adminUpsertDeal',
+  adminDeleteDeal: 'adminDeleteDeal',
+  adminUpsertCoupon: 'adminUpsertCoupon',
+  adminDeleteCoupon: 'adminDeleteCoupon',
+  adminUpdateLoyalty: 'adminUpdateLoyalty',
+  checkCoupon: 'checkCoupon',
+  getLoyalty: 'getLoyalty',
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',
   adminDeleteMenuItem: 'adminDeleteMenuItem',

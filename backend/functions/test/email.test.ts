@@ -22,6 +22,8 @@ const order: OrderView = {
   scheduled: false,
   statusHistory: [],
   correction: null,
+  discounts: [],
+  discountAgorot: 0,
 };
 
 describe('email templates', () => {

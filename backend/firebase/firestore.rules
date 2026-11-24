@@ -24,6 +24,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Public deals (combos shown on the menu)
+    match /deals/{dealId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Public loyalty-card rules (how many orders, what reward). The cards themselves stay closed.
+    match /settings/loyalty {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Coupon codes: owner only (customers check a code through the checkCoupon function)
+    match /coupons/{code} {
+      allow read: if isStaff() && request.auth.token.role == 'owner';
+      allow write: if false;
+    }
+
     // In-store TV screen: pickup order numbers only (no names, no phones)
     match /screen/board {
       allow read: if true;

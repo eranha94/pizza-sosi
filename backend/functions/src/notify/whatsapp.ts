@@ -25,6 +25,10 @@ export const TEMPLATE_BY_STATUS: Record<NotifyStatus, string> = {
 
 /** Apology after a status was pressed by mistake. {{1}} first name, {{2}} order number, {{3}} where the order really is. */
 export const CORRECTION_TEMPLATE = 'pizza_sosi_order_status_corrected';
+/** Loyalty card after a completed order. {{1}} name, {{2}} stamps, {{3}} required, {{4}} to go, {{5}} reward. */
+export const LOYALTY_PROGRESS_TEMPLATE = 'pizza_sosi_loyalty_progress';
+/** Card full. {{1}} name, {{2}} reward. */
+export const LOYALTY_REWARD_TEMPLATE = 'pizza_sosi_loyalty_reward';
 
 const GRAPH = 'https://graph.facebook.com/v25.0';
 const TELNYX = 'https://api.telnyx.com/v2';

@@ -72,6 +72,7 @@ export function orderConfirmationEmail(order: OrderView, siteUrl: string): Email
     <h1 style="margin:0 0 6px;font-size:22px">תודה ${esc(firstName(order.customerName))}! ההזמנה התקבלה 🍕</h1>
     <p style="margin:0 0 16px;color:${SOFT}">הזמנה מס׳ <strong style="color:${INK}">${order.number}</strong> · ${how} · ${pay}${when ? ` · ${when}` : ''}</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px">${lineRows(order)}
+      ${(order.discounts ?? []).map((d) => `<tr><td style="padding:8px 0;text-align:right;color:#15803d">${esc(d.label)}</td><td style="padding:8px 0;text-align:left;color:#15803d" dir="ltr">−${formatAgorot(d.amountAgorot)}</td></tr>`).join('')}
       ${order.deliveryFeeAgorot > 0 ? `<tr><td style="padding:8px 0;text-align:right">משלוח</td><td style="padding:8px 0;text-align:left" dir="ltr">${formatAgorot(order.deliveryFeeAgorot)}</td></tr>` : ''}
       <tr><td style="padding:12px 0 0;text-align:right;font-size:18px"><strong>סה״כ</strong></td><td style="padding:12px 0 0;text-align:left;font-size:18px" dir="ltr"><strong>${formatAgorot(order.totalAgorot)}</strong></td></tr>
     </table>

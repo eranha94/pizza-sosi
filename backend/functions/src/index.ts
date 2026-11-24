@@ -19,3 +19,13 @@ export {
 export { paymentWebhook } from './api/paymentWebhook.js';
 export { onOrderConfirmed } from './api/orderEmails.js';
 export { onOrderStatusNotify } from './api/orderNotifications.js';
+export {
+  adminUpsertDeal,
+  adminDeleteDeal,
+  adminUpsertCoupon,
+  adminDeleteCoupon,
+  adminUpdateLoyalty,
+  checkCoupon,
+  getLoyalty,
+} from './api/promos.js';
+export { onOrderLoyalty } from './api/loyalty.js';

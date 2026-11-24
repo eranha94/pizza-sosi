@@ -5,6 +5,7 @@ import { db, callAdmin } from './firebase';
 import { isNew, isLate, dueAt, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
 import { SoldOut } from './SoldOut';
+import { BusyMode } from './BusyMode';
 
 /** The main forward step for each status (one big button), plus cancel where allowed. */
 function nextStep(o: AdminOrder): { to: OrderStatus; label: string } | null {
@@ -113,7 +114,7 @@ function useNow(ms = 15_000) {
   return now;
 }
 
-export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
+export function OrdersBoard({ orders, error, late, prepMinutes, store, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -140,6 +141,7 @@ export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioRe
         <h1 id="orders-h">הזמנות פעילות <span className="count">{orders.length}</span></h1>
         <div className="page-head__actions">
           {kitchen.on && <span className="clock" aria-label="שעה">{new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>}
+          <BusyMode store={store} prepMinutes={prepMinutes} />
           <button className="chip" onClick={() => setSoldOut(true)}>🚫 נגמר</button>
           <button className={`chip ${kitchen.on ? 'chip--on' : ''}`} onClick={() => void kitchen.toggle()} aria-pressed={kitchen.on}>
             {kitchen.on ? '✕ יציאה ממצב מטבח' : '🍳 מצב מטבח'}
@@ -251,6 +253,13 @@ function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminO
         ))}
       </ul>
       {o.note && <p className="order__note">הערה להזמנה: {o.note}</p>}
+      {(o.discounts ?? []).length > 0 && (
+        <ul className="order__discounts">
+          {o.discounts!.map((d) => (
+            <li key={d.kind + d.label}>{d.kind === 'loyalty' ? '🎁' : d.kind === 'coupon' ? '🏷️' : '🔥'} {d.label} <span dir="ltr">−{formatAgorot(d.amountAgorot)}</span></li>
+          ))}
+        </ul>
+      )}
       <div className="order__actions">
         {step && (
           <button className="btn btn--grow" disabled={busy} onClick={() => onMove(step.to)}>

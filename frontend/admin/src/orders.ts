@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit, doc, type Timestamp } from 'firebase/firestore';
-import type { OrderStatus } from '@pizza-sosi/contracts';
+import type { OrderStatus, StoreSettings } from '@pizza-sosi/contracts';
 import { db } from './firebase';
 
 export interface AdminOrder {
@@ -19,6 +19,7 @@ export interface AdminOrder {
   scheduled?: boolean;
   createdAt?: Timestamp | null;
   statusHistory?: { status: OrderStatus; at: string; by?: string }[];
+  discounts?: { kind: 'deal' | 'coupon' | 'loyalty'; label: string; amountAgorot: number }[];
 }
 
 export const ACTIVE: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery'];
@@ -36,7 +37,8 @@ const KITCHEN_STATUSES = new Set(['placed', 'accepted', 'preparing', 'almost_rea
 export function dueAt(o: AdminOrder, prepMinutes: number): number | null {
   if (o.scheduled && o.readyAt) return o.readyAt;
   const created = o.createdAt?.toMillis?.();
-  return created ? created + prepMinutes * 60_000 : (o.readyAt ?? null);
+  // An order taken in busy mode promised a later time (readyAt) – don't call it late before that.
+  return created ? Math.max(created + prepMinutes * 60_000, o.readyAt ?? 0) : (o.readyAt ?? null);
 }
 export const isLate = (o: AdminOrder, prepMinutes: number, now: number) => {
   const due = dueAt(o, prepMinutes);
@@ -171,12 +173,15 @@ export function useActiveOrders() {
     void enableAudio();
   }, [enableAudio]);
 
-  // Prep time from the store page, live.
+  // Prep time and busy mode from the store settings, live.
   const [prepMinutes, setPrepMinutes] = useState(25);
+  const [store, setStore] = useState<Partial<StoreSettings> | null>(null);
   useEffect(
     () =>
       onSnapshot(doc(db, 'settings', 'store'), (snap) => {
-        const v = Number(snap.data()?.prepMinutes);
+        const d = (snap.data() ?? {}) as Partial<StoreSettings>;
+        setStore(d);
+        const v = Number(d.prepMinutes);
         if (v > 0) setPrepMinutes(v);
       }),
     [],
@@ -197,7 +202,7 @@ export function useActiveOrders() {
     play();
   }, [lateKey, play]);
 
-  return { orders, error, late, prepMinutes, now, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
+  return { orders, error, late, prepMinutes, store, now, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
 }
 
 export type ActiveOrders = ReturnType<typeof useActiveOrders>;

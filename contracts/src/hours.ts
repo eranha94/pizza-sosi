@@ -29,7 +29,27 @@ export interface Schedule {
   acceptingOrders: boolean;
   /** Typical minutes from order to ready. */
   prepMinutes: number;
+  /** "Busy mode" from the orders board: more prep time (and maybe no delivery) until a set time. */
+  busy?: BusyMode | null;
 }
+
+export interface BusyMode {
+  /** Epoch ms when busy mode switches itself off. */
+  until: number;
+  extraMinutes: number;
+  pauseDelivery: boolean;
+}
+
+/** Busy mode, if it is on right now. */
+export const activeBusy = (s: { busy?: BusyMode | null }, now: Date | number): BusyMode | null =>
+  s.busy && s.busy.until > +now ? s.busy : null;
+
+/** Prep time right now: the usual one plus the busy-mode extra. */
+export const effectivePrep = (s: Schedule, now: Date | number): number => s.prepMinutes + (activeBusy(s, now)?.extraMinutes ?? 0);
+
+/** Delivery can be ordered right now (switched on, and not paused by busy mode). */
+export const deliveryOpen = (s: { deliveryEnabled: boolean; busy?: BusyMode | null }, now: Date | number): boolean =>
+  s.deliveryEnabled && !activeBusy(s, now)?.pauseDelivery;
 
 export const DEFAULT_SCHEDULE: Schedule = {
   weeklyHours: Array.from({ length: 7 }, () => ({ open: '11:00', close: '00:00' })) as WeeklyHours,
@@ -136,11 +156,12 @@ export function storeStatus(schedule: Schedule, now: Date): StoreStatus {
 export function orderSlots(schedule: Schedule, now: Date, step = 15, horizonHours = 12): number[] {
   if (!schedule.acceptingOrders) return [];
   const t = now.getTime();
-  const earliest = t + schedule.prepMinutes * 60000;
+  const prep = effectivePrep(schedule, now);
+  const earliest = t + prep * 60000;
   const latest = t + horizonHours * 3600000;
   const slots: number[] = [];
   for (const w of openWindows(schedule, now, 1)) {
-    const from = Math.max(w.start + schedule.prepMinutes * 60000, earliest);
+    const from = Math.max(w.start + prep * 60000, earliest);
     const first = Math.ceil(from / (step * 60000)) * step * 60000;
     for (let s = first; s <= Math.min(w.end, latest); s += step * 60000) slots.push(s);
   }
@@ -151,8 +172,9 @@ export function orderSlots(schedule: Schedule, now: Date, step = 15, horizonHour
 export function isValidScheduledTime(schedule: Schedule, now: Date, at: number): boolean {
   if (!schedule.acceptingOrders) return false;
   const t = now.getTime();
-  if (at < t + (schedule.prepMinutes - 1) * 60000 || at > t + 12 * 3600000) return false;
-  return openWindows(schedule, now, 1).some((w) => at >= w.start + schedule.prepMinutes * 60000 - 60000 && at <= w.end);
+  const prep = effectivePrep(schedule, now);
+  if (at < t + (prep - 1) * 60000 || at > t + 12 * 3600000) return false;
+  return openWindows(schedule, now, 1).some((w) => at >= w.start + prep * 60000 - 60000 && at <= w.end);
 }
 
 const timeFmt = new Intl.DateTimeFormat('he-IL', { timeZone: STORE_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23', hour12: false });

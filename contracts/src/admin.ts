@@ -19,15 +19,17 @@ export type CorrectOrderStatusRequest = z.infer<typeof CorrectOrderStatusRequest
 export const UpdateStoreSettingsRequest = z
   .object({
     weeklyHours: StoreSettings.shape.weeklyHours.optional(),
-    overrides: StoreSettings.shape.overrides.optional(),
+    // .unwrap(): drop the stored default, so a field that is not sent stays out of the patch (and is not reset).
+    overrides: StoreSettings.shape.overrides.unwrap().optional(),
     prepMinutes: StoreSettings.shape.prepMinutes.optional(),
     acceptingOrders: z.boolean().optional(),
     deliveryEnabled: z.boolean().optional(),
     deliveryFeeAgorot: z.number().int().min(0).max(10_000).optional(),
     minOrderAgorot: z.number().int().min(0).max(100_000).optional(),
-    whatsappStatuses: StoreSettings.shape.whatsappStatuses.optional(),
+    whatsappStatuses: StoreSettings.shape.whatsappStatuses.unwrap().optional(),
     deliveryZones: z.array(DeliveryZone).max(30).optional(),
     screen: ScreenSettings.optional(),
+    busy: StoreSettings.shape.busy.unwrap().optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;

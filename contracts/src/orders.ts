@@ -56,6 +56,16 @@ export const CreateOrderRequest = z
     note: z.string().trim().max(300).default(''),
     /** The customer agreed to get order updates on WhatsApp (explicit opt-in, required by WhatsApp). */
     notifyWhatsapp: z.boolean().default(false),
+    /** Coupon code typed at checkout (checked again by the server). */
+    couponCode: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9]{3,20}$/)
+      .nullish()
+      .transform((c) => c ?? undefined),
+    /** Use the loyalty-card reward on this order. */
+    useLoyaltyReward: z.boolean().default(false),
   })
   .strict()
   .refine((o) => o.fulfillment === 'pickup' || o.address !== undefined, {
@@ -114,5 +124,8 @@ export const OrderView = z.object({
   statusHistory: z.array(z.object({ status: OrderStatus, at: z.string() })).max(60).default([]),
   /** Set when the pizzeria put the order back a step after pressing a status by mistake. */
   correction: z.object({ to: OrderStatus, at: z.string() }).nullable().default(null),
+  /** Deals, coupon and loyalty reward taken off the subtotal. */
+  discounts: z.array(z.object({ kind: z.enum(['deal', 'coupon', 'loyalty']), label: z.string(), amountAgorot: z.number().int() })).default([]),
+  discountAgorot: z.number().int().default(0),
 });
 export type OrderView = z.infer<typeof OrderView>;

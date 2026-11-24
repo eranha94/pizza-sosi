@@ -172,3 +172,72 @@ describe('whatsapp provider config', async () => {
     expect(t.components[1]).toMatchObject({ type: 'button', sub_type: 'url', index: '0' });
   });
 });
+
+describe('busy mode', async () => {
+  const { effectivePrep, deliveryOpen, activeBusy, UpdateStoreSettingsRequest } = await import('@pizza-sosi/contracts');
+  const base = { weeklyHours: Array(7).fill({ open: '11:00', close: '23:00' }), acceptingOrders: true, prepMinutes: 25, deliveryEnabled: true } as never;
+  const now = Date.UTC(2026, 10, 25, 12);
+  it('adds the extra minutes only until it ends', () => {
+    const s = { ...(base as object), busy: { until: now + 3600_000, extraMinutes: 20, pauseDelivery: true } } as never;
+    expect(effectivePrep(s, now)).toBe(45);
+    expect(effectivePrep(s, now + 2 * 3600_000)).toBe(25);
+    expect(activeBusy(s, now + 2 * 3600_000)).toBeNull();
+  });
+  it('can pause delivery', () => {
+    expect(deliveryOpen({ deliveryEnabled: true, busy: { until: now + 1000, extraMinutes: 10, pauseDelivery: true } }, now)).toBe(false);
+    expect(deliveryOpen({ deliveryEnabled: true, busy: { until: now + 1000, extraMinutes: 10, pauseDelivery: false } }, now)).toBe(true);
+    expect(deliveryOpen({ deliveryEnabled: true, busy: null }, now)).toBe(true);
+  });
+  it('saving one store setting does not reset the others (regression)', () => {
+    expect(Object.keys(UpdateStoreSettingsRequest.parse({ prepMinutes: 30 }))).toEqual(['prepMinutes']);
+  });
+});
+
+describe('deals, coupons, loyalty', async () => {
+  const { applyDeals, couponDiscount, loyaltyDiscount, dealIsOn } = await import('@pizza-sosi/contracts');
+  const { addStamp } = await import('../src/api/loyalty.js');
+  const prices: Record<string, number> = { pizza: 6000, cola: 1200, fries: 1500 };
+  const base = (id: string) => prices[id];
+  const deal = (id: string, comps: [string, number][], price: number) => ({ id, title: id, components: comps.map(([itemId, quantity]) => ({ itemId, quantity })), priceAgorot: price, active: true, weekdays: [], validFrom: null, validTo: null });
+
+  it('applies a combo automatically, as many times as the cart allows', () => {
+    const d = deal('meal', [['pizza', 1], ['cola', 2]], 7000); // regular 84 → 70
+    expect(applyDeals([{ itemId: 'pizza', quantity: 2 }, { itemId: 'cola', quantity: 4 }], [d], base)).toEqual([{ kind: 'deal', label: 'meal ×2', amountAgorot: 2800 }]);
+    expect(applyDeals([{ itemId: 'pizza', quantity: 1 }, { itemId: 'cola', quantity: 1 }], [d], base)).toEqual([]);
+  });
+  it('picks the deal that saves more first and never uses an item twice', () => {
+    const small = deal('small', [['pizza', 1], ['cola', 1]], 6800); // saves 4
+    const big = deal('big', [['pizza', 1], ['fries', 1]], 6000); // saves 15
+    const out = applyDeals([{ itemId: 'pizza', quantity: 1 }, { itemId: 'cola', quantity: 1 }, { itemId: 'fries', quantity: 1 }], [small, big], base);
+    expect(out.map((d) => d.label)).toEqual(['big']);
+  });
+  it('ignores a "deal" that costs more than the items', () => {
+    expect(applyDeals([{ itemId: 'cola', quantity: 1 }], [deal('bad', [['cola', 1]], 2000)], base)).toEqual([]);
+  });
+  it('respects weekdays and dates', () => {
+    const d = { ...deal('thu', [['pizza', 1]], 5000), weekdays: [4], validTo: '2026-12-31' };
+    expect(dealIsOn(d, '2026-11-26', 4)).toBe(true);
+    expect(dealIsOn(d, '2026-11-25', 3)).toBe(false);
+    expect(dealIsOn(d, '2027-01-07', 4)).toBe(false);
+  });
+  it('coupon: percent, amount, minimum, never below zero', () => {
+    expect(couponDiscount({ type: 'percent', value: 10, minOrderAgorot: 0 }, 8450)).toEqual({ amountAgorot: 845 });
+    expect(couponDiscount({ type: 'amount', value: 5000, minOrderAgorot: 0 }, 3000)).toEqual({ amountAgorot: 3000 });
+    expect(couponDiscount({ type: 'amount', value: 1000, minOrderAgorot: 5000 }, 4000)).toHaveProperty('error');
+  });
+  it('loyalty: free item is the priciest of the category, capped; needs one in the cart', () => {
+    const lines = [
+      { itemId: 'p1', quantity: 1, category: 'pizzas', basePriceAgorot: 5500 },
+      { itemId: 'p2', quantity: 1, category: 'pizzas', basePriceAgorot: 7000 },
+      { itemId: 'c', quantity: 1, category: 'drinks', basePriceAgorot: 1200 },
+    ];
+    expect(loyaltyDiscount({ type: 'item', category: 'pizzas', maxAgorot: 0 }, lines, 13700)).toEqual({ amountAgorot: 7000 });
+    expect(loyaltyDiscount({ type: 'item', category: 'pizzas', maxAgorot: 6000 }, lines, 13700)).toEqual({ amountAgorot: 6000 });
+    expect(loyaltyDiscount({ type: 'item', category: 'burgers', maxAgorot: 0 }, lines, 13700)).toHaveProperty('error');
+    expect(loyaltyDiscount({ type: 'percent', percent: 20 }, lines, 10000)).toEqual({ amountAgorot: 2000 });
+  });
+  it('a full card turns into a reward and starts over', () => {
+    expect(addStamp(0, 10)).toEqual({ stamps: 1, earned: false });
+    expect(addStamp(9, 10)).toEqual({ stamps: 0, earned: true });
+  });
+});

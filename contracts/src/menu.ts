@@ -127,5 +127,10 @@ export const StoreSettings = z.object({
   whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
   /** The in-store TV screen. Missing = defaults. */
   screen: ScreenSettings.optional(),
+  /** Busy mode (see BusyMode in hours.ts). null = off. */
+  busy: z
+    .object({ until: z.number().int().positive(), extraMinutes: z.number().int().min(5).max(120), pauseDelivery: z.boolean() })
+    .nullable()
+    .default(null),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;

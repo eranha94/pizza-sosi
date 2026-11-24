@@ -1,10 +1,15 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatAgorot, orderSlots, formatTime } from '@pizza-sosi/contracts/constants';
+import { formatAgorot, orderSlots, formatTime, deliveryOpen } from '@pizza-sosi/contracts/constants';
 import { useCart, cartTotal } from '../store/cart';
 import { useStoreSettings, useNow } from '../lib/menu';
 import { useStoreStatus } from '../components/StoreStatus';
-import { createOrder, errorMessage } from '../lib/api';
+import { createOrder, errorMessage, checkCoupon, getLoyalty } from '../lib/api';
+import { useCartDeals, useLoyaltyRules } from '../lib/promos';
+import { couponDiscount, loyaltyDiscount, type Discount } from '@pizza-sosi/contracts/pricing';
+import { useMenu } from '../lib/menu';
+import { LoyaltyCard } from '../components/Loyalty';
+import type { CheckCouponResponse, LoyaltyCardView } from '@pizza-sosi/contracts';
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 import { usePageTitle } from '../lib/a11y';
 import { AnimatedNumber } from '../components/AnimatedNumber';
@@ -16,7 +21,6 @@ export default function CheckoutPage() {
   const clear = useCart((s) => s.clear);
   const total = useCart(cartTotal);
   const store = useStoreSettings();
-  const deliveryEnabled = store.data?.deliveryEnabled === true;
   const zones = store.data?.deliveryZones ?? [];
   // One key per checkout visit: a double click cannot create two orders.
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
@@ -24,10 +28,14 @@ export default function CheckoutPage() {
   const [profile, setProfile] = useState(loadProfile);
   const [remember, setRemember] = useState(true);
   const [zoneId, setZoneId] = useState(() => profile?.zoneId ?? '');
-  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
+  const [fulfillmentChoice, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
   const now = useNow();
-  const { status, prepMinutes } = useStoreStatus();
+  const { status, prepMinutes, busy } = useStoreStatus();
+  const deliveryEnabled = store.data ? deliveryOpen(store.data, now) : false;
+  const deliveryPausedForBusy = Boolean(store.data?.deliveryEnabled && busy?.pauseDelivery);
+  // Remembered "delivery" falls back to pickup while delivery is off (once the settings are known).
+  const fulfillment = fulfillmentChoice === 'delivery' && store.data && !deliveryEnabled ? 'pickup' : fulfillmentChoice;
   const slots = useMemo(() => (store.data ? orderSlots(store.data, now) : []), [store.data, now]);
   // Status unknown (offline/loading): allow "asap"; the server checks the hours anyway.
   const canAsap = status === null || status.state === 'open';
@@ -42,6 +50,85 @@ export default function CheckoutPage() {
   const belowMin = total < minOrder;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Discounts – the same rules the server applies: deals in the cart → loyalty reward → coupon.
+  const formRef = useRef<HTMLFormElement>(null);
+  const { discounts: dealDiscounts, dealsOff } = useCartDeals();
+  const { data: menu = [] } = useMenu();
+  const loyaltyRules = useLoyaltyRules().data ?? null;
+  const [card, setCard] = useState<LoyaltyCardView | null>(null);
+  const [cardPhone, setCardPhone] = useState('');
+  const [useReward, setUseReward] = useState(true);
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState<CheckCouponResponse | null>(null);
+  const [couponMsg, setCouponMsg] = useState<string | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const phoneNow = () => String(new FormData(formRef.current ?? undefined).get('phone') ?? '').replace(/[\s-]/g, '');
+
+  const all: Discount[] = [...dealDiscounts];
+  let rewardProblem: string | null = null;
+  const rewardOn = Boolean(card && card.rewards > 0 && useReward && loyaltyRules);
+  if (rewardOn) {
+    const byId = new Map(menu.map((m) => [m.id, m]));
+    const r = loyaltyDiscount(
+      loyaltyRules!.reward,
+      lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, category: byId.get(l.itemId)?.category ?? '', basePriceAgorot: byId.get(l.itemId)?.priceAgorot ?? 0 })),
+      total - dealsOff,
+    );
+    if ('error' in r) rewardProblem = r.error;
+    else all.push({ kind: 'loyalty', label: `הטבת כרטיסייה: ${card!.rewardLabel}`, amountAgorot: r.amountAgorot });
+  }
+  let couponProblem: string | null = null;
+  if (coupon) {
+    const r = couponDiscount(coupon, total - all.reduce((s, d) => s + d.amountAgorot, 0));
+    if ('error' in r) couponProblem = r.error;
+    else all.push({ kind: 'coupon', label: coupon.label, amountAgorot: r.amountAgorot });
+  }
+  const discountTotal = Math.min(total, all.reduce((s, d) => s + d.amountAgorot, 0));
+
+  async function lookUpCard() {
+    const phone = phoneNow();
+    if (!loyaltyRules || !/^0\d{8,9}$/.test(phone) || phone === cardPhone) return;
+    setCardPhone(phone);
+    try {
+      setCard(await getLoyalty(phone));
+    } catch {
+      setCard(null);
+    }
+  }
+
+  // A returning customer's phone is already filled in: show their card right away.
+  useEffect(() => {
+    const phone = phoneNow();
+    if (!loyaltyRules || !/^0\d{8,9}$/.test(phone)) return;
+    let live = true;
+    getLoyalty(phone)
+      .then((c) => {
+        if (!live) return;
+        setCardPhone(phone);
+        setCard(c);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [loyaltyRules]);
+
+  async function applyCoupon() {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponBusy(true);
+    setCouponMsg(null);
+    try {
+      const phone = phoneNow();
+      setCoupon(await checkCoupon(code, /^0\d{8,9}$/.test(phone) ? phone : undefined));
+    } catch (e) {
+      setCoupon(null);
+      setCouponMsg(errorMessage(e));
+    } finally {
+      setCouponBusy(false);
+    }
+  }
   usePageTitle(lines.length === 0 ? 'אין מה להזמין' : 'פרטי ההזמנה');
 
   if (lines.length === 0) {
@@ -76,6 +163,8 @@ export default function CheckoutPage() {
         note: get('note'),
         notifyWhatsapp: f.get('notifyWhatsapp') === 'on',
         when: mode === 'asap' ? 'asap' : { at: chosenSlot! },
+        couponCode: coupon && !couponProblem ? coupon.code : undefined,
+        useLoyaltyReward: rewardOn && !rewardProblem,
       });
       clear();
       rememberOrder({ id: res.orderId, number: res.number ?? 0, at: Date.now(), totalAgorot: res.totalAgorot });
@@ -99,13 +188,13 @@ export default function CheckoutPage() {
       <h1>פרטי ההזמנה</h1>
       {profile?.name && <p className="welcome">שמחים לראות אותך שוב, {profile.name.split(' ')[0]}! 👋 הפרטים מולאו מההזמנה הקודמת.</p>}
       <p className="muted small">כל השדות חובה, אלא אם כתוב &quot;לא חובה&quot;.</p>
-      <form className="form" key={profile ? "p" : "empty"} onSubmit={onSubmit} noValidate={false}>
+      <form className="form" ref={formRef} key={profile ? "p" : "empty"} onSubmit={onSubmit} noValidate={false}>
         <fieldset className="segmented">
           <legend>איך מקבלים?</legend>
           <label><input type="radio" name="fulfillment" checked={fulfillment === 'pickup'} onChange={() => setFulfillment('pickup')} /> איסוף עצמי</label>
           <label className={deliveryEnabled ? '' : 'is-disabled'}>
             <input type="radio" name="fulfillment" disabled={!deliveryEnabled} checked={fulfillment === 'delivery'} onChange={() => setFulfillment('delivery')} /> משלוח
-            {!deliveryEnabled && <span className="muted small"> (לא זמין כרגע)</span>}
+            {!deliveryEnabled && <span className="muted small"> ({deliveryPausedForBusy ? 'מושהה בגלל עומס' : 'לא זמין כרגע'})</span>}
           </label>
         </fieldset>
 
@@ -120,7 +209,7 @@ export default function CheckoutPage() {
                   <input type="radio" name="when" disabled={!canAsap} checked={mode === 'asap'} onChange={() => setWhenMode('asap')} />
                   <span>
                     כמה שיותר מהר
-                    {canAsap && <span className="muted small"> · מוכן בערך ב-{formatTime(now.getTime() + prepMinutes * 60000)}</span>}
+                    {canAsap && <span className="muted small"> · מוכן בערך ב-{formatTime(now.getTime() + prepMinutes * 60000)}{busy ? ' (יש עומס כרגע)' : ''}</span>}
                     {!canAsap && <span className="muted small"> · סגור כרגע</span>}
                   </span>
                 </label>
@@ -144,7 +233,18 @@ export default function CheckoutPage() {
         </fieldset>
 
         <label className="field"><span>שם</span><input name="name" defaultValue={profile?.name} required minLength={2} maxLength={60} autoComplete="name" /></label>
-        <label className="field"><span>טלפון</span><input name="phone" defaultValue={profile?.phone} type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" title="מספר טלפון ישראלי, לדוגמה 050-1234567" autoComplete="tel" placeholder="050-0000000" /></label>
+        <label className="field"><span>טלפון</span><input name="phone" defaultValue={profile?.phone} type="tel" inputMode="tel" required pattern="0[0-9\- ]{8,11}" title="מספר טלפון ישראלי, לדוגמה 050-1234567" autoComplete="tel" placeholder="050-0000000" onBlur={() => void lookUpCard()} /></label>
+        {card && (
+          <>
+            <LoyaltyCard card={card} compact />
+            {card.rewards > 0 && (
+              <label className="reward-pick">
+                <input type="checkbox" checked={useReward} onChange={(e) => setUseReward(e.target.checked)} />
+                <span>לממש עכשיו את ההטבה: {card.rewardLabel}{rewardProblem && <small className="muted"> – {rewardProblem}</small>}</span>
+              </label>
+            )}
+          </>
+        )}
         <label className="field"><span>מייל (לאישור ההזמנה)</span><input name="email" defaultValue={profile?.email} type="email" required autoComplete="email" spellCheck={false} placeholder="name@example.com" /></label>
 
         {fulfillment === 'delivery' && (
@@ -222,8 +322,22 @@ export default function CheckoutPage() {
             הפרטים ישמשו לטיפול בהזמנה בלבד.
           </span>
         </label>
+        <div className="coupon">
+          <label className="field">
+            <span>קוד קופון (לא חובה)</span>
+            <input value={couponInput} onChange={(e) => { setCouponInput(e.target.value); if (coupon) setCoupon(null); }} autoComplete="off" spellCheck={false} maxLength={20} dir="ltr" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void applyCoupon(); } }} />
+          </label>
+          <button type="button" className="button" disabled={couponBusy || !couponInput.trim()} onClick={() => void applyCoupon()}>
+            {couponBusy ? 'בודק…' : 'הפעלה'}
+          </button>
+        </div>
+        {coupon && !couponProblem && <p className="coupon__ok" role="status">✓ {coupon.label} הופעל</p>}
+        {(couponMsg || couponProblem) && <p className="notice notice--error" role="alert">{couponMsg ?? couponProblem}</p>}
+        {all.map((d) => (
+          <div key={d.kind + d.label} className="summary summary--discount"><span>{d.kind === 'deal' ? '🔥 ' : d.kind === 'loyalty' ? '🎁 ' : '🏷️ '}{d.label}</span><span dir="ltr">−{formatAgorot(d.amountAgorot)}</span></div>
+        ))}
         {deliveryFee > 0 && <div className="summary"><span>משלוח{zone ? ` (${zone.name})` : ''}</span><span>{formatAgorot(deliveryFee)}</span></div>}
-        <div className="summary"><span>סה״כ משוער</span><strong><AnimatedNumber value={total + deliveryFee} format={formatAgorot} /></strong></div>
+        <div className="summary"><span>סה״כ משוער</span><strong><AnimatedNumber value={total - discountTotal + deliveryFee} format={formatAgorot} /></strong></div>
         {belowMin && <p className="notice" role="status">מינימום הזמנה{zone ? ` ל${zone.name}` : ''}: {formatAgorot(minOrder)}. חסרים עוד {formatAgorot(minOrder - total)}.</p>}
         {error && <p className="notice notice--error" role="alert">{error}</p>}
         <button type="submit" className="button button--primary button--block" disabled={submitting || cannotOrder || belowMin}>
