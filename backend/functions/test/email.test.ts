@@ -21,6 +21,7 @@ const order: OrderView = {
   readyAt: Date.UTC(2026, 10, 16, 18, 30),
   scheduled: false,
   statusHistory: [],
+  correction: null,
 };
 
 describe('email templates', () => {

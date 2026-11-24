@@ -9,6 +9,7 @@ export { getOrderStatus } from './api/getOrderStatus.js';
 export { requestPasswordReset } from './api/passwordReset.js';
 export {
   adminSetOrderStatus,
+  adminCorrectOrderStatus,
   adminUpdateStoreSettings,
   adminUpsertMenuItem,
   adminDeleteMenuItem,

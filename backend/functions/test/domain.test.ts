@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
-import { canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
+import { correctionTargets, canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
 
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
@@ -84,6 +84,14 @@ describe('order state', () => {
     expect(customerCanCancel('accepted')).toBe(true);
     expect(customerCanCancel('preparing')).toBe(false);
   });
+  it('pressed by mistake: back only to earlier steps of the same flow', () => {
+    expect(correctionTargets('preparing', 'pickup')).toEqual(['placed', 'accepted']);
+    expect(correctionTargets('out_for_delivery', 'delivery')).toEqual(['placed', 'accepted', 'preparing', 'almost_ready']);
+    expect(correctionTargets('completed', 'pickup')).toEqual(['placed', 'accepted', 'preparing', 'almost_ready', 'ready']);
+    expect(correctionTargets('cancelled', 'delivery')).toContain('out_for_delivery');
+    expect(correctionTargets('placed', 'pickup')).toEqual([]);
+    expect(correctionTargets('pending_payment', 'pickup')).toEqual([]);
+  });
   it('pay on site skips payment', () => {
     expect(initialStatus('on_site')).toBe('placed');
     expect(initialStatus('card')).toBe('pending_payment');
@@ -141,5 +149,26 @@ describe('screen board', async () => {
       now,
     );
     expect(b).toEqual({ preparing: [9, 12], ready: [10] });
+  });
+});
+
+describe('whatsapp provider config', async () => {
+  const { parseWhatsappConfig, templatePayload } = await import('../src/notify/whatsapp.js');
+  it('defaults to Meta with a phone number id', () => {
+    expect(parseWhatsappConfig({ enabled: true, phoneNumberId: '123' })).toEqual({ provider: 'meta', phoneNumberId: '123', language: 'he' });
+  });
+  it('uses Telnyx with an Israeli mobile sender', () => {
+    expect(parseWhatsappConfig({ enabled: true, provider: 'telnyx', from: '+972521234567' })).toEqual({ provider: 'telnyx', from: '+972521234567', language: 'he' });
+    expect(parseWhatsappConfig({ enabled: true, provider: 'telnyx', from: '0521234567' })).toBeNull();
+  });
+  it('is off unless enabled', () => {
+    expect(parseWhatsappConfig({ enabled: false, provider: 'telnyx', from: '+972521234567' })).toBeNull();
+    expect(parseWhatsappConfig(undefined)).toBeNull();
+  });
+  it('builds the same template for both providers', () => {
+    const t = templatePayload({ to: '972521234567', template: 'pizza_sosi_order_ready_pickup', language: 'he', bodyParams: ['דנה', '42'], buttonParam: 'abc' });
+    expect(t.language).toEqual({ policy: 'deterministic', code: 'he' });
+    expect(t.components[0]).toEqual({ type: 'body', parameters: [{ type: 'text', text: 'דנה' }, { type: 'text', text: '42' }] });
+    expect(t.components[1]).toMatchObject({ type: 'button', sub_type: 'url', index: '0' });
   });
 });

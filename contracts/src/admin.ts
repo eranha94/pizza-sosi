@@ -12,6 +12,10 @@ export type StaffRole = z.infer<typeof StaffRole>;
 export const SetOrderStatusRequest = z.object({ orderId: id, status: OrderStatus }).strict();
 export type SetOrderStatusRequest = z.infer<typeof SetOrderStatusRequest>;
 
+/** "Pressed by mistake": put the order back to an earlier step (the customer gets an apology). */
+export const CorrectOrderStatusRequest = z.object({ orderId: id, status: OrderStatus }).strict();
+export type CorrectOrderStatusRequest = z.infer<typeof CorrectOrderStatusRequest>;
+
 export const UpdateStoreSettingsRequest = z
   .object({
     weeklyHours: StoreSettings.shape.weeklyHours.optional(),

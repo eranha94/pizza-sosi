@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/firestore';
-import { API, ORDER_STATUS_LABELS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
+import { API, ORDER_STATUS_LABELS, ORDER_STEPS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
 import { isNew, isLate, dueAt, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
@@ -30,6 +30,70 @@ function shortcut(o: AdminOrder): { to: OrderStatus; label: string } | null {
   if (o.status !== 'preparing') return null;
   return o.fulfillment === 'delivery' ? { to: 'out_for_delivery', label: 'ישר לשליח' } : { to: 'ready', label: 'ישר למוכנה' };
 }
+/**
+ * "Pressed by mistake": the earlier steps the order can go back to (the server checks the same rule).
+ * Not for orders the customer cancelled themselves, nor older than a day.
+ */
+function correctionTargets(o: AdminOrder): OrderStatus[] {
+  const created = o.createdAt?.toMillis?.() ?? 0;
+  if (Date.now() - created > 24 * 60 * 60_000) return [];
+  const steps = ORDER_STEPS[o.fulfillment] as readonly OrderStatus[];
+  if (o.status === 'cancelled') {
+    const byCustomer = (o.statusHistory ?? []).some((h) => h.status === 'cancelled' && h.by === 'customer');
+    return byCustomer ? [] : [...steps];
+  }
+  if (o.status === 'completed') return [...steps];
+  const i = steps.indexOf(o.status);
+  return i > 0 ? steps.slice(0, i) : [];
+}
+
+/** The "pressed by mistake" button: opens the earlier steps, one tap puts the order back there. */
+function MistakeButton({ order }: { order: AdminOrder }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const targets = correctionTargets(order);
+  if (targets.length === 0) return null;
+  async function back(to: OrderStatus) {
+    setBusy(true);
+    setErr(null);
+    try {
+      await callAdmin(API.adminCorrectOrderStatus, { orderId: order.id, status: to });
+      setOpen(false);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mistake">
+      <button className="btn btn--ghost btn--sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        ↩ נלחץ בטעות
+      </button>
+      {open && (
+        <div className="mistake__menu" role="group" aria-label={`להחזיר את הזמנה #${order.number} ל…`}>
+          <p className="small">
+            להחזיר את #{order.number} ל:
+            <span className="muted"> (הלקוח יקבל הודעת התנצלות)</span>
+          </p>
+          <div className="mistake__options">
+            {targets.map((s) => (
+              <button key={s} className="btn btn--sm" disabled={busy} onClick={() => void back(s)}>
+                {ORDER_STATUS_LABELS[s]}
+              </button>
+            ))}
+            <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setOpen(false)}>
+              סגירה
+            </button>
+          </div>
+          {err && <p className="error small" role="alert">{err}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const canCancel = (s: OrderStatus) => s === 'placed' || s === 'accepted' || s === 'preparing' || s === 'almost_ready';
 
 const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[] = [
@@ -204,6 +268,7 @@ function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminO
           </button>
         )}
       </div>
+      <MistakeButton order={o} />
     </li>
   );
 }
@@ -230,6 +295,7 @@ function History() {
           <th>סוג</th>
           <th>סכום</th>
           <th>סטטוס</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -241,6 +307,7 @@ function History() {
             <td>{o.fulfillment === 'pickup' ? 'איסוף' : 'משלוח'}</td>
             <td>{formatAgorot(o.totalAgorot)}</td>
             <td>{ORDER_STATUS_LABELS[o.status]}</td>
+            <td><MistakeButton order={o} /></td>
           </tr>
         ))}
       </tbody>

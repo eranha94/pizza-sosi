@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
+import { CORRECTION_STATUS_TEXT, OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, formatAgorot, formatTime, type OrderView as Order } from '@pizza-sosi/contracts';
 import { useNow, useMenu } from '../lib/menu';
 import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
@@ -77,6 +77,7 @@ export default function OrderPage() {
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      <CorrectionNote order={order} />
       <OrderScene status={order.status} />
       {order.readyAt && active && <ReadyTimer order={order} readyAt={order.readyAt} />}
       <OrderSteps order={order} />
@@ -157,6 +158,19 @@ function Reorder({ order }: { order: Order }) {
         </p>
       )}
     </div>
+  );
+}
+
+/** After the pizzeria pressed a status by mistake and put the order back: say so, for a few hours. */
+function CorrectionNote({ order }: { order: Order }) {
+  const c = order.correction;
+  if (!c || c.to !== order.status || Date.now() - Date.parse(c.at) > 3 * 60 * 60_000) return null;
+  const now = CORRECTION_STATUS_TEXT[order.status];
+  return (
+    <p className="notice correction-note" role="note">
+      עמכם הסליחה – סטטוס ההזמנה עודכן אצלנו בטעות.
+      {now && <> ההזמנה שלך כרגע: <strong>{now}</strong>.</>} אנחנו עושים את המיטב שהיא לא תתעכב.
+    </p>
   );
 }
 
