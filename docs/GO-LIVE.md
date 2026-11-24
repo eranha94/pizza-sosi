@@ -67,6 +67,18 @@ gcloud secrets add-iam-policy-binding RESEND_API_KEY --project pizza-sosi --memb
 ### א8. וואטסאפ לפרויקט החי
 אותו תהליך שעשינו בסביבת הבדיקות: מפתח קבוע של משתמש מערכת ← כספת (`WHATSAPP_TOKEN` בפרויקט `pizza-sosi`) ← `whatsapp-setup.mjs` עם מזהי המספר החי והכתובת `https://pizza-sosi.co.il`. התבניות צריכות אישור של Meta, ולכן כדאי לעשות את זה כמה ימים מראש.
 
+### א8א. וואטסאפ מהמספר הקיים של הפיצרייה (Telnyx + Coexistence)
+מאז מרץ 2025 מטא מאפשרת לחבר ל-API מספר שכבר פעיל באפליקציית וואטסאפ ביזנס, והאפליקציה ממשיכה לעבוד בטלפון. החיבור עובר דרך Telnyx (תשלום רק לפי שימוש, בלי מנוי).
+1. חשבון ב-Telnyx וקרדיט קטן. וואטסאפ ביזנס בטלפון של הפיצרייה מעודכן לגרסה 2.24.17 ומעלה.
+2. ב-Telnyx: Messaging → WhatsApp → Business Accounts → Add Account, לסמן **Enable WhatsApp Business App coexistence**, ולהשלים את תהליך מטא (הקוד מגיע לאפליקציה בטלפון). את הסנכרון חייבים להשלים תוך 24 שעות.
+3. מפתח API של Telnyx לכספת:
+```bash
+read -s -p "מפתח Telnyx: " K && echo && printf "%s" "$K" | gcloud secrets create TELNYX_API_KEY --project pizza-sosi --data-file=- ; unset K
+gcloud secrets add-iam-policy-binding TELNYX_API_KEY --project pizza-sosi --member=serviceAccount:$(gcloud projects describe pizza-sosi --format='value(projectNumber)')-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+```
+4. תבניות ואז הפעלה – `scripts/telnyx-whatsapp-setup.mjs` (`--templates`, `--status`, `--enable`; ההוראות בראש הקובץ).
+לחזרה לשליחה ישירה דרך מטא: `provider: 'meta'` ב-`settings/whatsapp`.
+
 ### א9. התראות על שגיאות
 ```bash
 bash setup-alerts.sh pizza-sosi 3eran19941@gmail.com

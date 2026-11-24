@@ -143,3 +143,24 @@ describe('screen board', async () => {
     expect(b).toEqual({ preparing: [9, 12], ready: [10] });
   });
 });
+
+describe('whatsapp provider config', async () => {
+  const { parseWhatsappConfig, templatePayload } = await import('../src/notify/whatsapp.js');
+  it('defaults to Meta with a phone number id', () => {
+    expect(parseWhatsappConfig({ enabled: true, phoneNumberId: '123' })).toEqual({ provider: 'meta', phoneNumberId: '123', language: 'he' });
+  });
+  it('uses Telnyx with an Israeli mobile sender', () => {
+    expect(parseWhatsappConfig({ enabled: true, provider: 'telnyx', from: '+972521234567' })).toEqual({ provider: 'telnyx', from: '+972521234567', language: 'he' });
+    expect(parseWhatsappConfig({ enabled: true, provider: 'telnyx', from: '0521234567' })).toBeNull();
+  });
+  it('is off unless enabled', () => {
+    expect(parseWhatsappConfig({ enabled: false, provider: 'telnyx', from: '+972521234567' })).toBeNull();
+    expect(parseWhatsappConfig(undefined)).toBeNull();
+  });
+  it('builds the same template for both providers', () => {
+    const t = templatePayload({ to: '972521234567', template: 'pizza_sosi_order_ready_pickup', language: 'he', bodyParams: ['דנה', '42'], buttonParam: 'abc' });
+    expect(t.language).toEqual({ policy: 'deterministic', code: 'he' });
+    expect(t.components[0]).toEqual({ type: 'body', parameters: [{ type: 'text', text: 'דנה' }, { type: 'text', text: '42' }] });
+    expect(t.components[1]).toMatchObject({ type: 'button', sub_type: 'url', index: '0' });
+  });
+});
