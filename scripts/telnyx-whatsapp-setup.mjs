@@ -38,6 +38,8 @@ const TEMPLATES = [
   ['pizza_sosi_order_ready_pickup', 'היי {{1}}, ההזמנה שלך #{{2}} מוכנה לאיסוף ✅\nמחכים לך בפיצה סוסי!'],
   ['pizza_sosi_order_on_the_way', 'היי {{1}}, ההזמנה שלך #{{2}} יצאה אליך עם השליח 🛵'],
   ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות התקשרו אלינו: 054-888-0909'],
+  // After a status was pressed by mistake. {{3}} = where the order really is (e.g. "בהכנה").
+  ['pizza_sosi_order_status_corrected', 'היי {{1}}, עמכם הסליחה 🙏\nהסטטוס של הזמנה #{{2}} עודכן אצלנו בטעות.\nההזמנה שלך כרגע: {{3}}.\nאנחנו עושים את המיטב שהיא לא תתעכב.', ['דנה', '1042', 'בהכנה']],
 ];
 
 async function telnyx(path, body) {
@@ -66,7 +68,7 @@ if (values.templates) {
   if (!values.site?.startsWith('https://')) fail('--site https://… is required');
   const site = values.site.replace(/\/$/, '');
   const have = new Set((await listOurs()).map((t) => `${t.name}:${t.language}`));
-  for (const [name, text] of TEMPLATES) {
+  for (const [name, text, example] of TEMPLATES) {
     if (have.has(`${name}:he`)) {
       console.log(`• ${name}: already exists`);
       continue;
@@ -77,7 +79,7 @@ if (values.templates) {
       category: 'UTILITY',
       language: 'he',
       components: [
-        { type: 'BODY', text, example: { body_text: [['דנה', '1042']] } },
+        { type: 'BODY', text, example: { body_text: [example ?? ['דנה', '1042']] } },
         { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
       ],
     });

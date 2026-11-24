@@ -2,6 +2,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
   SetOrderStatusRequest,
+  CorrectOrderStatusRequest,
+  ORDER_STEPS,
   UpdateStoreSettingsRequest,
   UpsertMenuItemRequest,
   DeleteMenuItemRequest,
@@ -14,7 +16,7 @@ import { secureCall } from '../security/callable.js';
 import { requireStaff } from '../security/auth.js';
 import { validate } from '../security/errors.js';
 import { audit } from '../security/audit.js';
-import { canTransition } from '../domain/orderState.js';
+import { canTransition, correctionTargets } from '../domain/orderState.js';
 import { refreshScreenBoard } from '../domain/screenBoard.js';
 
 export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (req) => {
@@ -33,6 +35,54 @@ export const adminSetOrderStatus = secureCall<{ status: OrderStatus }>(async (re
     });
   });
   await Promise.all([audit(uid, 'order.status', orderId, { status }), refreshScreenBoard()]);
+  return { status };
+});
+
+/** How long after it was placed an order can still be put back ("pressed by mistake"). */
+const CORRECTION_WINDOW_MS = 24 * 60 * 60_000;
+
+/**
+ * "Pressed by mistake": put an order back to an earlier step. The customer's tracking page shows an apology,
+ * and if they already got a WhatsApp about the wrong step they get an apology there too (orderNotifications).
+ * WhatsApp claims for the undone steps are cleared, so the real update goes out when the order gets there.
+ */
+export const adminCorrectOrderStatus = secureCall<{ status: OrderStatus }>(async (req) => {
+  const { uid } = requireStaff(req);
+  const { orderId, status } = validate(CorrectOrderStatusRequest, req.data);
+  const ref = db.collection(COL.orders).doc(orderId);
+  let from: OrderStatus | null = null;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError('not-found', 'ההזמנה לא נמצאה');
+    const o = snap.data()!;
+    from = o.status as OrderStatus;
+    const fulfillment = o.fulfillment as 'pickup' | 'delivery';
+    const created = o.createdAt?.toMillis?.() ?? 0;
+    if (Date.now() - created > CORRECTION_WINDOW_MS) throw new HttpsError('failed-precondition', 'אפשר לתקן סטטוס רק ב-24 השעות הראשונות של ההזמנה');
+    type H = { status: OrderStatus; at: string; by?: string };
+    const history = (o.statusHistory ?? []) as H[];
+    if (from === 'cancelled' && history.some((h) => h.status === 'cancelled' && h.by === 'customer'))
+      throw new HttpsError('failed-precondition', 'הלקוח ביטל את ההזמנה בעצמו – אי אפשר להחזיר אותה');
+    if (!correctionTargets(from, fulfillment).includes(status))
+      throw new HttpsError('failed-precondition', 'אפשר להחזיר הזמנה רק לשלב שלפני הסטטוס הנוכחי');
+
+    const steps = ORDER_STEPS[fulfillment] as readonly OrderStatus[];
+    const upTo = steps.indexOf(status);
+    const undone = (s: OrderStatus) => s === 'completed' || s === 'cancelled' || steps.indexOf(s) > upTo;
+    const now = new Date().toISOString();
+    const clearClaims: Record<string, FieldValue> = {};
+    for (const s of Object.keys(o.notifications?.whatsapp ?? {}) as OrderStatus[]) {
+      if (undone(s)) clearClaims[`notifications.whatsapp.${s}`] = FieldValue.delete();
+    }
+    tx.update(ref, {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+      statusHistory: history.filter((h) => !undone(h.status)),
+      correction: { from, to: status, at: now, by: uid, seq: (o.correction?.seq ?? 0) + 1 },
+      ...clearClaims,
+    });
+  });
+  await Promise.all([audit(uid, 'order.status.correct', orderId, { from, to: status }), refreshScreenBoard()]);
   return { status };
 });
 

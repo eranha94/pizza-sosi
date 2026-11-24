@@ -18,6 +18,7 @@ export interface AdminOrder {
   readyAt?: number;
   scheduled?: boolean;
   createdAt?: Timestamp | null;
+  statusHistory?: { status: OrderStatus; at: string; by?: string }[];
 }
 
 export const ACTIVE: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery'];

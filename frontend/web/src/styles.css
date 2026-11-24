@@ -749,3 +749,6 @@ main[data-nav='back'] .page { animation: page-back .38s cubic-bezier(.2, .8, .2,
   .site-header, .sheet, #main, .site-footer, .item-card { transition: none; }
   html.sheet-open #main, .item-card:active { transform: none; filter: none; }
 }
+
+/* The pizzeria put the order back a step after a mistaken press */
+.correction-note { border-color: #e0a100; background: #fff8e1; }

@@ -112,5 +112,7 @@ export const OrderView = z.object({
   scheduled: z.boolean().default(false),
   /** When each status was reached (ISO time). Who changed it is internal and stays out. */
   statusHistory: z.array(z.object({ status: OrderStatus, at: z.string() })).max(60).default([]),
+  /** Set when the pizzeria put the order back a step after pressing a status by mistake. */
+  correction: z.object({ to: OrderStatus, at: z.string() }).nullable().default(null),
 });
 export type OrderView = z.infer<typeof OrderView>;

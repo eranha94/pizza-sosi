@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
-import { canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
+import { correctionTargets, canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
 
 const pizza: MenuItem = {
   id: 'p1', name: 'פיצה משפחתית', description: '', category: 'pizzas', priceAgorot: 5900,
@@ -83,6 +83,14 @@ describe('order state', () => {
     expect(customerCanCancel('placed')).toBe(true);
     expect(customerCanCancel('accepted')).toBe(true);
     expect(customerCanCancel('preparing')).toBe(false);
+  });
+  it('pressed by mistake: back only to earlier steps of the same flow', () => {
+    expect(correctionTargets('preparing', 'pickup')).toEqual(['placed', 'accepted']);
+    expect(correctionTargets('out_for_delivery', 'delivery')).toEqual(['placed', 'accepted', 'preparing', 'almost_ready']);
+    expect(correctionTargets('completed', 'pickup')).toEqual(['placed', 'accepted', 'preparing', 'almost_ready', 'ready']);
+    expect(correctionTargets('cancelled', 'delivery')).toContain('out_for_delivery');
+    expect(correctionTargets('placed', 'pickup')).toEqual([]);
+    expect(correctionTargets('pending_payment', 'pickup')).toEqual([]);
   });
   it('pay on site skips payment', () => {
     expect(initialStatus('on_site')).toBe('placed');

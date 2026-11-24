@@ -62,6 +62,16 @@ export const ITEM_TAG_LABELS: Record<ItemTag, { label: string; icon: string }> =
 export const NOTIFY_STATUSES = ['accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery', 'cancelled'] as const;
 export type NotifyStatus = (typeof NOTIFY_STATUSES)[number];
 
+/** How a status reads in the "pressed by mistake" apology to the customer ("ההזמנה שלך כרגע: …"). */
+export const CORRECTION_STATUS_TEXT: Partial<Record<Status, string>> = {
+  placed: 'התקבלה ומחכה לאישור',
+  accepted: 'אושרה',
+  preparing: 'בהכנה',
+  almost_ready: 'כמעט מוכנה',
+  ready: 'מוכנה לאיסוף',
+  out_for_delivery: 'בדרך אליך',
+};
+
 /** The steps a customer sees, by fulfillment. */
 export const ORDER_STEPS: Record<'pickup' | 'delivery', readonly Status[]> = {
   pickup: ['placed', 'accepted', 'preparing', 'almost_ready', 'ready'],
@@ -74,6 +84,7 @@ export const API = {
   cancelOrder: 'cancelOrder',
   getOrderStatus: 'getOrderStatus',
   adminSetOrderStatus: 'adminSetOrderStatus',
+  adminCorrectOrderStatus: 'adminCorrectOrderStatus',
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',
   adminDeleteMenuItem: 'adminDeleteMenuItem',

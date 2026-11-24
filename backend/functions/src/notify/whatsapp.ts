@@ -23,6 +23,9 @@ export const TEMPLATE_BY_STATUS: Record<NotifyStatus, string> = {
   cancelled: 'pizza_sosi_order_cancelled',
 };
 
+/** Apology after a status was pressed by mistake. {{1}} first name, {{2}} order number, {{3}} where the order really is. */
+export const CORRECTION_TEMPLATE = 'pizza_sosi_order_status_corrected';
+
 const GRAPH = 'https://graph.facebook.com/v25.0';
 const TELNYX = 'https://api.telnyx.com/v2';
 

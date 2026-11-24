@@ -356,3 +356,11 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .crop__zoom input { width: 100%; }
 .crop__actions { justify-content: flex-start; }
 @media (max-width: 640px) { .crop__layout { flex-direction: column; align-items: stretch; } .crop__side { grid-auto-flow: column; justify-content: center; align-items: center; } }
+
+/* "Pressed by mistake": a quiet link under the actions that opens the earlier steps */
+.mistake { margin-top: 8px; }
+.mistake > .btn { opacity: .8; }
+.mistake__menu { margin-top: 6px; padding: 10px 12px; border: 1.5px dashed var(--line, #d9d2c3); border-radius: 12px; background: rgba(0,0,0,.02); }
+.mistake__menu p { margin: 0 0 8px; }
+.mistake__options { display: flex; flex-wrap: wrap; gap: 6px; }
+.history .mistake { margin-top: 0; }
