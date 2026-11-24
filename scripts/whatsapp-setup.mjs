@@ -36,7 +36,7 @@ const TEMPLATES = [
   ['pizza_sosi_order_almost_ready', 'היי {{1}}, ההזמנה שלך #{{2}} כמעט מוכנה ⏳'],
   ['pizza_sosi_order_ready_pickup', 'היי {{1}}, ההזמנה שלך #{{2}} מוכנה לאיסוף ✅\nמחכים לך בפיצה סוסי!'],
   ['pizza_sosi_order_on_the_way', 'היי {{1}}, ההזמנה שלך #{{2}} יצאה אליך עם השליח 🛵'],
-  ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות אפשר להשיב להודעה הזאת או להתקשר אלינו.'],
+  ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות התקשרו אלינו: 054-888-0909'],
 ];
 
 async function graph(path, body) {

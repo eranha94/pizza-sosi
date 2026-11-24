@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// WhatsApp through Telnyx, using the pizzeria's existing WhatsApp Business app number ("coexistence").
+// WhatsApp through Telnyx, from a dedicated sending number (+972537998889, WABA 2236382476942858). Replies to it are not monitored.
 // Self-contained on purpose: it can be pasted into Cloud Shell without the repo. Run in two steps:
 //
 //   read -s TELNYX_API_KEY && export TELNYX_API_KEY
@@ -37,7 +37,7 @@ const TEMPLATES = [
   ['pizza_sosi_order_almost_ready', 'היי {{1}}, ההזמנה שלך #{{2}} כמעט מוכנה ⏳'],
   ['pizza_sosi_order_ready_pickup', 'היי {{1}}, ההזמנה שלך #{{2}} מוכנה לאיסוף ✅\nמחכים לך בפיצה סוסי!'],
   ['pizza_sosi_order_on_the_way', 'היי {{1}}, ההזמנה שלך #{{2}} יצאה אליך עם השליח 🛵'],
-  ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות אפשר להשיב להודעה הזאת או להתקשר אלינו.'],
+  ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות התקשרו אלינו: 054-888-0909'],
 ];
 
 async function telnyx(path, body) {
