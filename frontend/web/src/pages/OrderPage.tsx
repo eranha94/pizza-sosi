@@ -108,6 +108,7 @@ export default function OrderPage() {
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      <PaymentNote order={order} />
       <CorrectionNote order={order} />
       <OrderScene status={order.status} />
       {order.readyAt && active && <ReadyTimer order={order} readyAt={order.readyAt} />}
@@ -194,6 +195,33 @@ function Reorder({ order }: { order: Order }) {
       )}
     </div>
   );
+}
+
+/**
+ * Card orders: what happened with the payment. Right after coming back from the payment page the order is
+ * still "waiting for payment" for a few seconds, until the card company confirms it to our server.
+ */
+function PaymentNote({ order }: { order: Order }) {
+  const now = useNow(15_000).getTime();
+  if (order.paymentMethod !== 'card') return null;
+  const st = order.payment?.status ?? '';
+  const card = order.payment?.cardSuffix ? ` (כרטיס שמסתיים ב-${order.payment.cardSuffix})` : '';
+  if (order.status === 'pending_payment') {
+    const started = order.statusHistory[0]?.at;
+    const slow = Boolean(started) && now - Date.parse(started!) > 3 * 60_000;
+    return (
+      <p className="notice pay-note pay-note--wait" role="status">
+        {slow ? (
+          <>עוד לא קיבלנו אישור על התשלום. אם שילמת והסטטוס לא מתעדכן, התקשרו אלינו: <a href="tel:0548880909">054-888-0909</a></>
+        ) : (
+          <>⏳ מאמתים את התשלום מול חברת האשראי… זה לוקח כמה שניות.</>
+        )}
+      </p>
+    );
+  }
+  if (st === 'refunded') return <p className="notice pay-note" role="status">↩ התשלום זוכה{card}. הזיכוי יופיע בכרטיס בימים הקרובים.</p>;
+  if (st === 'approved' || st === 'review') return <p className="notice pay-note pay-note--ok" role="status">✓ התשלום התקבל{card}</p>;
+  return null;
 }
 
 /** After the pizzeria pressed a status by mistake and put the order back: say so, for a few hours. */

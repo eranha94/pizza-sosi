@@ -127,5 +127,7 @@ export const OrderView = z.object({
   /** Deals, coupon and loyalty reward taken off the subtotal. */
   discounts: z.array(z.object({ kind: z.enum(['deal', 'coupon', 'loyalty']), label: z.string(), amountAgorot: z.number().int() })).default([]),
   discountAgorot: z.number().int().default(0),
+  /** Card payment state for the customer (only these two fields leave the server). */
+  payment: z.object({ status: z.string().default(''), cardSuffix: z.string().default('') }).nullish().transform((p) => p ?? null),
 });
 export type OrderView = z.infer<typeof OrderView>;
