@@ -79,7 +79,7 @@ export const ScreenSettings = z.object({
   /** Seconds each slide stays up. */
   slideSeconds: z.number().int().min(5).max(30).default(9),
   /** Dishes to feature with a big photo. Empty = automatic (recommended/new dishes that have a photo). */
-  featuredItemIds: z.array(id).max(12).default([]),
+  featuredItemIds: z.array(id).max(15).default([]),
   promos: z.array(ScreenPromo).max(8).default([]),
   /** Which categories get a full-screen price list. */
   menuCategories: z.array(CategoryId).max(CATEGORY_IDS.length).default([...CATEGORY_IDS]),
