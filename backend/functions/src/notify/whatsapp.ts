@@ -35,14 +35,17 @@ const TELNYX = 'https://api.telnyx.com/v2';
 
 export type WhatsappConfig =
   | { provider: 'meta'; phoneNumberId: string; language: string }
-  | { provider: 'telnyx'; from: string; language: string };
+  | { provider: 'telnyx'; from: string; language: string; messagingProfileId?: string };
 
 /** Pure part (tested): which way to send, or null when WhatsApp isn't set up. */
 export function parseWhatsappConfig(d: Record<string, unknown> | undefined): WhatsappConfig | null {
   if (!d?.enabled) return null;
   const language = typeof d.language === 'string' ? d.language : 'he';
   if (d.provider === 'telnyx') {
-    return typeof d.from === 'string' && /^\+9725\d{8}$/.test(d.from) ? { provider: 'telnyx', from: d.from, language } : null;
+    if (typeof d.from !== 'string' || !/^\+9725\d{8}$/.test(d.from)) return null;
+    // A number that isn't a Telnyx number needs its messaging profile named explicitly.
+    const profile = typeof d.messagingProfileId === 'string' && /^[0-9a-f-]{36}$/i.test(d.messagingProfileId) ? d.messagingProfileId : undefined;
+    return { provider: 'telnyx', from: d.from, language, ...(profile ? { messagingProfileId: profile } : {}) };
   }
   return typeof d.phoneNumberId === 'string' && /^\d+$/.test(d.phoneNumberId) ? { provider: 'meta', phoneNumberId: d.phoneNumberId, language } : null;
 }
@@ -105,13 +108,18 @@ async function sendViaTelnyx(cfg: Extract<WhatsappConfig, { provider: 'telnyx' }
   const res = await fetch(`${TELNYX}/messages/whatsapp`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: cfg.from, to: `+${m.to}`, whatsapp_message: { type: 'template', template: templatePayload(m) } }),
+    body: JSON.stringify({
+      from: cfg.from,
+      to: `+${m.to}`,
+      ...(cfg.messagingProfileId ? { messaging_profile_id: cfg.messagingProfileId } : {}),
+      whatsapp_message: { type: 'template', template: templatePayload(m) },
+    }),
   });
   const json = (await res.json().catch(() => ({}))) as { data?: { id?: string }; errors?: { code?: string | number; title?: string; detail?: string }[] };
   const err = json.errors?.[0];
   if (!res.ok || !json.data?.id) {
     logger.warn('whatsapp send failed', { provider: 'telnyx', status: res.status, code: err?.code, template: m.template });
-    throw new Error(`whatsapp ${res.status} ${err?.code ?? ''} ${err?.detail ?? err?.title ?? ''}`.trim());
+    throw new Error(`whatsapp ${res.status} ${err?.code ?? ''} ${err?.title ?? ''} ${err?.detail ?? ''}`.trim());
   }
   return json.data.id;
 }

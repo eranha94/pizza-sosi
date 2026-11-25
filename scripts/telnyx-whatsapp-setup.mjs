@@ -6,7 +6,7 @@
 //   1) submit the templates (Meta reviews them, usually minutes–hours):
 //      node telnyx-whatsapp-setup.mjs --templates --waba <WABA ID from Telnyx> --site https://pizza-sosi.co.il
 //   2) once they're APPROVED, switch the site to Telnyx:
-//      node telnyx-whatsapp-setup.mjs --enable --project pizza-sosi --from +9725XXXXXXXX
+//      node telnyx-whatsapp-setup.mjs --enable --project pizza-sosi --from +9725XXXXXXXX [--profile <messaging profile id>]
 //
 // --status shows the templates' review status. Re-running is safe: existing templates are skipped.
 // The API key itself goes to Secret Manager as TELNYX_API_KEY (see docs/GO-LIVE.md); this script only uses it here.
@@ -21,6 +21,7 @@ const { values } = parseArgs({
     site: { type: 'string' },
     project: { type: 'string' },
     from: { type: 'string' },
+    profile: { type: 'string' },
   },
 });
 const key = process.env.TELNYX_API_KEY;
@@ -102,8 +103,17 @@ if (values.enable) {
   const { initializeApp, applicationDefault } = await import('firebase-admin/app');
   const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
   const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.project }));
+  if (values.profile && !/^[0-9a-f-]{36}$/i.test(values.profile)) fail('--profile must be the messaging profile ID (36 characters)');
   await db.collection('settings').doc('whatsapp').set(
-    { enabled: true, provider: 'telnyx', from: values.from, language: 'he', updatedAt: FieldValue.serverTimestamp() },
+    {
+      enabled: true,
+      provider: 'telnyx',
+      from: values.from,
+      language: 'he',
+      // Telnyx messaging profile of the number (needed when it isn't a Telnyx number).
+      ...(values.profile ? { messagingProfileId: values.profile } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
     { merge: true },
   );
   console.log(`✓ ${values.project}: order updates now go out through Telnyx from ${values.from}`);
