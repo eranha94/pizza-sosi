@@ -48,6 +48,15 @@ function correctionTargets(o: AdminOrder): OrderStatus[] {
   return i > 0 ? steps.slice(0, i) : [];
 }
 
+const PAYMENT_LABEL: Record<string, string> = {
+  pending: 'לא שולם',
+  approved: 'שולם',
+  declined: 'נדחה',
+  review: 'לבדיקה',
+  refunding: 'מזכה…',
+  refunded: 'זוכה',
+};
+
 /** Card refund for a finished or cancelled order paid by card (or a payment that needs review). */
 function RefundButton({ order }: { order: AdminOrder }) {
   const [busy, setBusy] = useState(false);
@@ -345,7 +354,10 @@ function History() {
             <td>{o.customerName}</td>
             <td>{o.fulfillment === 'pickup' ? 'איסוף' : 'משלוח'}</td>
             <td>{formatAgorot(o.totalAgorot)}</td>
-            <td>{ORDER_STATUS_LABELS[o.status]}</td>
+            <td>
+              {ORDER_STATUS_LABELS[o.status]}
+              {o.paymentMethod === 'card' && <span className="muted small"> · 💳 {PAYMENT_LABEL[o.payment?.status ?? ''] ?? o.payment?.status ?? ''}</span>}
+            </td>
             <td><MistakeButton order={o} /> <RefundButton order={o} /></td>
           </tr>
         ))}
