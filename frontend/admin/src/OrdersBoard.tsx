@@ -48,14 +48,15 @@ function correctionTargets(o: AdminOrder): OrderStatus[] {
   return i > 0 ? steps.slice(0, i) : [];
 }
 
-/** Card refund for a cancelled order paid by card (or a payment that needs review). */
+/** Card refund for a finished or cancelled order paid by card (or a payment that needs review). */
 function RefundButton({ order }: { order: AdminOrder }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const st = order.payment?.status;
   if (order.paymentMethod !== 'card') return null;
   if (st === 'refunded') return <span className="tag">↩ זוכה</span>;
-  if (!((order.status === 'cancelled' && st === 'approved') || st === 'review')) return null;
+  // Cancelled, or finished and the customer should get the money back (e.g. a complaint).
+  if (!((['cancelled', 'completed'].includes(order.status) && st === 'approved') || st === 'review')) return null;
   async function refund() {
     if (!window.confirm(`לזכות את הלקוח ב-${formatAgorot(order.payment?.paidAgorot ?? order.totalAgorot)} על הזמנה #${order.number}?`)) return;
     setBusy(true);
