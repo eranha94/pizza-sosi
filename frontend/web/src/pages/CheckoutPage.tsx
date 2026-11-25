@@ -13,7 +13,7 @@ import type { CheckCouponResponse, LoyaltyCardView } from '@pizza-sosi/contracts
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 import { usePageTitle } from '../lib/a11y';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { cardPaymentsOn, rememberPayTestFlag, payingOrder } from '../config/payments';
+import { cardPaymentsOn, payingOrder } from '../config/payments';
 import { cancelOrder } from '../lib/api';
 
 export default function CheckoutPage() {
@@ -31,7 +31,6 @@ export default function CheckoutPage() {
   const [zoneId, setZoneId] = useState(() => profile?.zoneId ?? '');
   const [fulfillmentChoice, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
-  rememberPayTestFlag();
   const cardOn = cardPaymentsOn(store.data);
   // Back from the payment page without paying: cancel that order quietly (the cart is still here).
   const [params, setParams] = useSearchParams();

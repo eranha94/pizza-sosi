@@ -4,6 +4,10 @@ import '@fontsource-variable/rubik';
 import './styles.css';
 import { App } from './App';
 import { watchForUpdates } from './lib/updates';
+import { rememberPayTestFlag } from './config/payments';
+
+// ?paytest=1 on any page marks this device as the card-payment tester (read before the router drops it).
+rememberPayTestFlag();
 
 // Tells /boot-fallback.js the app started, so it doesn't load the classic build as well.
 (window as Window & { __pizzaBooted?: boolean }).__pizzaBooted = true;
