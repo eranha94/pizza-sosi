@@ -102,10 +102,10 @@ export class CardcomProvider implements PaymentProvider {
       SuccessRedirectUrl: input.successUrl,
       FailedRedirectUrl: input.cancelUrl,
       WebHookUrl: input.notifyUrl,
-      // Receipt / tax invoice by the account's settings ("Auto": חשבונית מס/קבלה for a licensed dealer),
-      // issued by Cardcom when the payment succeeds and emailed to the customer.
+      // חשבונית מס/קבלה (the pizzeria is a licensed dealer), issued by Cardcom when the payment
+      // succeeds and emailed to the customer. Prices include VAT, as on the menu.
       Document: {
-        DocumentTypeToCreate: 'Auto',
+        DocumentTypeToCreate: 'TaxInvoiceAndReceipt',
         Name: input.customer.name,
         ...(input.customer.email ? { Email: input.customer.email, IsSendByEmail: true } : { IsSendByEmail: false }),
         Products: input.receiptLines.map((l) => ({ Description: l.description.slice(0, 250), Quantity: l.quantity, UnitCost: shekels(l.unitAgorot) })),
