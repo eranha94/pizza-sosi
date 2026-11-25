@@ -31,3 +31,19 @@ describe('Cardcom', () => {
     expect(p.refFromNotification({ ResponseCode: 0 })).toBeNull();
   });
 });
+
+describe('receipt lines', async () => {
+  const { receiptLines } = await import('../src/api/createOrder.js');
+  const priced = { lines: [{ name: 'פיצה משפחתית', quantity: 2, unitPriceAgorot: 6000 }, { name: 'קולה', quantity: 1, unitPriceAgorot: 1200 }], deliveryFeeAgorot: 1500 };
+  const sum = (ls: { quantity: number; unitAgorot: number }[]) => ls.reduce((s, l) => s + l.quantity * l.unitAgorot, 0);
+  it('lists the items and delivery, adding up to the charge', () => {
+    const ls = receiptLines(priced, { discountAgorot: 0, totalAgorot: 14700 }, 1042);
+    expect(ls.map((l) => l.description)).toEqual(['פיצה משפחתית', 'קולה', 'משלוח']);
+    expect(sum(ls)).toBe(14700);
+  });
+  it('one line when there is a discount', () => {
+    const ls = receiptLines(priced, { discountAgorot: 1400, totalAgorot: 13300 }, 1042);
+    expect(ls).toHaveLength(1);
+    expect(sum(ls)).toBe(13300);
+  });
+});

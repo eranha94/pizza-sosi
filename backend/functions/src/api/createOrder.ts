@@ -199,6 +199,7 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
         successUrl: `${origin}/order/${orderRef.id}`,
         cancelUrl: `${origin}/checkout?paycancel=${orderRef.id}`,
         notifyUrl: paymentWebhookUrl(),
+        receiptLines: receiptLines(priced, totals, number),
       });
       paymentUrl = page.url;
       await orderRef.update({ 'payment.providerRef': page.providerRef });
@@ -219,3 +220,18 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
   logger.info('order created', { orderId: orderRef.id, number, total: totals.totalAgorot, discount: totals.discountAgorot, method: input.paymentMethod });
   return response;
 });
+
+/**
+ * Receipt lines that add up exactly to what the customer pays. Item by item (+ delivery) when there is
+ * no discount; with a discount, one line for the whole order, so the sum always matches the charge.
+ */
+export function receiptLines(
+  priced: { lines: { name: string; quantity: number; unitPriceAgorot: number }[]; deliveryFeeAgorot: number },
+  totals: { discountAgorot: number; totalAgorot: number },
+  number: number,
+): { description: string; quantity: number; unitAgorot: number }[] {
+  if (totals.discountAgorot > 0) return [{ description: `הזמנה #${number} – פיצה סוסי`, quantity: 1, unitAgorot: totals.totalAgorot }];
+  const lines = priced.lines.map((l) => ({ description: l.name, quantity: l.quantity, unitAgorot: l.unitPriceAgorot }));
+  if (priced.deliveryFeeAgorot > 0) lines.push({ description: 'משלוח', quantity: 1, unitAgorot: priced.deliveryFeeAgorot });
+  return lines;
+}

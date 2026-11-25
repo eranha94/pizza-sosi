@@ -8,6 +8,7 @@ import type { PaymentProvider, PaymentResult } from './provider.js';
  *  2. Cardcom POSTs to our WebHookUrl when the payment ends. Nothing in that post is trusted:
  *     we only take the LowProfileId from it and ask Cardcom (LowProfile/GetLpResult) for the result
  *  3. Refunds: Transactions/RefundByTransactionId (needs the API password)
+ * The receipt (Document) is issued and emailed by Cardcom with the payment.
  * JSON over HTTPS. Credentials only from Secret Manager: CARDCOM_TERMINAL, CARDCOM_API_NAME,
  * CARDCOM_API_PASSWORD (refunds only). Cardcom's test terminal (1000) works on the same URL.
  */
@@ -101,6 +102,14 @@ export class CardcomProvider implements PaymentProvider {
       SuccessRedirectUrl: input.successUrl,
       FailedRedirectUrl: input.cancelUrl,
       WebHookUrl: input.notifyUrl,
+      // Receipt / tax invoice by the account's settings ("Auto": חשבונית מס/קבלה for a licensed dealer),
+      // issued by Cardcom when the payment succeeds and emailed to the customer.
+      Document: {
+        DocumentTypeToCreate: 'Auto',
+        Name: input.customer.name,
+        ...(input.customer.email ? { Email: input.customer.email, IsSendByEmail: true } : { IsSendByEmail: false }),
+        Products: input.receiptLines.map((l) => ({ Description: l.description.slice(0, 250), Quantity: l.quantity, UnitCost: shekels(l.unitAgorot) })),
+      },
       UIDefinition: {
         CardOwnerNameValue: input.customer.name,
         CardOwnerPhoneValue: input.customer.phone.replace(/\D/g, ''),
