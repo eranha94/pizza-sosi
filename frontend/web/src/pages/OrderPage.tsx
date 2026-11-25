@@ -7,6 +7,7 @@ import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
 import { cancelOrder, getOrderStatus, getLoyalty, errorMessage } from '../lib/api';
 import { LoyaltyCard } from '../components/Loyalty';
+import { payingOrder } from '../config/payments';
 import { useLoyaltyRules } from '../lib/promos';
 import type { LoyaltyCardView } from '@pizza-sosi/contracts';
 import { usePageTitle } from '../lib/a11y';
@@ -65,6 +66,15 @@ export default function OrderPage() {
       window.clearTimeout(timer);
     };
   }, [orderId]);
+
+  // Paid by card on this device: empty the cart once the payment is through.
+  const clearCart = useCart((s) => s.clear);
+  const paidNow = order && order.status !== 'pending_payment' && order.status !== 'cancelled' && payingOrder.get() === order.id;
+  useEffect(() => {
+    if (!paidNow) return;
+    clearCart();
+    payingOrder.clear();
+  }, [paidNow, clearCart]);
 
   // Own order: fetch the card by phone; again a few seconds after "completed" (that's when the stamp is added).
   const rules = useLoyaltyRules().data;

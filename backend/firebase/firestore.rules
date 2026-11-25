@@ -36,6 +36,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Card-payment test phone: owner only
+    match /settings/payments {
+      allow read: if isStaff() && request.auth.token.role == 'owner';
+      allow write: if false;
+    }
+
     // Coupon codes: owner only (customers check a code through the checkCoupon function)
     match /coupons/{code} {
       allow read: if isStaff() && request.auth.token.role == 'owner';

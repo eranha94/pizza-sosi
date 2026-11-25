@@ -27,6 +27,7 @@ import { loadMenuItems, loadStoreSettings } from '../domain/store.js';
 import { getPaymentProvider } from '../payments/provider.js';
 import { loadActiveDeals, loadLoyaltySettings, loyaltyRef, rewardLabel } from '../domain/promos.js';
 import { couponProblem, couponUseRef } from './promos.js';
+import { paymentWebhookUrl } from './paymentWebhook.js';
 
 export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
   const uid = requireAuth(req);
@@ -56,8 +57,16 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
     throw new HttpsError('failed-precondition', settings.deliveryEnabled ? 'יש עומס כרגע ומשלוחים מושהים. אפשר להזמין באיסוף עצמי' : 'משלוחים לא זמינים כרגע');
 
   const provider = getPaymentProvider();
-  if (input.paymentMethod === 'card' && !provider.isConfigured())
-    throw new HttpsError('failed-precondition', 'תשלום באשראי עוד לא זמין. אפשר לשלם במקום');
+  if (input.paymentMethod === 'card') {
+    const mode = settings.cardPayments ?? 'off';
+    const notYet = new HttpsError('failed-precondition', 'תשלום באשראי עוד לא זמין. אפשר לשלם במקום');
+    if (mode === 'off' || !(await provider.isConfigured())) throw notYet;
+    if (mode === 'test') {
+      // While testing, only the owner's own phone can pay by card.
+      const testPhone = String((await db.collection(COL.settings).doc('payments').get()).data()?.testPhone ?? '');
+      if (!testPhone || testPhone !== input.customer.phone.replace(/\D/g, '')) throw notYet;
+    }
+  }
 
   // Delivery fee and minimum: per area when the pizzeria defined areas, otherwise one for everywhere.
   let deliveryFee = 0;
@@ -171,16 +180,31 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
 
   let paymentUrl: string | null = null;
   if (input.paymentMethod === 'card') {
-    const origin = String(req.rawRequest.headers.origin ?? '');
-    const page = await provider.createPaymentPage({
-      orderId: orderRef.id,
-      amountAgorot: totals.totalAgorot,
-      customer: input.customer,
-      successUrl: `${origin}/order/${orderRef.id}`,
-      cancelUrl: `${origin}/checkout`,
-    });
-    paymentUrl = page.url;
-    await orderRef.update({ 'payment.providerRef': page.providerRef });
+    // Back to the site the customer came from (only our own sites).
+    const o = String(req.rawRequest.headers.origin ?? '');
+    const origin = /^https:\/\/(pizza-sosi\.co\.il|www\.pizza-sosi\.co\.il|pizza-sosi[a-z-]*\.web\.app)$/.test(o) || /^http:\/\/localhost:\d+$/.test(o) ? o : 'https://pizza-sosi.co.il';
+    try {
+      const page = await provider.createPaymentPage({
+        orderId: orderRef.id,
+        amountAgorot: totals.totalAgorot,
+        description: `פיצה סוסי – הזמנה #${number}`,
+        customer: input.customer,
+        successUrl: `${origin}/order/${orderRef.id}`,
+        cancelUrl: `${origin}/checkout?paycancel=${orderRef.id}`,
+        notifyUrl: paymentWebhookUrl(),
+      });
+      paymentUrl = page.url;
+      await orderRef.update({ 'payment.providerRef': page.providerRef, 'payment.providerToken': page.providerToken });
+    } catch (e) {
+      // No payment page: cancel the order right away (gives back a coupon/reward) and tell the customer.
+      logger.error('payment page failed', { orderId: orderRef.id, error: (e as Error).message });
+      await orderRef.update({
+        status: 'cancelled',
+        updatedAt: FieldValue.serverTimestamp(),
+        statusHistory: FieldValue.arrayUnion({ status: 'cancelled', at: new Date().toISOString(), by: 'system' }),
+      });
+      throw new HttpsError('unavailable', 'דף התשלום לא נפתח כרגע. אפשר לנסות שוב או לבחור תשלום במקום');
+    }
   }
 
   const response: CreateOrderResponse = { orderId: orderRef.id, number, status, totalAgorot: totals.totalAgorot, paymentUrl };

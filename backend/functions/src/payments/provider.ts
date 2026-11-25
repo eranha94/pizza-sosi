@@ -1,46 +1,42 @@
+import { GrowProvider } from './grow.js';
+
 /**
- * Adapter for the card-payment provider (hosted payment page, PCI DSS SAQ A).
- * The provider is not chosen yet (Isracard is the acquirer). A concrete adapter
- * implements this interface; credentials come only from Secret Manager.
+ * Card payments through a hosted payment page (PCI DSS SAQ A): card data never touches our servers.
+ * Credentials come only from Secret Manager.
  */
 export interface PaymentProvider {
   readonly name: string;
-  isConfigured(): boolean;
-  /** Create a hosted payment page for the order and return its URL. Card data never touches our servers. */
+  isConfigured(): Promise<boolean>;
+  /** Create a hosted payment page for the order and return its URL. */
   createPaymentPage(input: {
     orderId: string;
     amountAgorot: number;
-    customer: { name: string; email: string; phone: string };
+    description: string;
+    customer: { name: string; email?: string | null; phone: string };
     successUrl: string;
     cancelUrl: string;
-  }): Promise<{ url: string; providerRef: string }>;
-  /** Verify a webhook's signature/authenticity. Must reject anything not from the provider. */
-  verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ providerRef: string } | null>;
-  /** Ask the provider directly (server to server) what the real transaction state is. */
-  getTransaction(providerRef: string): Promise<{ status: 'approved' | 'declined' | 'pending'; amountAgorot: number; orderId: string }>;
-  refund(providerRef: string, amountAgorot: number): Promise<void>;
-}
-
-class NotConfiguredProvider implements PaymentProvider {
-  readonly name = 'none';
-  isConfigured() {
-    return false;
-  }
-  async createPaymentPage(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
-  async verifyWebhook() {
-    return null;
-  }
-  async getTransaction(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
-  async refund(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
+    notifyUrl: string;
+  }): Promise<{ url: string; providerRef: string; providerToken: string }>;
+  /** Match a provider notification to the order's stored ids. null = not from the provider. */
+  verifyWebhook(
+    fields: Record<string, string>,
+    stored: { providerRef: string | null; providerToken: string | null },
+  ): Promise<{
+    providerRef: string;
+    status: 'approved' | 'pending';
+    amountAgorot: number;
+    transactionId: string;
+    transactionToken: string;
+    asmachta: string;
+    cardSuffix: string;
+  } | null>;
+  /** Ask the provider directly (server to server) what the real state is. */
+  getTransaction(providerRef: string, providerToken: string): Promise<{ status: 'approved' | 'pending' | 'unknown'; amountAgorot: number }>;
+  /** Acknowledge a notification. */
+  approve(transactionId: string, transactionToken: string): Promise<void>;
+  refund(t: { transactionId: string; transactionToken: string }, amountAgorot: number): Promise<void>;
 }
 
 export function getPaymentProvider(): PaymentProvider {
-  // When the provider is chosen: return new XyzProvider(secrets) here.
-  return new NotConfiguredProvider();
+  return new GrowProvider();
 }

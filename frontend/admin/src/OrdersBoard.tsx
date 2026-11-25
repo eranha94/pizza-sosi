@@ -48,6 +48,34 @@ function correctionTargets(o: AdminOrder): OrderStatus[] {
   return i > 0 ? steps.slice(0, i) : [];
 }
 
+/** Card refund for a cancelled order paid by card (or a payment that needs review). */
+function RefundButton({ order }: { order: AdminOrder }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const st = order.payment?.status;
+  if (order.paymentMethod !== 'card') return null;
+  if (st === 'refunded') return <span className="tag">↩ זוכה</span>;
+  if (!((order.status === 'cancelled' && st === 'approved') || st === 'review')) return null;
+  async function refund() {
+    if (!window.confirm(`לזכות את הלקוח ב-${formatAgorot(order.payment?.paidAgorot ?? order.totalAgorot)} על הזמנה #${order.number}?`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await callAdmin(API.adminRefundOrder, { orderId: order.id });
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <span>
+      <button className="btn btn--danger btn--sm" disabled={busy} onClick={() => void refund()}>{busy ? 'מזכה…' : '💳 זיכוי'}</button>
+      {err && <span className="error small" role="alert"> {err}</span>}
+    </span>
+  );
+}
+
 /** The "pressed by mistake" button: opens the earlier steps, one tap puts the order back there. */
 function MistakeButton({ order }: { order: AdminOrder }) {
   const [open, setOpen] = useState(false);
@@ -213,7 +241,8 @@ function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminO
       </div>
       <div className="order__meta">
         <span className={`tag ${o.fulfillment === 'delivery' ? 'tag--delivery' : ''}`}>{o.fulfillment === 'pickup' ? '🛍️ איסוף' : '🛵 משלוח'}</span>
-        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : '💳 שולם באשראי'}</span>
+        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : `💳 שולם באשראי${o.payment?.cardSuffix ? ` (${o.payment.cardSuffix})` : ''}`}</span>
+        {o.payment?.status === 'review' && <span className="tag tag--warn">⚠️ תשלום לבדיקה</span>}
         {o.readyAt && (
           <span className={`tag ${o.scheduled ? 'tag--scheduled' : ''} ${late ? 'tag--late' : ''}`}>
             {o.scheduled ? '⏰ מתוזמנת ל־' : 'מוכן עד '}
@@ -316,7 +345,7 @@ function History() {
             <td>{o.fulfillment === 'pickup' ? 'איסוף' : 'משלוח'}</td>
             <td>{formatAgorot(o.totalAgorot)}</td>
             <td>{ORDER_STATUS_LABELS[o.status]}</td>
-            <td><MistakeButton order={o} /></td>
+            <td><MistakeButton order={o} /> <RefundButton order={o} /></td>
           </tr>
         ))}
       </tbody>

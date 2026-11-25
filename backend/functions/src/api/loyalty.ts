@@ -2,7 +2,8 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import { FieldValue } from 'firebase-admin/firestore';
 import { FUNCTIONS_REGION } from '@pizza-sosi/contracts';
-import { db } from '../firebase.js';
+import { db, COL } from '../firebase.js';
+import { couponUseRef } from './promos.js';
 import { loadLoyaltySettings, loyaltyRef, rewardLabel } from '../domain/promos.js';
 import { loadWhatsappConfig, sendTemplate, toWhatsappNumber, LOYALTY_PROGRESS_TEMPLATE, LOYALTY_REWARD_TEMPLATE } from '../notify/whatsapp.js';
 
@@ -28,6 +29,18 @@ export const onOrderLoyalty = onDocumentUpdated(
     const ref = event.data!.after.ref;
     const phone = String(after.contact?.phone ?? '').replace(/\D/g, '');
     if (!phone) return;
+
+    // A cancelled order gives its coupon use back (e.g. a card payment that was never finished).
+    if (after.status === 'cancelled' && after.couponCode && !after.couponRestored) {
+      const code = String(after.couponCode);
+      await db.runTransaction(async (tx) => {
+        const o = await tx.get(ref);
+        if (o.get('couponRestored')) return;
+        tx.update(db.collection(COL.coupons).doc(code), { usedCount: FieldValue.increment(-1) });
+        tx.delete(couponUseRef(code, phone));
+        tx.update(ref, { couponRestored: true });
+      });
+    }
 
     if (after.status === 'cancelled' && after.loyalty?.redeemed && !after.loyalty?.restored) {
       await db.runTransaction(async (tx) => {

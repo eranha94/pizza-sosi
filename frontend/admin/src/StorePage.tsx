@@ -27,6 +27,7 @@ const DEFAULTS: StoreSettings = {
   whatsappStatuses: [...NOTIFY_STATUSES],
   deliveryZones: [],
   busy: null,
+  cardPayments: 'off',
 } as StoreSettings;
 
 function useStoreSettings() {

@@ -30,6 +30,7 @@ export const UpdateStoreSettingsRequest = z
     deliveryZones: z.array(DeliveryZone).max(30).optional(),
     screen: ScreenSettings.optional(),
     busy: StoreSettings.shape.busy.unwrap().optional(),
+    cardPayments: StoreSettings.shape.cardPayments.unwrap().optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;
@@ -102,3 +103,15 @@ export const SetAvailabilityRequest = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('option'), name: z.string().trim().min(1).max(80), active: z.boolean() }).strict(),
 ]);
 export type SetAvailabilityRequest = z.infer<typeof SetAvailabilityRequest>;
+
+/** Card payments: mode (public) + the phone allowed to pay while testing (kept private, in settings/payments). */
+export const UpdatePaymentsRequest = z
+  .object({
+    cardPayments: z.enum(['off', 'test', 'live']),
+    testPhone: z
+      .string()
+      .transform((s) => s.replace(/[\s-]/g, ''))
+      .pipe(z.string().regex(/^(0\d{8,9})?$/, 'מספר טלפון לא תקין')),
+  })
+  .strict();
+export const RefundOrderRequest = z.object({ orderId: z.string().min(1).max(64).regex(/^[A-Za-z0-9]+$/) }).strict();

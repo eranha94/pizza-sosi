@@ -21,7 +21,7 @@ import {
 import { db, callAdmin } from './firebase';
 import { drawDeal, downloadDeal, type DealArtInput } from './dealArt';
 
-type Section = 'deals' | 'coupons' | 'loyalty';
+type Section = 'deals' | 'coupons' | 'loyalty' | 'card';
 const shekel = (a: number) => (a % 100 === 0 ? String(a / 100) : (a / 100).toFixed(2));
 const toAgorot = (s: string) => Math.round(Number(s.replace(',', '.')) * 100);
 
@@ -52,6 +52,7 @@ export function PromosPage() {
             ['deals', '🔥 מבצעים'],
             ['coupons', '🏷️ קופונים'],
             ['loyalty', '🎟️ כרטיסייה'],
+            ['card', '💳 אשראי'],
           ] as const
         ).map(([id, label]) => (
           <button key={id} className={`chip ${section === id ? 'chip--on' : ''}`} aria-pressed={section === id} onClick={() => setSection(id)}>
@@ -62,6 +63,7 @@ export function PromosPage() {
       {section === 'deals' && <Deals />}
       {section === 'coupons' && <Coupons />}
       {section === 'loyalty' && <Loyalty />}
+      {section === 'card' && <CardPayments />}
     </div>
   );
 }
@@ -499,6 +501,77 @@ function Loyalty() {
         </div>
         <p className="muted small">הכרטיסייה מופיעה ללקוח בעמוד התשלום (אחרי שהקליד טלפון) ובעמוד מעקב ההזמנה. כשהיא מלאה, יש לו תיבת סימון &quot;לממש עכשיו&quot;.</p>
         {!s.enabled && <p className="notice">הכרטיסייה כבויה – הלקוחות לא רואים אותה.</p>}
+      </section>
+    </div>
+  );
+}
+
+/* ================= Card payments (Grow) ================= */
+
+function CardPayments() {
+  const [mode, setMode] = useState<'off' | 'test' | 'live' | null>(null);
+  const [phone, setPhone] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const a = onSnapshot(doc(db, 'settings', 'store'), (s) => setMode((m) => m ?? ((s.data()?.cardPayments as 'off' | 'test' | 'live') ?? 'off')));
+    const b = onSnapshot(doc(db, 'settings', 'payments'), (s) => setPhone((p) => p || String(s.data()?.testPhone ?? '')), () => {});
+    return () => {
+      a();
+      b();
+    };
+  }, []);
+  if (!mode) return <p className="muted">טוען…</p>;
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await callAdmin(API.adminUpdatePayments, { cardPayments: mode, testPhone: phone });
+      setMsg({ ok: true, text: mode === 'live' ? 'האשראי פעיל ללקוחות ✓' : mode === 'test' ? 'מצב בדיקה נשמר ✓' : 'האשראי כבוי ✓' });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const MODES = [
+    ['off', 'כבוי', 'הלקוחות רואים "בקרוב"'],
+    ['test', 'בדיקה', 'רק מהטלפון לבדיקה, ובכתובת עם ?paytest=1'],
+    ['live', 'פעיל', 'כל הלקוחות יכולים לשלם באשראי'],
+  ] as const;
+  return (
+    <div className="store-grid">
+      <section className="card">
+        <h2>תשלום באשראי (Grow)</h2>
+        <div className="chips" role="radiogroup" aria-label="מצב">
+          {MODES.map(([id, label]) => (
+            <button key={id} type="button" role="radio" aria-checked={mode === id} className={`chip ${mode === id ? 'chip--on' : ''}`} onClick={() => setMode(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="muted small">{MODES.find((m) => m[0] === mode)![2]}</p>
+        {mode !== 'off' && (
+          <label className="field">
+            <span>טלפון לבדיקה {mode === 'live' ? '(לא חובה)' : ''}</span>
+            <input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05X-XXXXXXX" dir="ltr" />
+          </label>
+        )}
+        <button className="btn" disabled={busy} onClick={() => void save()}>{busy ? 'שומר…' : 'שמירה'}</button>
+        {msg && <p className={msg.ok ? 'saved' : 'error'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p>}
+      </section>
+      <section className="card">
+        <h2>איך בודקים</h2>
+        <ol className="steps">
+          <li>בוחרים &quot;בדיקה&quot;, כותבים את הטלפון שלך ושומרים.</li>
+          <li>בטלפון שלך פותחים: <code dir="ltr">pizza-sosi.co.il/?paytest=1</code></li>
+          <li>מזמינים משהו קטן, בוחרים &quot;אשראי אונליין&quot; ומשלמים בכרטיס שלך.</li>
+          <li>אחרי התשלום ההזמנה אמורה להופיע בלוח ההזמנות כרגילה, עם 💳.</li>
+          <li>מבטלים את ההזמנה ולוחצים &quot;זיכוי&quot; בהיסטוריה. הכסף חוזר לכרטיס.</li>
+          <li>כשהכול עבד – בוחרים &quot;פעיל&quot;.</li>
+        </ol>
       </section>
     </div>
   );

@@ -29,3 +29,4 @@ export {
   getLoyalty,
 } from './api/promos.js';
 export { onOrderLoyalty } from './api/loyalty.js';
+export { adminUpdatePayments, adminRefundOrder } from './api/payments.js';

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { formatAgorot, orderSlots, formatTime, deliveryOpen } from '@pizza-sosi/contracts/constants';
 import { useCart, cartTotal } from '../store/cart';
 import { useStoreSettings, useNow } from '../lib/menu';
@@ -13,7 +13,8 @@ import type { CheckCouponResponse, LoyaltyCardView } from '@pizza-sosi/contracts
 import { loadProfile, saveProfile, forgetProfile, rememberOrder } from '../lib/profile';
 import { usePageTitle } from '../lib/a11y';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { CARD_PAYMENTS_ENABLED } from '../config/payments';
+import { cardPaymentsOn, rememberPayTestFlag, payingOrder } from '../config/payments';
+import { cancelOrder } from '../lib/api';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -30,6 +31,22 @@ export default function CheckoutPage() {
   const [zoneId, setZoneId] = useState(() => profile?.zoneId ?? '');
   const [fulfillmentChoice, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
+  rememberPayTestFlag();
+  const cardOn = cardPaymentsOn(store.data);
+  // Back from Grow without paying: cancel that order quietly (the cart is still here).
+  const [params, setParams] = useSearchParams();
+  const payCancel = params.get('paycancel');
+  const [payCancelled, setPayCancelled] = useState(false);
+  useEffect(() => {
+    if (!payCancel) return;
+    payingOrder.clear();
+    cancelOrder({ orderId: payCancel })
+      .catch(() => {})
+      .finally(() => {
+        setPayCancelled(true);
+        setParams({}, { replace: true });
+      });
+  }, [payCancel, setParams]);
   const now = useNow();
   const { status, prepMinutes, busy } = useStoreStatus();
   const deliveryEnabled = store.data ? deliveryOpen(store.data, now) : false;
@@ -166,7 +183,9 @@ export default function CheckoutPage() {
         couponCode: coupon && !couponProblem ? coupon.code : undefined,
         useLoyaltyReward: rewardOn && !rewardProblem,
       });
-      clear();
+      // Card: keep the cart until the payment goes through (the order page empties it then).
+      if (res.paymentUrl) payingOrder.set(res.orderId);
+      else clear();
       rememberOrder({ id: res.orderId, number: res.number ?? 0, at: Date.now(), totalAgorot: res.totalAgorot });
       if (remember)
         saveProfile({
@@ -188,6 +207,7 @@ export default function CheckoutPage() {
       <h1>פרטי ההזמנה</h1>
       {profile?.name && <p className="welcome">שמחים לראות אותך שוב, {profile.name.split(' ')[0]}! 👋 הפרטים מולאו מההזמנה הקודמת.</p>}
       <p className="muted small">כל השדות חובה, אלא אם כתוב &quot;לא חובה&quot;.</p>
+      {payCancelled && <p className="notice notice--error" role="alert">התשלום לא הושלם, וההזמנה לא נשלחה. הסל שלך עדיין כאן – אפשר לנסות שוב או לבחור תשלום במקום.</p>}
       <form className="form" ref={formRef} key={profile ? "p" : "empty"} onSubmit={onSubmit} noValidate={false}>
         <fieldset className="segmented">
           <legend>איך מקבלים?</legend>
@@ -285,7 +305,7 @@ export default function CheckoutPage() {
         <fieldset className="segmented">
           <legend>תשלום</legend>
           <label><input type="radio" name="payment" checked={paymentMethod === 'on_site'} onChange={() => setPaymentMethod('on_site')} /> תשלום במקום</label>
-          {CARD_PAYMENTS_ENABLED ? (
+          {cardOn ? (
             <label><input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /> אשראי אונליין</label>
           ) : (
             <label className="is-disabled">

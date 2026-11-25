@@ -74,6 +74,7 @@ const STORE_DEFAULTS: StoreSettings = {
   whatsappStatuses: [],
   deliveryZones: [],
   busy: null,
+  cardPayments: 'off',
 };
 
 /** Opening hours & switches. Refreshed every minute so a change in the admin shows up quickly. */

@@ -100,6 +100,8 @@ export const API = {
   adminDeleteCoupon: 'adminDeleteCoupon',
   adminUpdateLoyalty: 'adminUpdateLoyalty',
   checkCoupon: 'checkCoupon',
+  adminUpdatePayments: 'adminUpdatePayments',
+  adminRefundOrder: 'adminRefundOrder',
   getLoyalty: 'getLoyalty',
   adminUpdateStoreSettings: 'adminUpdateStoreSettings',
   adminUpsertMenuItem: 'adminUpsertMenuItem',
