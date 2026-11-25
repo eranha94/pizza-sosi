@@ -411,3 +411,10 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .order__discounts { list-style: none; margin: 0; padding: 6px 10px; border-radius: 10px; background: #e8f5e9; color: #1b5e20; font-weight: 700; font-size: .92rem; }
 @media (max-width: 760px) { .deal-editor__grid { grid-template-columns: 1fr; } .deal-editor__preview { position: static; } }
 .tag--warn { background: #fff3cd; color: #8a5a00; }
+
+/* History: the row's buttons side by side, so the row stays one line high */
+.row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; justify-content: flex-start; }
+.row-actions > * { flex: none; }
+.row-actions .mistake { margin: 0; position: relative; }
+.history .mistake__menu { position: absolute; z-index: 20; inset-inline-start: 0; top: calc(100% + 6px); width: max-content; max-width: 80vw; background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.14); }
+.row-actions .error { white-space: normal; }

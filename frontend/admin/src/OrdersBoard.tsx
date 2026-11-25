@@ -358,7 +358,12 @@ function History() {
               {ORDER_STATUS_LABELS[o.status]}
               {o.paymentMethod === 'card' && <span className="muted small"> · 💳 {PAYMENT_LABEL[o.payment?.status ?? ''] ?? o.payment?.status ?? ''}</span>}
             </td>
-            <td><MistakeButton order={o} /> <RefundButton order={o} /></td>
+            <td>
+              <div className="row-actions">
+                <MistakeButton order={o} />
+                <RefundButton order={o} />
+              </div>
+            </td>
           </tr>
         ))}
       </tbody>
