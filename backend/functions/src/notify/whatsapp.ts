@@ -72,13 +72,14 @@ export interface TemplateMessage {
 }
 
 /** The template part of the request – identical for Meta and Telnyx (Telnyx passes it through to Meta). */
-export function templatePayload(m: TemplateMessage) {
+/** Meta takes the button index as a string ("0"); the Telnyx API wants a number (0). */
+export function templatePayload(m: TemplateMessage, numericIndex = false) {
   return {
     name: m.template,
     language: { policy: 'deterministic', code: m.language },
     components: [
       { type: 'body', parameters: m.bodyParams.map((text) => ({ type: 'text', text })) },
-      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: m.buttonParam }] },
+      { type: 'button', sub_type: 'url', index: numericIndex ? 0 : '0', parameters: [{ type: 'text', text: m.buttonParam }] },
     ],
   };
 }
@@ -112,7 +113,7 @@ async function sendViaTelnyx(cfg: Extract<WhatsappConfig, { provider: 'telnyx' }
       from: cfg.from,
       to: `+${m.to}`,
       ...(cfg.messagingProfileId ? { messaging_profile_id: cfg.messagingProfileId } : {}),
-      whatsapp_message: { type: 'template', template: templatePayload(m) },
+      whatsapp_message: { type: 'template', template: templatePayload(m, true) },
     }),
   });
   const json = (await res.json().catch(() => ({}))) as { data?: { id?: string }; errors?: { code?: string | number; title?: string; detail?: string }[] };

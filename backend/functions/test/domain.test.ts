@@ -241,3 +241,12 @@ describe('deals, coupons, loyalty', async () => {
     expect(addStamp(9, 10)).toEqual({ stamps: 0, earned: true });
   });
 });
+
+describe('WhatsApp template payload', async () => {
+  const { templatePayload } = await import('../src/notify/whatsapp.js');
+  const m = { to: '972521234567', template: 't', language: 'he', bodyParams: ['דנה', '1042'], buttonParam: 'abc' };
+  it('button index: string for Meta, number for Telnyx', () => {
+    expect((templatePayload(m).components[1] as { index: unknown }).index).toBe('0');
+    expect((templatePayload(m, true).components[1] as { index: unknown }).index).toBe(0);
+  });
+});
