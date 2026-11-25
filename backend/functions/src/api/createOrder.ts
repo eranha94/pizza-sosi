@@ -60,11 +60,18 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
   if (input.paymentMethod === 'card') {
     const mode = settings.cardPayments ?? 'off';
     const notYet = new HttpsError('failed-precondition', 'תשלום באשראי עוד לא זמין. אפשר לשלם במקום');
-    if (mode === 'off' || !(await provider.isConfigured())) throw notYet;
+    if (mode === 'off') throw notYet;
+    if (!(await provider.isConfigured())) {
+      logger.error('card payment refused: provider credentials not readable');
+      throw notYet;
+    }
     if (mode === 'test') {
       // While testing, only the owner's own phone can pay by card.
-      const testPhone = String((await db.collection(COL.settings).doc('payments').get()).data()?.testPhone ?? '');
-      if (!testPhone || testPhone !== input.customer.phone.replace(/\D/g, '')) throw notYet;
+      const testPhone = String((await db.collection(COL.settings).doc('payments').get()).data()?.testPhone ?? '').replace(/\D/g, '');
+      if (!testPhone || testPhone !== input.customer.phone.replace(/\D/g, '')) {
+        logger.warn('card payment refused: not the test phone');
+        throw new HttpsError('failed-precondition', 'האשראי במצב בדיקה – רק מהטלפון שהוגדר לבדיקה ב-admin');
+      }
     }
   }
 
