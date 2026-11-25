@@ -116,6 +116,13 @@ if (values.enable) {
   const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
   const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.project }));
   if (values.profile && !/^[0-9a-f-]{36}$/i.test(values.profile)) fail('--profile must be the messaging profile ID (36 characters)');
+  // Switching to a new template version before Meta approves it silently stops every customer message.
+  if (SUFFIX) {
+    if (!key) fail('switching templates needs TELNYX_API_KEY, to check that they are approved first');
+    const approved = new Set((await listOurs()).filter((t) => t.status === 'APPROVED').map((t) => t.name));
+    const missing = TEMPLATES.map(([base]) => base + SUFFIX).filter((n) => !n.includes('loyalty') && !approved.has(n));
+    if (missing.length) fail(`not switched – still waiting for Meta to approve: ${missing.join(', ')}`);
+  }
   await db.collection('settings').doc('whatsapp').set(
     {
       enabled: true,
