@@ -194,7 +194,7 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
         notifyUrl: paymentWebhookUrl(),
       });
       paymentUrl = page.url;
-      await orderRef.update({ 'payment.providerRef': page.providerRef, 'payment.providerToken': page.providerToken });
+      await orderRef.update({ 'payment.providerRef': page.providerRef });
     } catch (e) {
       // No payment page: cancel the order right away (gives back a coupon/reward) and tell the customer.
       logger.error('payment page failed', { orderId: orderRef.id, error: (e as Error).message });

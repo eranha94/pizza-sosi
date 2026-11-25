@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
   rememberPayTestFlag();
   const cardOn = cardPaymentsOn(store.data);
-  // Back from Grow without paying: cancel that order quietly (the cart is still here).
+  // Back from the payment page without paying: cancel that order quietly (the cart is still here).
   const [params, setParams] = useSearchParams();
   const payCancel = params.get('paycancel');
   const [payCancelled, setPayCancelled] = useState(false);

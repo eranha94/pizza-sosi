@@ -1,4 +1,15 @@
-import { GrowProvider } from './grow.js';
+import { CardcomProvider } from './cardcom.js';
+
+/** A payment's real state, as told by the provider (server to server). */
+export interface PaymentResult {
+  status: 'approved' | 'pending' | 'declined';
+  amountAgorot: number;
+  /** The order id we sent with the payment. */
+  orderId: string;
+  transactionId: string;
+  cardSuffix: string;
+  approvalNumber: string;
+}
 
 /**
  * Card payments through a hosted payment page (PCI DSS SAQ A): card data never touches our servers.
@@ -16,27 +27,14 @@ export interface PaymentProvider {
     successUrl: string;
     cancelUrl: string;
     notifyUrl: string;
-  }): Promise<{ url: string; providerRef: string; providerToken: string }>;
-  /** Match a provider notification to the order's stored ids. null = not from the provider. */
-  verifyWebhook(
-    fields: Record<string, string>,
-    stored: { providerRef: string | null; providerToken: string | null },
-  ): Promise<{
-    providerRef: string;
-    status: 'approved' | 'pending';
-    amountAgorot: number;
-    transactionId: string;
-    transactionToken: string;
-    asmachta: string;
-    cardSuffix: string;
-  } | null>;
-  /** Ask the provider directly (server to server) what the real state is. */
-  getTransaction(providerRef: string, providerToken: string): Promise<{ status: 'approved' | 'pending' | 'unknown'; amountAgorot: number }>;
-  /** Acknowledge a notification. */
-  approve(transactionId: string, transactionToken: string): Promise<void>;
-  refund(t: { transactionId: string; transactionToken: string }, amountAgorot: number): Promise<void>;
+  }): Promise<{ url: string; providerRef: string }>;
+  /** Which payment a notification is about (its content is not trusted beyond that). */
+  refFromNotification(fields: Record<string, unknown>): { providerRef: string; orderId: string } | null;
+  /** Ask the provider directly what happened with this payment. */
+  getResult(providerRef: string): Promise<PaymentResult>;
+  refund(r: { transactionId: string }, amountAgorot: number, full: boolean): Promise<void>;
 }
 
 export function getPaymentProvider(): PaymentProvider {
-  return new GrowProvider();
+  return new CardcomProvider();
 }

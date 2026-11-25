@@ -1,7 +1,7 @@
 import type { StoreSettings } from '@pizza-sosi/contracts';
 
 /**
- * Online card payment (Grow). The owner switches it in the admin: off ("בקרוב"), test or live.
+ * Online card payment (Cardcom). The owner switches it in the admin: off ("בקרוב"), test or live.
  * In test mode only a device that opened the site with ?paytest=1 sees the option – and the server
  * still accepts it only from the owner's test phone.
  */

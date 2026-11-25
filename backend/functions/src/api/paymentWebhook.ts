@@ -4,7 +4,6 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { FUNCTIONS_REGION } from '@pizza-sosi/contracts';
 import { db, COL } from '../firebase.js';
 import { getPaymentProvider } from '../payments/provider.js';
-import { field, flattenCallback } from '../payments/grow.js';
 
 /** Our public URL for the provider's server-to-server notifications. */
 export const paymentWebhookUrl = () => {
@@ -12,26 +11,27 @@ export const paymentWebhookUrl = () => {
   return `https://${FUNCTIONS_REGION}-${project}.cloudfunctions.net/paymentWebhook`;
 };
 
-/** Form data (multipart or urlencoded) or JSON → flat fields. */
-async function readFields(rawBody: Buffer, contentType: string, parsed: unknown): Promise<Record<string, string>> {
-  if (contentType.includes('application/json')) return flattenCallback(parsed);
-  if (contentType.includes('multipart/form-data') || contentType.includes('application/x-www-form-urlencoded')) {
-    const form = await new Response(new Uint8Array(rawBody), { headers: { 'content-type': contentType } }).formData();
-    const out: Record<string, string> = {};
+/** JSON, form or query string → plain fields. */
+async function readFields(req: { rawBody: Buffer; headers: Record<string, unknown>; body: unknown; query: unknown }): Promise<Record<string, unknown>> {
+  const ct = String(req.headers['content-type'] ?? '');
+  if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
+    const form = await new Response(new Uint8Array(req.rawBody), { headers: { 'content-type': ct } }).formData();
+    const out: Record<string, unknown> = {};
     for (const [k, v] of form.entries()) if (typeof v === 'string') out[k] = v;
     return out;
   }
-  return flattenCallback(parsed);
+  const body = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+  return { ...(req.query as Record<string, unknown>), ...body };
 }
 
 /**
- * Called by Grow (server to server) when a payment finishes. Never trusted on its own:
- * 1. matched to the order by processId + processToken (stored when the payment page was made),
- * 2. the real state is asked from Grow directly, 3. the amount must equal the order total.
- * Then the order goes from "waiting for payment" to "placed", and Grow gets approveTransaction.
+ * Called by the card provider (server to server) when a payment ends. The post itself is never trusted:
+ * it only tells us WHICH payment; the result is asked from the provider directly, must belong to this
+ * order (same payment id and order id) and the amount must equal the order total.
+ * Then the order goes from "waiting for payment" to "placed".
  */
 export const paymentWebhook = onRequest({ region: FUNCTIONS_REGION, maxInstances: 5, cors: false }, async (req, res) => {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).end();
     return;
   }
@@ -40,77 +40,65 @@ export const paymentWebhook = onRequest({ region: FUNCTIONS_REGION, maxInstances
     res.status(501).end();
     return;
   }
-  let fields: Record<string, string>;
+  let fields: Record<string, unknown>;
   try {
-    fields = await readFields(req.rawBody, String(req.headers['content-type'] ?? ''), req.body);
+    fields = await readFields(req as never);
   } catch {
     res.status(400).end();
     return;
   }
-  const orderId = field(fields, 'cField1');
-  if (!/^[A-Za-z0-9]{10,40}$/.test(orderId)) {
-    logger.warn('payment webhook: no order id', { keys: Object.keys(fields).slice(0, 30) });
-    res.status(200).send('ok'); // nothing to do; don't make Grow retry forever
+  const ref = provider.refFromNotification(fields);
+  if (!ref) {
+    logger.warn('payment webhook: no payment id', { keys: Object.keys(fields).slice(0, 30) });
+    res.status(200).send('ok'); // nothing we can do with it; don't make the provider retry
     return;
   }
-  const ref = db.collection(COL.orders).doc(orderId);
-  const snap = await ref.get();
-  const order = snap.data();
-  if (!order) {
+  let result;
+  try {
+    result = await provider.getResult(ref.providerRef);
+  } catch (e) {
+    logger.error('payment webhook: provider lookup failed', { error: (e as Error).message });
+    res.status(503).end(); // the provider will retry
+    return;
+  }
+  const orderId = result.orderId || ref.orderId;
+  if (!/^[A-Za-z0-9]{10,40}$/.test(orderId)) {
     res.status(200).send('ok');
     return;
   }
-  const verified = await provider.verifyWebhook(fields, {
-    providerRef: order.payment?.providerRef ?? null,
-    providerToken: order.payment?.providerToken ?? null,
-  });
-  if (!verified) {
-    logger.warn('payment webhook rejected: ids do not match the order', { orderId });
-    res.status(401).end();
-    return;
-  }
-
-  if (verified.status === 'approved') {
-    // Second opinion straight from Grow. "unknown" (Grow didn't answer clearly) still relies on the matched token.
-    const direct = await provider.getTransaction(verified.providerRef, order.payment.providerToken);
-    const contradicts = direct.status === 'pending' || (direct.status === 'approved' && direct.amountAgorot !== verified.amountAgorot);
-    const outcome = await db.runTransaction(async (t) => {
-      const s = await t.get(ref);
-      const o = s.data()!;
-      if (o.payment?.status === 'approved') return 'duplicate';
-      const base = {
-        'payment.transactionId': verified.transactionId,
-        'payment.transactionToken': verified.transactionToken,
-        'payment.asmachta': verified.asmachta,
-        'payment.cardSuffix': verified.cardSuffix,
-        'payment.paidAgorot': verified.amountAgorot,
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-      if (!contradicts && verified.amountAgorot === o.totalAgorot && o.status === 'pending_payment') {
-        t.update(ref, {
-          ...base,
-          status: 'placed',
-          'payment.status': 'approved',
-          'payment.paidAt': FieldValue.serverTimestamp(),
-          statusHistory: FieldValue.arrayUnion({ status: 'placed', at: new Date().toISOString(), by: 'payment' }),
-        });
-        return 'paid';
-      }
-      // Paid, but something doesn't add up (amount, or the order was cancelled meanwhile): keep it for a person.
-      t.update(ref, { ...base, 'payment.status': 'review', needsReview: true });
-      return 'review';
-    });
-    logger.info('payment webhook', { orderId, outcome, direct: direct.status });
-  } else {
-    logger.info('payment webhook: not paid', { orderId, status: field(fields, 'statusCode') });
-  }
-
-  if (verified.transactionId) {
-    try {
-      await provider.approve(verified.transactionId, verified.transactionToken);
-    } catch (e) {
-      logger.error('grow approveTransaction failed', { orderId, error: (e as Error).message });
+  const orderRef = db.collection(COL.orders).doc(orderId);
+  const outcome = await db.runTransaction(async (t) => {
+    const snap = await t.get(orderRef);
+    const o = snap.data();
+    if (!o) return 'no-order';
+    if (o.payment?.providerRef !== ref.providerRef) return 'not-this-order';
+    if (o.payment?.status === 'approved' || o.payment?.status === 'refunded') return 'duplicate';
+    if (result.status === 'declined') {
+      t.update(orderRef, { 'payment.status': 'declined', updatedAt: FieldValue.serverTimestamp() });
+      return 'declined';
     }
-  }
+    if (result.status !== 'approved') return 'pending';
+    const base = {
+      'payment.transactionId': result.transactionId,
+      'payment.cardSuffix': result.cardSuffix,
+      'payment.approvalNumber': result.approvalNumber,
+      'payment.paidAgorot': result.amountAgorot,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (result.amountAgorot === o.totalAgorot && o.status === 'pending_payment') {
+      t.update(orderRef, {
+        ...base,
+        status: 'placed',
+        'payment.status': 'approved',
+        'payment.paidAt': FieldValue.serverTimestamp(),
+        statusHistory: FieldValue.arrayUnion({ status: 'placed', at: new Date().toISOString(), by: 'payment' }),
+      });
+      return 'paid';
+    }
+    // Paid, but something doesn't add up (amount, or the order was cancelled meanwhile): a person checks it.
+    t.update(orderRef, { ...base, 'payment.status': 'review', needsReview: true });
+    return 'review';
+  });
+  logger.info('payment webhook', { orderId, outcome, status: result.status });
   res.status(200).send('ok');
 });

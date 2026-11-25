@@ -14,7 +14,7 @@ export const adminUpdatePayments = secureCall<{ ok: true; configured: boolean }>
   const { uid } = requireStaff(req, ['owner']);
   const { cardPayments, testPhone } = validate(UpdatePaymentsRequest, req.data);
   const configured = await getPaymentProvider().isConfigured();
-  if (cardPayments !== 'off' && !configured) throw new HttpsError('failed-precondition', 'פרטי החיבור ל-Grow עוד לא הוגדרו (Secret Manager)');
+  if (cardPayments !== 'off' && !configured) throw new HttpsError('failed-precondition', 'פרטי החיבור לקארדקום עוד לא הוגדרו (Secret Manager)');
   if (cardPayments === 'test' && !testPhone) throw new HttpsError('invalid-argument', 'במצב בדיקה צריך טלפון לבדיקה');
   await db.collection(COL.settings).doc('payments').set({ testPhone, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   await db.collection(COL.settings).doc('store').set({ cardPayments, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
@@ -35,14 +35,14 @@ export const adminRefundOrder = secureCall<{ ok: true }>(async (req) => {
     if (p.status === 'refunded' || p.status === 'refunding') throw new HttpsError('failed-precondition', 'כבר זוכה');
     if (!['approved', 'review'].includes(p.status) || !p.transactionId) throw new HttpsError('failed-precondition', 'אין תשלום באשראי לזכות');
     t.update(ref, { 'payment.status': 'refunding' });
-    return { transactionId: String(p.transactionId), transactionToken: String(p.transactionToken ?? ''), amount: Number(p.paidAgorot ?? o.totalAgorot), prev: String(p.status) };
+    return { transactionId: String(p.transactionId), amount: Number(p.paidAgorot ?? o.totalAgorot), prev: String(p.status) };
   });
   try {
-    await getPaymentProvider().refund(claim, claim.amount);
+    await getPaymentProvider().refund(claim, claim.amount, true);
   } catch (e) {
     logger.error('refund failed', { orderId, error: (e as Error).message });
     await ref.update({ 'payment.status': claim.prev });
-    throw new HttpsError('unavailable', 'הזיכוי נכשל ב-Grow. אפשר לנסות שוב או לזכות מממשק Grow');
+    throw new HttpsError('unavailable', 'הזיכוי נכשל בקארדקום. אפשר לנסות שוב או לזכות מממשק קארדקום');
   }
   await ref.update({ 'payment.status': 'refunded', 'payment.refundedAt': FieldValue.serverTimestamp(), refundRequired: false, needsReview: false });
   await audit(uid, 'order.refund', orderId, { amount: claim.amount });

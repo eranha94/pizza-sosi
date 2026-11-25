@@ -506,7 +506,7 @@ function Loyalty() {
   );
 }
 
-/* ================= Card payments (Grow) ================= */
+/* ================= Card payments (Cardcom) ================= */
 
 function CardPayments() {
   const [mode, setMode] = useState<'off' | 'test' | 'live' | null>(null);
@@ -544,7 +544,7 @@ function CardPayments() {
   return (
     <div className="store-grid">
       <section className="card">
-        <h2>תשלום באשראי (Grow)</h2>
+        <h2>תשלום באשראי (קארדקום)</h2>
         <div className="chips" role="radiogroup" aria-label="מצב">
           {MODES.map(([id, label]) => (
             <button key={id} type="button" role="radio" aria-checked={mode === id} className={`chip ${mode === id ? 'chip--on' : ''}`} onClick={() => setMode(id)}>

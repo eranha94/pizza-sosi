@@ -180,11 +180,11 @@ node setup-email.mjs --project pizza-sosi --site https://pizza-sosi.co.il --admi
 - כל יום: הזמנת ניסיון אחת (ולבטל אותה).
 - לאסוף הערות מלקוחות ומהמטבח, ולתקן במהירות.
 
-## תשלום באשראי – Grow
+## תשלום באשראי – קארדקום
 
-1. פרטי החיבור מ-Grow (`userId`, `pageCode` לאשראי) נכנסים ל-Secret Manager בפרויקט `pizza-sosi` בשמות `GROW_USER_ID` ו-`GROW_PAGE_CODE`, עם הרשאת `roles/secretmanager.secretAccessor` לחשבון השירות `<projectNumber>-compute@developer.gserviceaccount.com`.
+1. פרטי החיבור מקארדקום נכנסים ל-Secret Manager בפרויקט `pizza-sosi`: `CARDCOM_TERMINAL` (מספר מסוף), `CARDCOM_API_NAME` (שם משתמש API) ו-`CARDCOM_API_PASSWORD` (סיסמת API, לזיכויים), עם הרשאת `roles/secretmanager.secretAccessor` לחשבון השירות `<projectNumber>-compute@developer.gserviceaccount.com`. בפרויקט הפיתוח `pizza-sosi-dev` – פרטי מסוף הבדיקות.
 2. admin ← מבצעים ← 💳 אשראי ← "בדיקה" + טלפון לבדיקה.
 3. בטלפון: `https://pizza-sosi.co.il/?paytest=1`, הזמנה קטנה, תשלום, ביטול וזיכוי מההיסטוריה.
 4. כשהכול עבד: "פעיל".
 
-כתובת ההתראות של Grow (נשלחת אוטומטית בכל תשלום): `https://europe-west1-pizza-sosi.cloudfunctions.net/paymentWebhook`.
+כתובת ההתראות (נשלחת אוטומטית בכל תשלום): `https://europe-west1-pizza-sosi.cloudfunctions.net/paymentWebhook`.
