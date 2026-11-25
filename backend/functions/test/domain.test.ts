@@ -250,3 +250,12 @@ describe('WhatsApp template payload', async () => {
     expect((templatePayload(m, true).components[1] as { index: unknown }).index).toBe(0);
   });
 });
+
+describe('WhatsApp template version', async () => {
+  const { parseWhatsappConfig } = await import('../src/notify/whatsapp.js');
+  it('takes a template suffix like _v2 and ignores anything else', () => {
+    const base = { enabled: true, provider: 'telnyx', from: '+972537998889' };
+    expect(parseWhatsappConfig({ ...base, templateSuffix: '_v2' })).toMatchObject({ templateSuffix: '_v2' });
+    expect(parseWhatsappConfig({ ...base, templateSuffix: 'x; drop' })).not.toHaveProperty('templateSuffix');
+  });
+});

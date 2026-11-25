@@ -8,6 +8,7 @@
 //   2) once they're APPROVED, switch the site to Telnyx:
 //      node telnyx-whatsapp-setup.mjs --enable --project pizza-sosi --from +9725XXXXXXXX [--profile <messaging profile id>]
 //
+// New wording/footer: --templates --suffix _v2 … then, once APPROVED: --enable … --suffix _v2
 // --status shows the templates' review status. Re-running is safe: existing templates are skipped.
 // The API key itself goes to Secret Manager as TELNYX_API_KEY (see docs/GO-LIVE.md); this script only uses it here.
 import { parseArgs } from 'node:util';
@@ -22,6 +23,7 @@ const { values } = parseArgs({
     project: { type: 'string' },
     from: { type: 'string' },
     profile: { type: 'string' },
+    suffix: { type: 'string' },
   },
 });
 const key = process.env.TELNYX_API_KEY;
@@ -45,6 +47,13 @@ const TEMPLATES = [
   ['pizza_sosi_loyalty_progress', 'היי {{1}}, תודה שהזמנת מפיצה סוסי! 🍕\nבכרטיסייה שלך: {{2}} מתוך {{3}}.\nעוד {{4}} הזמנות ומגיע לך: {{5}} 🎁', ['דנה', '3', '10', '7', 'פיצה חינם'], 'לכרטיסייה שלי'],
   ['pizza_sosi_loyalty_reward', 'היי {{1}}, מילאת את הכרטיסייה בפיצה סוסי! 🎉\nבהזמנה הבאה מגיע לך: {{2}}.\nמסמנים את ההטבה בעמוד התשלום באתר.', ['דנה', 'פיצה חינם'], 'להזמנה באתר'],
 ];
+
+// --suffix _v2: a new version of every template, with the pizzeria's phone as a footer line.
+// The old ones keep working until the site is switched (--enable … --suffix _v2) after Meta approves.
+const SUFFIX = values.suffix ?? '';
+if (SUFFIX && !/^_v\d{1,2}$/.test(SUFFIX)) fail('--suffix must look like _v2');
+const FOOTER = 'לבירורים: 054-888-0909';
+const VERSION_TEXT = { pizza_sosi_order_cancelled: 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nמצטערים על אי הנוחות.' };
 
 async function telnyx(path, body) {
   const res = await fetch(`${API}${path}`, {
@@ -72,7 +81,9 @@ if (values.templates) {
   if (!values.site?.startsWith('https://')) fail('--site https://… is required');
   const site = values.site.replace(/\/$/, '');
   const have = new Set((await listOurs()).map((t) => `${t.name}:${t.language}`));
-  for (const [name, text, example, button] of TEMPLATES) {
+  for (const [baseName, baseText, example, button] of TEMPLATES) {
+    const name = baseName + SUFFIX;
+    const text = (SUFFIX && VERSION_TEXT[baseName]) || baseText;
     if (have.has(`${name}:he`)) {
       console.log(`• ${name}: already exists`);
       continue;
@@ -84,6 +95,7 @@ if (values.templates) {
       language: 'he',
       components: [
         { type: 'BODY', text, example: { body_text: [example ?? ['דנה', '1042']] } },
+        ...(SUFFIX ? [{ type: 'FOOTER', text: FOOTER }] : []),
         { type: 'BUTTONS', buttons: [{ type: 'URL', text: button ?? 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
       ],
     });
@@ -112,6 +124,7 @@ if (values.enable) {
       language: 'he',
       // Telnyx messaging profile of the number (needed when it isn't a Telnyx number).
       ...(values.profile ? { messagingProfileId: values.profile } : {}),
+      ...(values.suffix ? { templateSuffix: SUFFIX } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true },

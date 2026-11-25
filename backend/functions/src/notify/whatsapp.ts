@@ -35,7 +35,7 @@ const TELNYX = 'https://api.telnyx.com/v2';
 
 export type WhatsappConfig =
   | { provider: 'meta'; phoneNumberId: string; language: string }
-  | { provider: 'telnyx'; from: string; language: string; messagingProfileId?: string };
+  | { provider: 'telnyx'; from: string; language: string; messagingProfileId?: string; templateSuffix?: string };
 
 /** Pure part (tested): which way to send, or null when WhatsApp isn't set up. */
 export function parseWhatsappConfig(d: Record<string, unknown> | undefined): WhatsappConfig | null {
@@ -45,7 +45,9 @@ export function parseWhatsappConfig(d: Record<string, unknown> | undefined): Wha
     if (typeof d.from !== 'string' || !/^\+9725\d{8}$/.test(d.from)) return null;
     // A number that isn't a Telnyx number needs its messaging profile named explicitly.
     const profile = typeof d.messagingProfileId === 'string' && /^[0-9a-f-]{36}$/i.test(d.messagingProfileId) ? d.messagingProfileId : undefined;
-    return { provider: 'telnyx', from: d.from, language, ...(profile ? { messagingProfileId: profile } : {}) };
+    // A new version of the templates (e.g. "_v2"), switched on once Meta approved it.
+    const suffix = typeof d.templateSuffix === 'string' && /^_v\d{1,2}$/.test(d.templateSuffix) ? d.templateSuffix : undefined;
+    return { provider: 'telnyx', from: d.from, language, ...(profile ? { messagingProfileId: profile } : {}), ...(suffix ? { templateSuffix: suffix } : {}) };
   }
   return typeof d.phoneNumberId === 'string' && /^\d+$/.test(d.phoneNumberId) ? { provider: 'meta', phoneNumberId: d.phoneNumberId, language } : null;
 }
@@ -86,7 +88,8 @@ export function templatePayload(m: TemplateMessage, numericIndex = false) {
 
 /** Sends one approved template message. Returns the message id. Errors read "whatsapp <http status> <provider code> …". */
 export async function sendTemplate(cfg: WhatsappConfig, m: TemplateMessage): Promise<string> {
-  return cfg.provider === 'telnyx' ? sendViaTelnyx(cfg, m) : sendViaMeta(cfg, m);
+  if (cfg.provider === 'telnyx') return sendViaTelnyx(cfg, cfg.templateSuffix ? { ...m, template: m.template + cfg.templateSuffix } : m);
+  return sendViaMeta(cfg, m);
 }
 
 async function sendViaMeta(cfg: Extract<WhatsappConfig, { provider: 'meta' }>, m: TemplateMessage): Promise<string> {
