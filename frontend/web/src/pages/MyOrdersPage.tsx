@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { formatAgorot } from '@pizza-sosi/contracts/constants';
-import { loadMyOrders, forgetMyOrders } from '../lib/profile';
+import { loadMyOrders, forgetMyOrders, dropMyOrders } from '../lib/profile';
+import { getOrderStatus } from '../lib/api';
 import { usePageTitle } from '../lib/a11y';
 
 const dateFmt = new Intl.DateTimeFormat('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -10,6 +11,36 @@ const dateFmt = new Intl.DateTimeFormat('he-IL', { weekday: 'short', day: 'numer
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState(loadMyOrders);
   usePageTitle('ההזמנות שלי');
+  // Orders the shop deleted (e.g. test orders) disappear from the list too.
+  useEffect(() => {
+    // Once per visit, and only the latest few: every check costs a security token.
+    const KEY = 'pizza-sosi-orders-checked';
+    try {
+      if (sessionStorage.getItem(KEY)) return;
+      sessionStorage.setItem(KEY, '1');
+    } catch {
+      /* storage blocked: check anyway */
+    }
+    const ids = loadMyOrders().slice(0, 8).map((o) => o.id);
+    if (!ids.length) return;
+    let alive = true;
+    Promise.all(
+      ids.map((id) =>
+        getOrderStatus(id).then(
+          () => null,
+          (e: unknown) => ((e as { code?: string })?.code === 'functions/not-found' ? id : null),
+        ),
+      ),
+    ).then((gone) => {
+      const missing = gone.filter((x): x is string => x !== null);
+      if (!alive || !missing.length) return;
+      dropMyOrders(missing);
+      setOrders(loadMyOrders());
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   return (
     <section className="page">
       <h1>ההזמנות שלי</h1>
