@@ -31,6 +31,7 @@ export default function CheckoutPage() {
   const [zoneId, setZoneId] = useState(() => profile?.zoneId ?? '');
   const [fulfillmentChoice, setFulfillment] = useState<'pickup' | 'delivery'>(() => (profile?.fulfillment === 'delivery' ? 'delivery' : 'pickup'));
   const [paymentMethod, setPaymentMethod] = useState<'on_site' | 'card'>('on_site');
+  const [payWith, setPayWith] = useState<'card' | 'bit'>('card');
   const cardOn = cardPaymentsOn(store.data);
   // Back from the payment page without paying: cancel that order quietly (the cart is still here).
   const [params, setParams] = useSearchParams();
@@ -172,6 +173,7 @@ export default function CheckoutPage() {
         lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, addOns: l.addOns, note: l.note })),
         fulfillment,
         paymentMethod,
+        payWith,
         customer: { name: get('name'), phone: get('phone'), email: get('email') },
         ...(fulfillment === 'delivery'
           ? { address: { street: get('street'), houseNumber: get('houseNumber'), apartment: get('apartment'), notes: get('addressNotes'), ...(zones.length ? { zoneId } : {}) } }
@@ -313,7 +315,18 @@ export default function CheckoutPage() {
             </label>
           )}
         </fieldset>
-        {paymentMethod === 'card' && <p className="muted small">אשראי, ביט, Google Pay או Apple Pay – בדף מאובטח של חברת הסליקה. פרטי התשלום לא עוברים דרכנו.</p>}
+        {paymentMethod === 'card' && (
+          <>
+            <fieldset className="segmented">
+              <legend>איך לשלם</legend>
+              <label><input type="radio" name="payWith" checked={payWith === 'card'} onChange={() => setPayWith('card')} /> אשראי / Google Pay / Apple Pay</label>
+              <label><input type="radio" name="payWith" checked={payWith === 'bit'} onChange={() => setPayWith('bit')} /> ביט</label>
+            </fieldset>
+            <p className="muted small">
+              {payWith === 'bit' ? 'תועבר לתשלום בביט דרך חברת הסליקה.' : 'Google Pay ו-Apple Pay מופיעים בדף התשלום בטלפונים שתומכים בהם.'} פרטי התשלום לא עוברים דרכנו.
+            </p>
+          </>
+        )}
 
         <div className="remember">
           <label className="consent">

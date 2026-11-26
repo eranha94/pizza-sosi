@@ -118,11 +118,14 @@ export class CardcomProvider implements PaymentProvider {
       },
     });
     const url = String(pick(d, 'Url') ?? '');
+    const bitUrl = String(pick(d, 'UrlToBit') ?? '');
     const lowProfileId = String(pick(d, 'LowProfileId', 'LowProfileCode') ?? '');
     if (Number(pick(d, 'ResponseCode')) !== 0) throw new Error(`cardcom create: ${String(pick(d, 'Description') ?? '').slice(0, 200)}`);
     // Only ever send the customer to Cardcom's own secure pages.
-    if (!/^https:\/\/([a-z0-9-]+\.)*cardcom\.(solutions|co\.il)\//i.test(url) || !lowProfileId) throw new Error('cardcom create: unexpected response');
-    return { url, providerRef: lowProfileId };
+    const ours = (u: string) => /^https:\/\/([a-z0-9-]+\.)*cardcom\.(solutions|co\.il)\//i.test(u);
+    if (!ours(url) || !lowProfileId) throw new Error('cardcom create: unexpected response');
+    // Bit has its own page for the same payment (only when Bit is enabled on the terminal).
+    return { url, providerRef: lowProfileId, ...(ours(bitUrl) ? { bitUrl } : {}) };
   }
 
   /** Which payment the notification is about. Nothing else in it is used. */

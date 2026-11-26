@@ -201,7 +201,8 @@ export const createOrder = secureCall<CreateOrderResponse>(async (req) => {
         notifyUrl: paymentWebhookUrl(),
         receiptLines: receiptLines(priced, totals, number),
       });
-      paymentUrl = page.url;
+      // Bit asked for but not enabled on the terminal: Cardcom's page still takes the payment.
+      paymentUrl = input.payWith === 'bit' && page.bitUrl ? page.bitUrl : page.url;
       await orderRef.update({ 'payment.providerRef': page.providerRef });
     } catch (e) {
       // No payment page: cancel the order right away (gives back a coupon/reward) and tell the customer.

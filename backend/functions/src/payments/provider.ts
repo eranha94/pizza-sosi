@@ -29,7 +29,7 @@ export interface PaymentProvider {
     notifyUrl: string;
     /** For the receipt the provider issues and emails: what was bought (sums to amountAgorot). */
     receiptLines: { description: string; quantity: number; unitAgorot: number }[];
-  }): Promise<{ url: string; providerRef: string }>;
+  }): Promise<{ url: string; providerRef: string; bitUrl?: string }>;
   /** Which payment a notification is about (its content is not trusted beyond that). */
   refFromNotification(fields: Record<string, unknown>): { providerRef: string; orderId: string } | null;
   /** Ask the provider directly what happened with this payment. */

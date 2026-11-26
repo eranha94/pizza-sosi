@@ -44,6 +44,8 @@ export const CreateOrderRequest = z
     lines: z.array(CartLineInput).min(1).max(30),
     fulfillment: Fulfillment,
     paymentMethod: PaymentMethod,
+    /** Online payment: straight to Bit, or Cardcom's page (card, Google Pay, Apple Pay). */
+    payWith: z.enum(['card', 'bit']).default('card'),
     customer: z.object({
       name: z.string().trim().min(2).max(60),
       phone,
