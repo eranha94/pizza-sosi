@@ -24,7 +24,8 @@ export default function CheckoutPage() {
   const store = useStoreSettings();
   const zones = store.data?.deliveryZones ?? [];
   // One key per checkout visit: a double click cannot create two orders.
-  const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  // A new key after coming back from the payment page, so the next submit is a new order.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   // Details remembered on this device from the last order (if the customer chose that).
   const [profile, setProfile] = useState(loadProfile);
   const [remember, setRemember] = useState(true);
@@ -47,6 +48,22 @@ export default function CheckoutPage() {
         setParams({}, { replace: true });
       });
   }, [payCancel, setParams]);
+  const [submitting, setSubmitting] = useState(false);
+  // "Back" from the payment page restores this page as it was (still "שולח…"): cancel the unpaid order and start over.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const pending = payingOrder.get();
+      setSubmitting(false);
+      setIdempotencyKey(crypto.randomUUID());
+      if (!pending) return;
+      payingOrder.clear();
+      cancelOrder({ orderId: pending }).catch(() => {});
+      setPayCancelled(true);
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
   const now = useNow();
   const { status, prepMinutes, busy } = useStoreStatus();
   const deliveryEnabled = store.data ? deliveryOpen(store.data, now) : false;
@@ -65,7 +82,6 @@ export default function CheckoutPage() {
   const deliveryFee = fulfillment === 'delivery' ? (zones.length ? (zone?.feeAgorot ?? 0) : (store.data?.deliveryFeeAgorot ?? 0)) : 0;
   const minOrder = fulfillment === 'delivery' && zones.length ? (zone?.minOrderAgorot ?? 0) : (store.data?.minOrderAgorot ?? 0);
   const belowMin = total < minOrder;
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Discounts – the same rules the server applies: deals in the cart → loyalty reward → coupon.
