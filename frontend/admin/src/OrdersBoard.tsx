@@ -143,6 +143,96 @@ const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[
   { id: 'ready', title: 'מוכנות לאיסוף / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
 ];
 
+/** Kitchen mode: three columns – waiting to be confirmed, in the kitchen, out of the kitchen. */
+const KITCHEN_COLUMNS: typeof COLUMNS = [
+  { id: 'new', title: 'חדשות', match: isNew },
+  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'accepted' || o.status === 'preparing' || o.status === 'almost_ready' },
+  { id: 'ready', title: 'מוכנות / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
+];
+
+/** Minutes left until the order should be ready (negative = late), and how urgent that is. */
+function timer(o: AdminOrder, prepMinutes: number, now: number): { text: string; tone: 'ok' | 'soon' | 'late' | 'done' } {
+  if (o.status === 'ready' || o.status === 'out_for_delivery') return { text: o.status === 'ready' ? 'מוכנה' : 'בדרך', tone: 'done' };
+  const due = dueAt(o, prepMinutes);
+  if (due === null) return { text: '', tone: 'ok' };
+  const left = Math.ceil((due - now) / 60000);
+  if (left > 90) return { text: `ל־${formatTime(due)}`, tone: 'ok' };
+  return { text: `${left}′`, tone: left < 0 ? 'late' : left <= 10 ? 'soon' : 'ok' };
+}
+
+/** Add-ons grouped by where they go: whole pizza, right half, left half. */
+function byCoverage(addOns: AdminOrder['lines'][number]['addOns']) {
+  const groups = new Map<'whole' | 'right' | 'left', string[]>();
+  for (const a of addOns) {
+    const c = a.coverage === 'right' || a.coverage === 'left' ? a.coverage : 'whole';
+    groups.set(c, [...(groups.get(c) ?? []), a.name]);
+  }
+  return (['right', 'left', 'whole'] as const).filter((c) => groups.has(c)).map((c) => ({ coverage: c, names: groups.get(c)! }));
+}
+
+/** Kitchen card: what to make, how long is left, one big button. Everything else hides behind "⋯". */
+function KitchenCard({ order: o, now, prepMinutes, kitchenPrep, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; kitchenPrep: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
+  const [more, setMore] = useState(false);
+  const step = nextStep(o);
+  const t = timer(o, prepMinutes, now);
+  const start = !isLate(o, prepMinutes, now) && shouldStart(o, kitchenPrep, now);
+  const anyHalf = o.lines.some((l) => l.addOns.some((a) => a.coverage === 'right' || a.coverage === 'left'));
+  const paid = o.paymentMethod === 'card' && o.payment?.status === 'approved';
+  return (
+    <li className={`kcard kcard--${o.fulfillment} ${o.status === 'placed' ? 'order--placed' : ''} ${start ? 'kcard--start' : ''}`}>
+      <div className="kcard__head">
+        <strong className="kcard__num">#{o.number}</strong>
+        {start && <span className="tag tag--start">🔔 להתחיל עכשיו</span>}
+        {t.text && <span className={`ktimer ktimer--${t.tone}`} dir="ltr">{t.text}</span>}
+      </div>
+      <ul className="kcard__lines">
+        {o.lines.map((l, i) => (
+          <li key={i}>
+            <p className="kcard__item"><b>{l.quantity}×</b> {l.name}</p>
+            {l.addOns.length > 0 &&
+              (anyHalf ? (
+                byCoverage(l.addOns).map((g) => (
+                  <p key={g.coverage} className="kcard__addons">
+                    <span className={`half-tag half-tag--${g.coverage}`}>{COVERAGE_LABELS[g.coverage]}</span>
+                    {g.names.join(' · ')}
+                  </p>
+                ))
+              ) : (
+                <p className="kcard__addons">{l.addOns.map((a) => a.name).join(' · ')}</p>
+              ))}
+            {l.note && <p className="knote">{l.note}</p>}
+          </li>
+        ))}
+      </ul>
+      {o.note && <p className="knote">הערה: {o.note}</p>}
+      <p className="kcard__meta">
+        {o.fulfillment === 'delivery' ? '🛵 משלוח' : '🛍️ איסוף'} · {paid ? 'שולם' : o.paymentMethod === 'on_site' ? 'לתשלום במקום' : 'אשראי – לבדוק'}
+        {o.scheduled && o.readyAt && <span className="tag tag--scheduled">מתוזמנת ל־{formatTime(o.readyAt)}</span>}
+      </p>
+      <div className="kcard__actions">
+        {step && (
+          <button className={`btn kbtn kbtn--${o.status}`} disabled={busy} onClick={() => onMove(step.to)}>
+            {busy ? '…' : step.label}
+          </button>
+        )}
+        <button className="btn kmore" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-label={`עוד פעולות להזמנה #${o.number}`}>⋯</button>
+      </div>
+      {more && (
+        <div className="kcard__more">
+          {shortcut(o) && (
+            <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => onMove(shortcut(o)!.to)}>{shortcut(o)!.label}</button>
+          )}
+          {canCancel(o.status) && (
+            <button className="btn btn--danger btn--sm" disabled={busy} onClick={() => onMove('cancelled')}>ביטול</button>
+          )}
+          <a className="btn btn--ghost btn--sm" href={`tel:${o.contact?.phone ?? ''}`}>📞 {o.customerName}</a>
+          <MistakeButton order={o} />
+        </div>
+      )}
+    </li>
+  );
+}
+
 function useNow(ms = 15_000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -208,7 +298,7 @@ export function OrdersBoard({ orders, error, late, toStart, kitchenPrep, prepMin
       {(error || actionError) && <p className="error" role="alert">{error ?? actionError}</p>}
 
       <div className="board">
-        {COLUMNS.map((col) => {
+        {(kitchen.on ? KITCHEN_COLUMNS : COLUMNS).map((col) => {
           const list = orders.filter(col.match).sort((a, b) => (a.readyAt ?? 0) - (b.readyAt ?? 0));
           return (
             <section key={col.id} className={`board__col board__col--${col.id}`} aria-label={col.title}>
@@ -217,9 +307,13 @@ export function OrdersBoard({ orders, error, late, toStart, kitchenPrep, prepMin
               </h2>
               {list.length === 0 && <p className="muted empty">אין כרגע</p>}
               <ul className="orders">
-                {list.map((o) => (
+                {list.map((o) =>
+                  kitchen.on ? (
+                    <KitchenCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} kitchenPrep={kitchenPrep} busy={busy === o.id} onMove={(s) => move(o, s)} />
+                  ) : (
                   <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} kitchenPrep={kitchenPrep} busy={busy === o.id} onMove={(s) => move(o, s)} />
-                ))}
+                  ),
+                )}
               </ul>
             </section>
           );
