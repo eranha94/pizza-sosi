@@ -354,7 +354,7 @@ function OrderCard({ order: o, now, prepMinutes, kitchenPrep, busy, onMove }: { 
       </div>
       <div className="order__meta">
         <span className={`tag ${o.fulfillment === 'delivery' ? 'tag--delivery' : ''}`}>{o.fulfillment === 'pickup' ? '🛍️ איסוף' : '🛵 משלוח'}</span>
-        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : `💳 שולם באשראי${o.payment?.cardSuffix ? ` (${o.payment.cardSuffix})` : ''}`}</span>
+        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : `💳 שולם אונליין${o.payment?.cardSuffix ? ` (${o.payment.cardSuffix})` : ''}`}</span>
         {o.payment?.status === 'review' && <span className="tag tag--warn">⚠️ תשלום לבדיקה</span>}
         {o.readyAt && (
           <span className={`tag ${o.scheduled ? 'tag--scheduled' : ''} ${late ? 'tag--late' : ''}`}>

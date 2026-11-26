@@ -183,8 +183,9 @@ node setup-email.mjs --project pizza-sosi --site https://pizza-sosi.co.il --admi
 ## תשלום באשראי – קארדקום
 
 1. פרטי החיבור מקארדקום נכנסים ל-Secret Manager בפרויקט `pizza-sosi`: `CARDCOM_TERMINAL` (מספר מסוף), `CARDCOM_API_NAME` (שם משתמש API) ו-`CARDCOM_API_PASSWORD` (סיסמת API, לזיכויים), עם הרשאת `roles/secretmanager.secretAccessor` לחשבון השירות `<projectNumber>-compute@developer.gserviceaccount.com`. בפרויקט הפיתוח `pizza-sosi-dev` – פרטי מסוף הבדיקות.
-2. admin ← מבצעים ← 💳 אשראי ← "בדיקה" + טלפון לבדיקה.
-3. בטלפון: `https://pizza-sosi.co.il/?paytest=1`, הזמנה קטנה, תשלום, ביטול וזיכוי מההיסטוריה.
-4. כשהכול עבד: "פעיל".
+2. במסוף קארדקום מפעילים גם ביט, Google Pay ו-Apple Pay. הם מופיעים מעצמם בדף התשלום של קארדקום, בלי שינוי בקוד.
+3. admin ← מבצעים ← 💳 אשראי ← "בדיקה" + טלפון לבדיקה.
+4. בטלפון: `https://pizza-sosi.co.il/?paytest=1`, הזמנה קטנה, תשלום, ביטול וזיכוי מההיסטוריה.
+5. כשהכול עבד: "פעיל".
 
 כתובת ההתראות (נשלחת אוטומטית בכל תשלום): `https://europe-west1-pizza-sosi.cloudfunctions.net/paymentWebhook`.

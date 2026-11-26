@@ -67,7 +67,7 @@ export function orderConfirmationEmail(order: OrderView, siteUrl: string): Email
   const track = `${siteUrl}/order/${order.id}`;
   const when = order.readyAt ? (order.scheduled ? `מתוזמנת לשעה ${formatTime(order.readyAt)}` : `מוכנה בערך ב־${formatTime(order.readyAt)}`) : '';
   const how = order.fulfillment === 'pickup' ? 'איסוף עצמי' : 'משלוח';
-  const pay = order.paymentMethod === 'on_site' ? 'תשלום במקום' : 'שולם באשראי';
+  const pay = order.paymentMethod === 'on_site' ? 'תשלום במקום' : 'שולם אונליין';
   const body = `
     <h1 style="margin:0 0 6px;font-size:22px">תודה ${esc(firstName(order.customerName))}! ההזמנה התקבלה 🍕</h1>
     <p style="margin:0 0 16px;color:${SOFT}">הזמנה מס׳ <strong style="color:${INK}">${order.number}</strong> · ${how} · ${pay}${when ? ` · ${when}` : ''}</p>
@@ -93,10 +93,10 @@ export function orderCancelledEmail(order: OrderView, siteUrl: string, refund: b
   const body = `
     <h1 style="margin:0 0 6px;font-size:22px">ההזמנה #${order.number} בוטלה</h1>
     <p style="margin:0 0 12px">היי ${esc(firstName(order.customerName))}, ההזמנה שלך בוטלה.</p>
-    ${refund ? `<p style="margin:0 0 12px">התשלום באשראי (${formatAgorot(order.totalAgorot)}) יוחזר לכרטיס שלך. זה יכול לקחת כמה ימי עסקים להופיע.</p>` : ''}
+    ${refund ? `<p style="margin:0 0 12px">התשלום (${formatAgorot(order.totalAgorot)}) יוחזר לאמצעי התשלום שבו שילמת. זה יכול לקחת כמה ימי עסקים להופיע.</p>` : ''}
     <p style="margin:0 0 12px">אם לא ביקשת לבטל, או שיש שאלה – התקשרו אלינו: <a href="tel:+972548880909" style="color:${INK}">054-8880909</a>.</p>
     ${button(siteUrl, 'להזמנה חדשה')}`;
-  const text = `ההזמנה #${order.number} בוטלה.${refund ? ` התשלום (${formatAgorot(order.totalAgorot)}) יוחזר לכרטיס.` : ''} לשאלות: 054-8880909`;
+  const text = `ההזמנה #${order.number} בוטלה.${refund ? ` התשלום (${formatAgorot(order.totalAgorot)}) יוחזר לאמצעי התשלום.` : ''} לשאלות: 054-8880909`;
   return { subject: `ההזמנה #${order.number} בוטלה – פיצה סוסי`, html: layout(siteUrl, `הזמנה #${order.number} בוטלה`, body), text };
 }
 

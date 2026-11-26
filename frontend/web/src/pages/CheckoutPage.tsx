@@ -305,15 +305,15 @@ export default function CheckoutPage() {
           <legend>תשלום</legend>
           <label><input type="radio" name="payment" checked={paymentMethod === 'on_site'} onChange={() => setPaymentMethod('on_site')} /> תשלום במקום</label>
           {cardOn ? (
-            <label><input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /> אשראי אונליין</label>
+            <label><input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /> תשלום אונליין</label>
           ) : (
             <label className="is-disabled">
-              <input type="radio" name="payment" disabled aria-describedby="card-soon" /> אשראי אונליין
+              <input type="radio" name="payment" disabled aria-describedby="card-soon" /> תשלום אונליין
               <span id="card-soon" className="soon-badge">בקרוב</span>
             </label>
           )}
         </fieldset>
-        {paymentMethod === 'card' && <p className="muted small">התשלום מתבצע בדף מאובטח של חברת הסליקה. פרטי הכרטיס לא עוברים דרכנו.</p>}
+        {paymentMethod === 'card' && <p className="muted small">אשראי, ביט, Google Pay או Apple Pay – בדף מאובטח של חברת הסליקה. פרטי התשלום לא עוברים דרכנו.</p>}
 
         <div className="remember">
           <label className="consent">

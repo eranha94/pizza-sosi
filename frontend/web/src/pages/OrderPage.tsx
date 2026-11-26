@@ -129,7 +129,7 @@ export default function OrderPage() {
       ))}
       {order.deliveryFeeAgorot > 0 && <div className="summary"><span>משלוח</span><span>{formatAgorot(order.deliveryFeeAgorot)}</span></div>}
       <div className="summary"><span>סה״כ</span><strong>{formatAgorot(order.totalAgorot)}</strong></div>
-      <p className="muted">{order.paymentMethod === 'on_site' ? 'התשלום במקום' : 'תשלום באשראי'} · {order.fulfillment === 'pickup' ? 'איסוף עצמי' : 'משלוח'}</p>
+      <p className="muted">{order.paymentMethod === 'on_site' ? 'התשלום במקום' : 'תשלום אונליין'} · {order.fulfillment === 'pickup' ? 'איסוף עצמי' : 'משלוח'}</p>
       {error && <p className="notice notice--error" role="alert">{error}</p>}
       {canCancel && (
         <button
