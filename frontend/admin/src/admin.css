@@ -418,3 +418,12 @@ body.kitchen .empty { color: rgb(255 255 255 / .6); }
 .row-actions .mistake { margin: 0; position: relative; }
 .history .mistake__menu { position: absolute; z-index: 20; inset-inline-start: 0; top: calc(100% + 6px); width: max-content; max-width: 80vw; background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.14); }
 .row-actions .error { white-space: normal; }
+
+/* Scheduled order: time to start making it. */
+.start-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 0 14px; padding: 12px 16px; border-radius: 12px;
+  background: #efe6ff; color: #4b1d96; border: 2px solid #6a2fc7; animation: start-pulse 1.6s ease-in-out infinite; }
+.start-alert strong { font-size: 1.15rem; }
+@keyframes start-pulse { 50% { box-shadow: 0 0 0 6px rgb(106 47 199 / .3); } }
+.tag--start { background: #6a2fc7; color: #fff; font-weight: 700; }
+.order--start { border-color: #6a2fc7; border-width: 2px; background: color-mix(in srgb, #6a2fc7 7%, var(--card, #fff)); }
+@media (prefers-reduced-motion: reduce) { .start-alert { animation: none; } }

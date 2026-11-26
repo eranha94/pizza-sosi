@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/firestore';
 import { API, ORDER_STATUS_LABELS, ORDER_STEPS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
-import { isNew, isLate, dueAt, type AdminOrder, type ActiveOrders } from './orders';
+import { isNew, isLate, dueAt, shouldStart, startAt, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
 import { SoldOut } from './SoldOut';
 import { BusyMode } from './BusyMode';
@@ -152,7 +152,7 @@ function useNow(ms = 15_000) {
   return now;
 }
 
-export function OrdersBoard({ orders, error, late, prepMinutes, store, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
+export function OrdersBoard({ orders, error, late, toStart, kitchenPrep, prepMinutes, store, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -199,6 +199,12 @@ export function OrdersBoard({ orders, error, late, prepMinutes, store, soundOn, 
           </span>
         </div>
       )}
+      {toStart.length > 0 && (
+        <div className="start-alert" role="alert">
+          <strong>🔔 {toStart.length === 1 ? 'הגיע הזמן להתחיל הזמנה מתוזמנת' : `${toStart.length} הזמנות מתוזמנות – הגיע הזמן להתחיל`}</strong>
+          <span>{toStart.map((o) => `#${o.number} ל־${formatTime(o.readyAt!)}`).join(' · ')}</span>
+        </div>
+      )}
       {(error || actionError) && <p className="error" role="alert">{error ?? actionError}</p>}
 
       <div className="board">
@@ -212,7 +218,7 @@ export function OrdersBoard({ orders, error, late, prepMinutes, store, soundOn, 
               {list.length === 0 && <p className="muted empty">אין כרגע</p>}
               <ul className="orders">
                 {list.map((o) => (
-                  <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} busy={busy === o.id} onMove={(s) => move(o, s)} />
+                  <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} kitchenPrep={kitchenPrep} busy={busy === o.id} onMove={(s) => move(o, s)} />
                 ))}
               </ul>
             </section>
@@ -234,19 +240,22 @@ function minutesAgo(o: AdminOrder, now: number) {
   return created ? Math.max(0, Math.round((now - created) / 60000)) : null;
 }
 
-function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
+function OrderCard({ order: o, now, prepMinutes, kitchenPrep, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; kitchenPrep: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
   const step = nextStep(o);
   const ago = minutesAgo(o, now);
   const late = isLate(o, prepMinutes, now);
   const due = dueAt(o, prepMinutes);
   const over = late && due !== null ? Math.floor((now - due) / 60000) : 0;
+  const start = !late && shouldStart(o, kitchenPrep, now);
+  const startTime = startAt(o, kitchenPrep);
   return (
-    <li className={`order order--${o.status} ${late ? 'order--late' : ''}`}>
+    <li className={`order order--${o.status} ${late ? 'order--late' : ''} ${start ? 'order--start' : ''}`}>
       <div className="order__head">
         <strong className="order__num">#{o.number}</strong>
         <span className="pill">{ORDER_STATUS_LABELS[o.status]}</span>
         {ago !== null && <span className="muted small">לפני {ago} דק׳</span>}
         {late && <span className="tag tag--late">⏰ {over > 0 ? `באיחור ${over} דק׳` : 'הגיע הזמן'}</span>}
+        {start && <span className="tag tag--start">🔔 להתחיל להכין עכשיו</span>}
         <strong className="order__total">{formatAgorot(o.totalAgorot)}</strong>
       </div>
       <div className="order__meta">
@@ -258,6 +267,9 @@ function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminO
             {o.scheduled ? '⏰ מתוזמנת ל־' : 'מוכן עד '}
             {formatTime(o.readyAt)}
           </span>
+        )}
+        {o.scheduled && !start && !late && startTime !== null && ['placed', 'accepted'].includes(o.status) && (
+          <span className="tag">להתחיל ב־{formatTime(startTime)}</span>
         )}
       </div>
       <p className="order__customer">
