@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { isUnapprovedTemplate } from '../src/notify/whatsapp.js';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
 import { correctionTargets, canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
@@ -257,5 +258,12 @@ describe('WhatsApp template version', async () => {
     const base = { enabled: true, provider: 'telnyx', from: '+972537998889' };
     expect(parseWhatsappConfig({ ...base, templateSuffix: '_v2' })).toMatchObject({ templateSuffix: '_v2' });
     expect(parseWhatsappConfig({ ...base, templateSuffix: 'x; drop' })).not.toHaveProperty('templateSuffix');
+  });
+});
+
+describe('whatsapp template fallback', () => {
+  it('recognises an unapproved template error', () => {
+    expect(isUnapprovedTemplate(new Error('whatsapp 400 10015 Bad Request template_id is not approved'))).toBe(true);
+    expect(isUnapprovedTemplate(new Error('whatsapp 400 10004 Invalid source number'))).toBe(false);
   });
 });

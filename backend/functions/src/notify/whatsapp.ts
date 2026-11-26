@@ -87,8 +87,24 @@ export function templatePayload(m: TemplateMessage, numericIndex = false) {
 }
 
 /** Sends one approved template message. Returns the message id. Errors read "whatsapp <http status> <provider code> …". */
+/** Meta has not approved this template (pending, rejected or not created): Telnyx error 10015 "... not approved". */
+export function isUnapprovedTemplate(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /not approved|template[^ ]* (does not exist|not found)/i.test(msg);
+}
+
 export async function sendTemplate(cfg: WhatsappConfig, m: TemplateMessage): Promise<string> {
-  if (cfg.provider === 'telnyx') return sendViaTelnyx(cfg, cfg.templateSuffix ? { ...m, template: m.template + cfg.templateSuffix } : m);
+  if (cfg.provider === 'telnyx') {
+    if (!cfg.templateSuffix) return sendViaTelnyx(cfg, m);
+    try {
+      return await sendViaTelnyx(cfg, { ...m, template: m.template + cfg.templateSuffix });
+    } catch (e) {
+      // A new template version Meta has not approved (yet): send the previous version instead of nothing.
+      if (!isUnapprovedTemplate(e)) throw e;
+      logger.warn('whatsapp template not approved, sending previous version', { template: m.template + cfg.templateSuffix });
+      return sendViaTelnyx(cfg, m);
+    }
+  }
   return sendViaMeta(cfg, m);
 }
 
