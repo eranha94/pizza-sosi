@@ -42,4 +42,4 @@ for (const c of coupons.docs) {
   await c.ref.update({ usedCount: 0 });
 }
 await db.collection('counters').doc('orders').delete();
-console.log('\n✓ deleted. The next order will be #1.');
+console.log('\n✓ deleted. The next order will be #1001.');
