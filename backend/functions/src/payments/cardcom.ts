@@ -125,6 +125,8 @@ export class CardcomProvider implements PaymentProvider {
     const ours = (u: string) => /^https:\/\/([a-z0-9-]+\.)*cardcom\.(solutions|co\.il)\//i.test(u);
     if (!ours(url) || !lowProfileId) throw new Error('cardcom create: unexpected response');
     // Bit has its own page for the same payment (only when Bit is enabled on the terminal).
+    // Which methods Cardcom offered for this page (no secrets, just yes/no) – to diagnose "Bit/wallets missing".
+    logger.info('cardcom page created', { bit: bitUrl ? (ours(bitUrl) ? 'ok' : 'foreign') : 'none', bitHost: bitUrl ? bitUrl.slice(0, 40) : '' });
     return { url, providerRef: lowProfileId, ...(ours(bitUrl) ? { bitUrl } : {}) };
   }
 
