@@ -119,7 +119,7 @@ function Featured({ item, bucket, className }: { item: MenuItem; bucket: string;
   return (
     <section className={`${className} ${src ? 'has-photo' : ''}`}>
       <div className={`feat__plate ${src ? 'feat__plate--photo' : isPizza ? 'is-spinning' : ''}`} aria-hidden="true">
-        {src ? <img src={square ?? src} alt="" decoding="async" onError={(e) => src && e.currentTarget.src !== src && (e.currentTarget.src = src)} /> : isPizza ? <PizzaPreview toppings={toppingsFromText(`${item.name} ${item.description}`)} /> : <span className="feat__emoji">{CATEGORY_EMOJI[item.category] ?? '🍽️'}</span>}
+        {src ? <img src={square ?? src} alt="" decoding="async" onError={(e) => nextPhoto(e.currentTarget, bucket, item.imagePath)} /> : isPizza ? <PizzaPreview toppings={toppingsFromText(`${item.name} ${item.description}`)} /> : <span className="feat__emoji">{CATEGORY_EMOJI[item.category] ?? '🍽️'}</span>}
       </div>
       <div className="feat__text">
         {flag && (
@@ -136,6 +136,24 @@ function Featured({ item, bucket, className }: { item: MenuItem; bucket: string;
     </section>
   );
 }
+
+/**
+ * Photo fallback: the large square (made only for big photos) → the 640 square the website uses
+ * (same crop, already turned upright) → the original upload as a last resort.
+ */
+function nextPhoto(img: HTMLImageElement, bucket: string, path: string | null) {
+  const mid = thumbUrl(bucket, path, 640);
+  const original = imageUrl(bucket, path);
+  if (mid && img.dataset.step !== 'mid') {
+    img.dataset.step = 'mid';
+    img.src = mid;
+  } else if (original && img.dataset.step !== 'original') {
+    img.dataset.step = 'original';
+    img.src = original;
+  }
+}
+const thumbUrl = (bucket: string, path: string | null, w: number) =>
+  path && bucket ? imageUrl(bucket, `menu_thumbs/${path.replace(/^menu_images\//, '').replace(/\.[^.]+$/, '')}_${w}.webp`) : null;
 
 /** The large square chosen when the photo was cropped in the admin (older photos only have the full image). */
 function squareUrl(bucket: string, path: string | null): string | null {
