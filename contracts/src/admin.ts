@@ -19,15 +19,18 @@ export type CorrectOrderStatusRequest = z.infer<typeof CorrectOrderStatusRequest
 export const UpdateStoreSettingsRequest = z
   .object({
     weeklyHours: StoreSettings.shape.weeklyHours.optional(),
-    overrides: StoreSettings.shape.overrides.optional(),
+    // .unwrap(): drop the stored default, so a field that is not sent stays out of the patch (and is not reset).
+    overrides: StoreSettings.shape.overrides.unwrap().optional(),
     prepMinutes: StoreSettings.shape.prepMinutes.optional(),
     acceptingOrders: z.boolean().optional(),
     deliveryEnabled: z.boolean().optional(),
     deliveryFeeAgorot: z.number().int().min(0).max(10_000).optional(),
     minOrderAgorot: z.number().int().min(0).max(100_000).optional(),
-    whatsappStatuses: StoreSettings.shape.whatsappStatuses.optional(),
+    whatsappStatuses: StoreSettings.shape.whatsappStatuses.unwrap().optional(),
     deliveryZones: z.array(DeliveryZone).max(30).optional(),
     screen: ScreenSettings.optional(),
+    busy: StoreSettings.shape.busy.unwrap().optional(),
+    cardPayments: StoreSettings.shape.cardPayments.unwrap().optional(),
   })
   .strict();
 export type UpdateStoreSettingsRequest = z.infer<typeof UpdateStoreSettingsRequest>;
@@ -51,6 +54,7 @@ export const UpsertMenuItemRequest = z
           order: z.number().int().min(0).max(100),
           selection: z.enum(['multi', 'single']).default('multi'),
           defaultOptionId: id.nullable().default(null),
+          maxSelect: z.number().int().min(1).max(40).nullable().default(null),
           options: z
             .array(
               z.object({
@@ -100,3 +104,15 @@ export const SetAvailabilityRequest = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('option'), name: z.string().trim().min(1).max(80), active: z.boolean() }).strict(),
 ]);
 export type SetAvailabilityRequest = z.infer<typeof SetAvailabilityRequest>;
+
+/** Card payments: mode (public) + the phone allowed to pay while testing (kept private, in settings/payments). */
+export const UpdatePaymentsRequest = z
+  .object({
+    cardPayments: z.enum(['off', 'test', 'live']),
+    testPhone: z
+      .string()
+      .transform((s) => s.replace(/[\s-]/g, ''))
+      .pipe(z.string().regex(/^(0\d{8,9})?$/, 'מספר טלפון לא תקין')),
+  })
+  .strict();
+export const RefundOrderRequest = z.object({ orderId: z.string().min(1).max(64).regex(/^[A-Za-z0-9]+$/) }).strict();

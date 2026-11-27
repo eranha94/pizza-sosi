@@ -21,7 +21,7 @@ type Chosen = { id: string; coverage: 'whole' | 'right' | 'left' };
 /**
  * Resolve the customer's choices against the item's groups:
  *  - "single" groups: exactly one option (falls back to the group's default, else an error)
- *  - "multi" groups: any number, each topping at most once
+ *  - "multi" groups: any number (up to maxSelect when set), each topping at most once
  */
 function resolveChoices(item: MenuItem, sent: Chosen[]) {
   const sentById = new Map<string, Chosen>();
@@ -39,6 +39,7 @@ function resolveChoices(item: MenuItem, sent: Chosen[]) {
       if (!option) throw new PricingError(`צריך לבחור ${g.name}`, 'choice_required');
       picked.push({ option, coverage: 'whole' });
     } else {
+      if (g.maxSelect && inGroup.length > g.maxSelect) throw new PricingError(`אפשר לבחור עד ${g.maxSelect}: ${g.name}`, 'choice_required');
       for (const o of inGroup) picked.push({ option: o, coverage: sentById.get(o.id)!.coverage });
     }
   }

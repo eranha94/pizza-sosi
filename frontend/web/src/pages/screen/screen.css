@@ -148,3 +148,22 @@ html.tv-idle .rail__full { opacity: 0; }
   .feat__plate img, .feat__plate.is-spinning img, .feat__plate.is-spinning .pizza-preview, .feat__stamp, .board__list li, .promo__emoji, .orders--ready li.is-fresh, .tv-loading { animation: none; }
   .tv-progress { display: none; }
 }
+
+/* Featured dish with a photo: the whole photo in a large framed card, never cut off by the screen edge.
+   (The round plate stays for drawn pizzas, where the circle is the pizza.) */
+.feat__plate--photo {
+  top: 50%;
+  left: 60px;
+  width: 820px;
+  height: 820px;
+  margin-top: -410px;
+  border-radius: 44px;
+  background: var(--tv-ink);
+  box-shadow: 0 0 0 16px var(--tv-yellow-deep), 0 40px 90px rgb(90 50 0 / 0.35);
+}
+.feat__plate--photo img { object-position: center; }
+.has-photo .feat__text { width: 640px; padding: 0 64px 0 24px; box-sizing: border-box; }
+.has-photo .feat__name { font-size: 90px; max-width: 100%; overflow-wrap: anywhere; }
+.has-photo .feat__desc { max-width: 100%; font-size: 34px; }
+.has-photo .feat__stamp { width: 230px; height: 230px; margin-top: 46px; }
+.has-photo .feat__stamp .tv-price { font-size: 100px; }

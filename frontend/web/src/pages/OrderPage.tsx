@@ -5,7 +5,11 @@ import { CORRECTION_STATUS_TEXT, OrderView, ORDER_STATUS_LABELS, ORDER_STEPS, fo
 import { useNow, useMenu } from '../lib/menu';
 import { useCart } from '../store/cart';
 import { services, ensureSignedIn } from '../lib/firebase';
-import { cancelOrder, getOrderStatus, errorMessage } from '../lib/api';
+import { cancelOrder, getOrderStatus, getLoyalty, errorMessage } from '../lib/api';
+import { LoyaltyCard } from '../components/Loyalty';
+import { payingOrder } from '../config/payments';
+import { useLoyaltyRules } from '../lib/promos';
+import type { LoyaltyCardView } from '@pizza-sosi/contracts';
 import { usePageTitle } from '../lib/a11y';
 import { Oven } from '../components/StoreStatus';
 
@@ -17,6 +21,9 @@ export default function OrderPage() {
   const [cancelling, setCancelling] = useState(false);
   /** false when the page was opened on another device (tracking only). */
   const [mine, setMine] = useState(true);
+  /** Loyalty card: from the tracking call, or looked up by the order's phone on the ordering device. */
+  const [card, setCard] = useState<LoyaltyCardView | null>(null);
+  const [phone, setPhone] = useState('');
 
   useEffect(() => {
     let unsub = () => {};
@@ -29,6 +36,7 @@ export default function OrderPage() {
         if (stopped) return;
         setOrder(o);
         setMine(o.mine);
+        setCard(o.loyalty ?? null);
         setState('ready');
         if (!['completed', 'cancelled'].includes(o.status)) timer = window.setTimeout(track, 15_000);
       } catch {
@@ -44,6 +52,7 @@ export default function OrderPage() {
           const parsed = OrderView.safeParse({ id: snap.id, ...snap.data() });
           if (parsed.success) {
             setOrder(parsed.data);
+            setPhone(String(snap.data()?.contact?.phone ?? ''));
             setMine(true);
             setState('ready');
           } else void track();
@@ -57,6 +66,28 @@ export default function OrderPage() {
       window.clearTimeout(timer);
     };
   }, [orderId]);
+
+  // Paid by card on this device: empty the cart once the payment is through.
+  const clearCart = useCart((s) => s.clear);
+  const paidNow = order && order.status !== 'pending_payment' && order.status !== 'cancelled' && payingOrder.get() === order.id;
+  useEffect(() => {
+    if (!paidNow) return;
+    clearCart();
+    payingOrder.clear();
+  }, [paidNow, clearCart]);
+
+  // Own order: fetch the card by phone; again a few seconds after "completed" (that's when the stamp is added).
+  const rules = useLoyaltyRules().data;
+  const completed = order?.status === 'completed';
+  useEffect(() => {
+    if (!rules || !phone) return;
+    let live = true;
+    const t = window.setTimeout(() => getLoyalty(phone).then((c) => live && setCard(c)).catch(() => {}), completed ? 5000 : 0);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [rules, phone, completed]);
 
   usePageTitle(state === 'loading' ? null : order ? `הזמנה #${order.number}` : 'ההזמנה לא נמצאה');
 
@@ -77,6 +108,7 @@ export default function OrderPage() {
     <section className="page">
       <h1>הזמנה #{order.number}</h1>
       <p className={`status status--${order.status}`} role="status" aria-live="polite">{ORDER_STATUS_LABELS[order.status]}</p>
+      <PaymentNote order={order} />
       <CorrectionNote order={order} />
       <OrderScene status={order.status} />
       {order.readyAt && active && <ReadyTimer order={order} readyAt={order.readyAt} />}
@@ -92,9 +124,12 @@ export default function OrderPage() {
           </li>
         ))}
       </ul>
+      {order.discounts.map((d) => (
+        <div key={d.kind + d.label} className="summary summary--discount"><span>{d.kind === 'deal' ? '🔥 ' : d.kind === 'loyalty' ? '🎁 ' : '🏷️ '}{d.label}</span><span dir="ltr">−{formatAgorot(d.amountAgorot)}</span></div>
+      ))}
       {order.deliveryFeeAgorot > 0 && <div className="summary"><span>משלוח</span><span>{formatAgorot(order.deliveryFeeAgorot)}</span></div>}
       <div className="summary"><span>סה״כ</span><strong>{formatAgorot(order.totalAgorot)}</strong></div>
-      <p className="muted">{order.paymentMethod === 'on_site' ? 'התשלום במקום' : 'תשלום באשראי'} · {order.fulfillment === 'pickup' ? 'איסוף עצמי' : 'משלוח'}</p>
+      <p className="muted">{order.paymentMethod === 'on_site' ? 'התשלום במקום' : 'תשלום אונליין'} · {order.fulfillment === 'pickup' ? 'איסוף עצמי' : 'משלוח'}</p>
       {error && <p className="notice notice--error" role="alert">{error}</p>}
       {canCancel && (
         <button
@@ -117,6 +152,7 @@ export default function OrderPage() {
           {cancelling ? 'מבטל…' : 'ביטול ההזמנה'}
         </button>
       )}
+      {card && order.status !== 'cancelled' && <LoyaltyCard card={card} />}
       <Reorder order={order} />
     </section>
   );
@@ -161,15 +197,43 @@ function Reorder({ order }: { order: Order }) {
   );
 }
 
+/**
+ * Card orders: what happened with the payment. Right after coming back from the payment page the order is
+ * still "waiting for payment" for a few seconds, until the card company confirms it to our server.
+ */
+function PaymentNote({ order }: { order: Order }) {
+  const now = useNow(15_000).getTime();
+  if (order.paymentMethod !== 'card') return null;
+  const st = order.payment?.status ?? '';
+  const card = order.payment?.cardSuffix ? ` (כרטיס שמסתיים ב-${order.payment.cardSuffix})` : '';
+  if (order.status === 'pending_payment') {
+    const started = order.statusHistory[0]?.at;
+    const slow = Boolean(started) && now - Date.parse(started!) > 3 * 60_000;
+    return (
+      <p className="notice pay-note pay-note--wait" role="status">
+        {slow ? (
+          <>עוד לא קיבלנו אישור על התשלום. אם שילמת והסטטוס לא מתעדכן, התקשרו אלינו: <a href="tel:0548880909">054-888-0909</a></>
+        ) : (
+          <>⏳ מאמתים את התשלום מול חברת האשראי… זה לוקח כמה שניות.</>
+        )}
+      </p>
+    );
+  }
+  if (st === 'refunded') return <p className="notice pay-note" role="status">↩ התשלום זוכה{card}. הזיכוי יופיע בכרטיס בימים הקרובים.</p>;
+  if (st === 'approved' || st === 'review') return <p className="notice pay-note pay-note--ok" role="status">✓ התשלום התקבל{card}</p>;
+  return null;
+}
+
 /** After the pizzeria pressed a status by mistake and put the order back: say so, for a few hours. */
 function CorrectionNote({ order }: { order: Order }) {
   const c = order.correction;
-  if (!c || c.to !== order.status || Date.now() - Date.parse(c.at) > 3 * 60 * 60_000) return null;
-  const now = CORRECTION_STATUS_TEXT[order.status];
+  const now = useNow(60_000).getTime();
+  if (!c || c.to !== order.status || now - Date.parse(c.at) > 3 * 60 * 60_000) return null;
+  const where = CORRECTION_STATUS_TEXT[order.status];
   return (
     <p className="notice correction-note" role="note">
       עמכם הסליחה – סטטוס ההזמנה עודכן אצלנו בטעות.
-      {now && <> ההזמנה שלך כרגע: <strong>{now}</strong>.</>} אנחנו עושים את המיטב שהיא לא תתעכב.
+      {where && <> ההזמנה שלך כרגע: <strong>{where}</strong>.</>} אנחנו עושים את המיטב שהיא לא תתעכב.
     </p>
   );
 }

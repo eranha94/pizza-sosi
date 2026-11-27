@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit, doc, type Timestamp } from 'firebase/firestore';
-import type { OrderStatus } from '@pizza-sosi/contracts';
+import { activeBusy, type OrderStatus, type StoreSettings } from '@pizza-sosi/contracts';
 import { db } from './firebase';
 
 export interface AdminOrder {
@@ -11,14 +11,26 @@ export interface AdminOrder {
   contact?: { phone: string; email?: string };
   fulfillment: 'pickup' | 'delivery';
   paymentMethod: 'card' | 'on_site';
+  payment?: { status?: string; cardSuffix?: string; paidAgorot?: number };
+  needsReview?: boolean;
   totalAgorot: number;
-  lines: { name: string; quantity: number; addOns: { name: string; coverage?: 'whole' | 'right' | 'left' | null }[]; note: string }[];
+  lines: {
+    name: string;
+    quantity: number;
+    addOns: { name: string; coverage?: 'whole' | 'right' | 'left' | null; priceAgorot?: number }[];
+    note: string;
+    unitPriceAgorot?: number;
+    lineTotalAgorot?: number;
+  }[];
+  subtotalAgorot?: number;
+  deliveryFeeAgorot?: number;
   address?: { street: string; houseNumber: string; apartment: string; notes: string; zoneName?: string } | null;
   note?: string;
   readyAt?: number;
   scheduled?: boolean;
   createdAt?: Timestamp | null;
   statusHistory?: { status: OrderStatus; at: string; by?: string }[];
+  discounts?: { kind: 'deal' | 'coupon' | 'loyalty'; label: string; amountAgorot: number }[];
 }
 
 export const ACTIVE: OrderStatus[] = ['placed', 'accepted', 'preparing', 'almost_ready', 'ready', 'out_for_delivery'];
@@ -36,8 +48,24 @@ const KITCHEN_STATUSES = new Set(['placed', 'accepted', 'preparing', 'almost_rea
 export function dueAt(o: AdminOrder, prepMinutes: number): number | null {
   if (o.scheduled && o.readyAt) return o.readyAt;
   const created = o.createdAt?.toMillis?.();
-  return created ? created + prepMinutes * 60_000 : (o.readyAt ?? null);
+  // An order taken in busy mode promised a later time (readyAt) – don't call it late before that.
+  return created ? Math.max(created + prepMinutes * 60_000, o.readyAt ?? 0) : (o.readyAt ?? null);
 }
+/** Not started yet (before "בהכנה"). */
+const BEFORE_PREP = new Set(['placed', 'accepted']);
+/** How often the "start now" reminder rings until someone presses "בהכנה". */
+const START_NAG_MS = 30_000;
+
+/** When the kitchen should start a scheduled order: its time minus the prep time (plus busy-mode minutes). */
+export function startAt(o: AdminOrder, prepMinutes: number): number | null {
+  return o.scheduled && o.readyAt ? o.readyAt - prepMinutes * 60_000 : null;
+}
+/** A scheduled order whose start time came and that nobody has started yet. */
+export const shouldStart = (o: AdminOrder, prepMinutes: number, now: number) => {
+  const at = startAt(o, prepMinutes);
+  return BEFORE_PREP.has(o.status) && at !== null && now >= at;
+};
+
 export const isLate = (o: AdminOrder, prepMinutes: number, now: number) => {
   const due = dueAt(o, prepMinutes);
   return KITCHEN_STATUSES.has(o.status) && due !== null && now >= due;
@@ -171,12 +199,15 @@ export function useActiveOrders() {
     void enableAudio();
   }, [enableAudio]);
 
-  // Prep time from the store page, live.
+  // Prep time and busy mode from the store settings, live.
   const [prepMinutes, setPrepMinutes] = useState(25);
+  const [store, setStore] = useState<Partial<StoreSettings> | null>(null);
   useEffect(
     () =>
       onSnapshot(doc(db, 'settings', 'store'), (snap) => {
-        const v = Number(snap.data()?.prepMinutes);
+        const d = (snap.data() ?? {}) as Partial<StoreSettings>;
+        setStore(d);
+        const v = Number(d.prepMinutes);
         if (v > 0) setPrepMinutes(v);
       }),
     [],
@@ -187,6 +218,19 @@ export function useActiveOrders() {
     return () => window.clearInterval(t);
   }, []);
   const late = orders.filter((o) => isLate(o, prepMinutes, now));
+  // Scheduled orders: when to start = their time minus prep (busy mode makes the kitchen slower, so start earlier).
+  const kitchenPrep = prepMinutes + (store ? (activeBusy({ busy: store.busy ?? null }, now)?.extraMinutes ?? 0) : 0);
+  const toStart = orders.filter((o) => !isLate(o, prepMinutes, now) && shouldStart(o, kitchenPrep, now));
+  const toStartKey = toStart.map((o) => o.id).join(',');
+  const started = useRef(new Set<string>());
+  useEffect(() => {
+    if (!toStartKey) return;
+    const fresh = toStartKey.split(',').filter((id) => !started.current.has(id));
+    fresh.forEach((id) => started.current.add(id));
+    if (fresh.length) play();
+    const t = window.setInterval(play, START_NAG_MS);
+    return () => window.clearInterval(t);
+  }, [toStartKey, play]);
   // One alarm when an order first crosses its time.
   const alarmed = useRef(new Set<string>());
   const lateKey = late.map((o) => o.id).join(',');
@@ -197,7 +241,7 @@ export function useActiveOrders() {
     play();
   }, [lateKey, play]);
 
-  return { orders, error, late, prepMinutes, now, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
+  return { orders, error, late, toStart, kitchenPrep, prepMinutes, store, now, soundOn, audioReady, toggleSound, testSound: () => void enableAudio().then(() => ctxRef.current && ring(ctxRef.current)) };
 }
 
 export type ActiveOrders = ReturnType<typeof useActiveOrders>;

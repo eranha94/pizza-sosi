@@ -26,6 +26,7 @@ export function toRequest(item: AdminMenuItem, patch: Partial<MenuItem> = {}): U
       order: g.order,
       selection: g.selection ?? 'multi',
       defaultOptionId: g.defaultOptionId ?? null,
+      maxSelect: g.maxSelect ?? null,
       options: g.options.map((o) => ({ id: o.id, name: o.name, wholeAgorot: o.wholeAgorot, halfAgorot: o.halfAgorot, active: o.active })),
     })),
   };

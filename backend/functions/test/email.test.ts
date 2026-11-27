@@ -22,6 +22,9 @@ const order: OrderView = {
   scheduled: false,
   statusHistory: [],
   correction: null,
+  discounts: [],
+  discountAgorot: 0,
+  payment: null,
 };
 
 describe('email templates', () => {
@@ -36,8 +39,8 @@ describe('email templates', () => {
     expect(e.text).toContain('85');
   });
   it('cancellation mentions the refund only for card payments', () => {
-    expect(orderCancelledEmail(order, 'https://x.test', true).html).toContain('יוחזר לכרטיס');
-    expect(orderCancelledEmail(order, 'https://x.test', false).html).not.toContain('יוחזר לכרטיס');
+    expect(orderCancelledEmail(order, 'https://x.test', true).html).toContain('יוחזר לאמצעי התשלום');
+    expect(orderCancelledEmail(order, 'https://x.test', false).html).not.toContain('יוחזר לאמצעי התשלום');
   });
   it('password reset links to our page', () => {
     const e = passwordResetEmail('https://admin.pizza-sosi.co.il/auth/action?mode=resetPassword&oobCode=x', 'https://pizza-sosi.co.il');

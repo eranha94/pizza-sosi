@@ -111,6 +111,7 @@ export const adminUpsertMenuItem = secureCall<{ id: string }>(async (req) => {
   const newId = () => db.collection('_').doc().id;
   const addOnGroups = input.addOnGroups.map((g) => ({
     ...g,
+    maxSelect: g.selection === 'multi' ? g.maxSelect : null,
     id: g.id ?? newId(),
     options: g.options.map((o) => ({ ...o, id: o.id ?? newId() })),
   }));

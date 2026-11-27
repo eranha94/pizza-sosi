@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/firestore';
 import { API, ORDER_STATUS_LABELS, ORDER_STEPS, COVERAGE_LABELS, formatAgorot, formatTime, type OrderStatus } from '@pizza-sosi/contracts';
 import { db, callAdmin } from './firebase';
-import { isNew, isLate, dueAt, type AdminOrder, type ActiveOrders } from './orders';
+import { isNew, isLate, dueAt, shouldStart, startAt, type AdminOrder, type ActiveOrders } from './orders';
 import { useKitchenMode } from './kitchen';
 import { SoldOut } from './SoldOut';
+import { BusyMode } from './BusyMode';
 
 /** The main forward step for each status (one big button), plus cancel where allowed. */
 function nextStep(o: AdminOrder): { to: OrderStatus; label: string } | null {
@@ -45,6 +46,44 @@ function correctionTargets(o: AdminOrder): OrderStatus[] {
   if (o.status === 'completed') return [...steps];
   const i = steps.indexOf(o.status);
   return i > 0 ? steps.slice(0, i) : [];
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  pending: 'לא שולם',
+  approved: 'שולם',
+  declined: 'נדחה',
+  review: 'לבדיקה',
+  refunding: 'מזכה…',
+  refunded: 'זוכה',
+};
+
+/** Card refund for a finished or cancelled order paid by card (or a payment that needs review). */
+function RefundButton({ order }: { order: AdminOrder }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const st = order.payment?.status;
+  if (order.paymentMethod !== 'card') return null;
+  if (st === 'refunded') return <span className="tag">↩ זוכה</span>;
+  // Cancelled, or finished and the customer should get the money back (e.g. a complaint).
+  if (!((['cancelled', 'completed'].includes(order.status) && st === 'approved') || st === 'review')) return null;
+  async function refund() {
+    if (!window.confirm(`לזכות את הלקוח ב-${formatAgorot(order.payment?.paidAgorot ?? order.totalAgorot)} על הזמנה #${order.number}?`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await callAdmin(API.adminRefundOrder, { orderId: order.id });
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <span>
+      <button className="btn btn--danger btn--sm" disabled={busy} onClick={() => void refund()}>{busy ? 'מזכה…' : '💳 זיכוי'}</button>
+      {err && <span className="error small" role="alert"> {err}</span>}
+    </span>
+  );
 }
 
 /** The "pressed by mistake" button: opens the earlier steps, one tap puts the order back there. */
@@ -104,6 +143,96 @@ const COLUMNS: { id: string; title: string; match: (o: AdminOrder) => boolean }[
   { id: 'ready', title: 'מוכנות לאיסוף / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
 ];
 
+/** Kitchen mode: three columns – waiting to be confirmed, in the kitchen, out of the kitchen. */
+const KITCHEN_COLUMNS: typeof COLUMNS = [
+  { id: 'new', title: 'חדשות', match: isNew },
+  { id: 'preparing', title: 'בהכנה', match: (o) => o.status === 'accepted' || o.status === 'preparing' || o.status === 'almost_ready' },
+  { id: 'ready', title: 'מוכנות / בדרך', match: (o) => o.status === 'ready' || o.status === 'out_for_delivery' },
+];
+
+/** Minutes left until the order should be ready (negative = late), and how urgent that is. */
+function timer(o: AdminOrder, prepMinutes: number, now: number): { text: string; tone: 'ok' | 'soon' | 'late' | 'done' } {
+  if (o.status === 'ready' || o.status === 'out_for_delivery') return { text: o.status === 'ready' ? 'מוכנה' : 'בדרך', tone: 'done' };
+  const due = dueAt(o, prepMinutes);
+  if (due === null) return { text: '', tone: 'ok' };
+  const left = Math.ceil((due - now) / 60000);
+  if (left > 90) return { text: `ל־${formatTime(due)}`, tone: 'ok' };
+  return { text: `${left}′`, tone: left < 0 ? 'late' : left <= 10 ? 'soon' : 'ok' };
+}
+
+/** Add-ons grouped by where they go: whole pizza, right half, left half. */
+function byCoverage(addOns: AdminOrder['lines'][number]['addOns']) {
+  const groups = new Map<'whole' | 'right' | 'left', string[]>();
+  for (const a of addOns) {
+    const c = a.coverage === 'right' || a.coverage === 'left' ? a.coverage : 'whole';
+    groups.set(c, [...(groups.get(c) ?? []), a.name]);
+  }
+  return (['right', 'left', 'whole'] as const).filter((c) => groups.has(c)).map((c) => ({ coverage: c, names: groups.get(c)! }));
+}
+
+/** Kitchen card: what to make, how long is left, one big button. Everything else hides behind "⋯". */
+function KitchenCard({ order: o, now, prepMinutes, kitchenPrep, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; kitchenPrep: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
+  const [more, setMore] = useState(false);
+  const step = nextStep(o);
+  const t = timer(o, prepMinutes, now);
+  const start = !isLate(o, prepMinutes, now) && shouldStart(o, kitchenPrep, now);
+  const anyHalf = o.lines.some((l) => l.addOns.some((a) => a.coverage === 'right' || a.coverage === 'left'));
+  const paid = o.paymentMethod === 'card' && o.payment?.status === 'approved';
+  return (
+    <li className={`kcard kcard--${o.fulfillment} ${o.status === 'placed' ? 'order--placed' : ''} ${start ? 'kcard--start' : ''}`}>
+      <div className="kcard__head">
+        <strong className="kcard__num">#{o.number}</strong>
+        {start && <span className="tag tag--start">🔔 להתחיל עכשיו</span>}
+        {t.text && <span className={`ktimer ktimer--${t.tone}`} dir="ltr">{t.text}</span>}
+      </div>
+      <ul className="kcard__lines">
+        {o.lines.map((l, i) => (
+          <li key={i}>
+            <p className="kcard__item"><b>{l.quantity}×</b> {l.name}</p>
+            {l.addOns.length > 0 &&
+              (anyHalf ? (
+                byCoverage(l.addOns).map((g) => (
+                  <p key={g.coverage} className="kcard__addons">
+                    <span className={`half-tag half-tag--${g.coverage}`}>{COVERAGE_LABELS[g.coverage]}</span>
+                    {g.names.join(' · ')}
+                  </p>
+                ))
+              ) : (
+                <p className="kcard__addons">{l.addOns.map((a) => a.name).join(' · ')}</p>
+              ))}
+            {l.note && <p className="knote">{l.note}</p>}
+          </li>
+        ))}
+      </ul>
+      {o.note && <p className="knote">הערה: {o.note}</p>}
+      <p className="kcard__meta">
+        {o.fulfillment === 'delivery' ? '🛵 משלוח' : '🛍️ איסוף'} · {paid ? 'שולם' : o.paymentMethod === 'on_site' ? 'לתשלום במקום' : 'אשראי – לבדוק'}
+        {o.scheduled && o.readyAt && <span className="tag tag--scheduled">מתוזמנת ל־{formatTime(o.readyAt)}</span>}
+      </p>
+      <div className="kcard__actions">
+        {step && (
+          <button className={`btn kbtn kbtn--${o.status}`} disabled={busy} onClick={() => onMove(step.to)}>
+            {busy ? '…' : step.label}
+          </button>
+        )}
+        <button className="btn kmore" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-label={`עוד פעולות להזמנה #${o.number}`}>⋯</button>
+      </div>
+      {more && (
+        <div className="kcard__more">
+          {shortcut(o) && (
+            <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => onMove(shortcut(o)!.to)}>{shortcut(o)!.label}</button>
+          )}
+          {canCancel(o.status) && (
+            <button className="btn btn--danger btn--sm" disabled={busy} onClick={() => onMove('cancelled')}>ביטול</button>
+          )}
+          <a className="btn btn--ghost btn--sm" href={`tel:${o.contact?.phone ?? ''}`}>📞 {o.customerName}</a>
+          <MistakeButton order={o} />
+        </div>
+      )}
+    </li>
+  );
+}
+
 function useNow(ms = 15_000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -113,7 +242,7 @@ function useNow(ms = 15_000) {
   return now;
 }
 
-export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
+export function OrdersBoard({ orders, error, late, toStart, kitchenPrep, prepMinutes, store, soundOn, audioReady, toggleSound, testSound }: ActiveOrders) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -140,6 +269,7 @@ export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioRe
         <h1 id="orders-h">הזמנות פעילות <span className="count">{orders.length}</span></h1>
         <div className="page-head__actions">
           {kitchen.on && <span className="clock" aria-label="שעה">{new Date(now).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>}
+          <BusyMode store={store} prepMinutes={prepMinutes} />
           <button className="chip" onClick={() => setSoldOut(true)}>🚫 נגמר</button>
           <button className={`chip ${kitchen.on ? 'chip--on' : ''}`} onClick={() => void kitchen.toggle()} aria-pressed={kitchen.on}>
             {kitchen.on ? '✕ יציאה ממצב מטבח' : '🍳 מצב מטבח'}
@@ -159,10 +289,16 @@ export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioRe
           </span>
         </div>
       )}
+      {toStart.length > 0 && (
+        <div className="start-alert" role="alert">
+          <strong>🔔 {toStart.length === 1 ? 'הגיע הזמן להתחיל הזמנה מתוזמנת' : `${toStart.length} הזמנות מתוזמנות – הגיע הזמן להתחיל`}</strong>
+          <span>{toStart.map((o) => `#${o.number} ל־${formatTime(o.readyAt!)}`).join(' · ')}</span>
+        </div>
+      )}
       {(error || actionError) && <p className="error" role="alert">{error ?? actionError}</p>}
 
       <div className="board">
-        {COLUMNS.map((col) => {
+        {(kitchen.on ? KITCHEN_COLUMNS : COLUMNS).map((col) => {
           const list = orders.filter(col.match).sort((a, b) => (a.readyAt ?? 0) - (b.readyAt ?? 0));
           return (
             <section key={col.id} className={`board__col board__col--${col.id}`} aria-label={col.title}>
@@ -171,9 +307,13 @@ export function OrdersBoard({ orders, error, late, prepMinutes, soundOn, audioRe
               </h2>
               {list.length === 0 && <p className="muted empty">אין כרגע</p>}
               <ul className="orders">
-                {list.map((o) => (
-                  <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} busy={busy === o.id} onMove={(s) => move(o, s)} />
-                ))}
+                {list.map((o) =>
+                  kitchen.on ? (
+                    <KitchenCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} kitchenPrep={kitchenPrep} busy={busy === o.id} onMove={(s) => move(o, s)} />
+                  ) : (
+                  <OrderCard key={o.id} order={o} now={now} prepMinutes={prepMinutes} kitchenPrep={kitchenPrep} busy={busy === o.id} onMove={(s) => move(o, s)} />
+                  ),
+                )}
               </ul>
             </section>
           );
@@ -194,29 +334,36 @@ function minutesAgo(o: AdminOrder, now: number) {
   return created ? Math.max(0, Math.round((now - created) / 60000)) : null;
 }
 
-function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
+function OrderCard({ order: o, now, prepMinutes, kitchenPrep, busy, onMove }: { order: AdminOrder; now: number; prepMinutes: number; kitchenPrep: number; busy: boolean; onMove: (s: OrderStatus) => void }) {
   const step = nextStep(o);
   const ago = minutesAgo(o, now);
   const late = isLate(o, prepMinutes, now);
   const due = dueAt(o, prepMinutes);
   const over = late && due !== null ? Math.floor((now - due) / 60000) : 0;
+  const start = !late && shouldStart(o, kitchenPrep, now);
+  const startTime = startAt(o, kitchenPrep);
   return (
-    <li className={`order order--${o.status} ${late ? 'order--late' : ''}`}>
+    <li className={`order order--${o.status} ${late ? 'order--late' : ''} ${start ? 'order--start' : ''}`}>
       <div className="order__head">
         <strong className="order__num">#{o.number}</strong>
         <span className="pill">{ORDER_STATUS_LABELS[o.status]}</span>
         {ago !== null && <span className="muted small">לפני {ago} דק׳</span>}
         {late && <span className="tag tag--late">⏰ {over > 0 ? `באיחור ${over} דק׳` : 'הגיע הזמן'}</span>}
+        {start && <span className="tag tag--start">🔔 להתחיל להכין עכשיו</span>}
         <strong className="order__total">{formatAgorot(o.totalAgorot)}</strong>
       </div>
       <div className="order__meta">
         <span className={`tag ${o.fulfillment === 'delivery' ? 'tag--delivery' : ''}`}>{o.fulfillment === 'pickup' ? '🛍️ איסוף' : '🛵 משלוח'}</span>
-        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : '💳 שולם באשראי'}</span>
+        <span className="tag">{o.paymentMethod === 'on_site' ? '💵 תשלום במקום' : `💳 שולם אונליין${o.payment?.cardSuffix ? ` (${o.payment.cardSuffix})` : ''}`}</span>
+        {o.payment?.status === 'review' && <span className="tag tag--warn">⚠️ תשלום לבדיקה</span>}
         {o.readyAt && (
           <span className={`tag ${o.scheduled ? 'tag--scheduled' : ''} ${late ? 'tag--late' : ''}`}>
             {o.scheduled ? '⏰ מתוזמנת ל־' : 'מוכן עד '}
             {formatTime(o.readyAt)}
           </span>
+        )}
+        {o.scheduled && !start && !late && startTime !== null && ['placed', 'accepted'].includes(o.status) && (
+          <span className="tag">להתחיל ב־{formatTime(startTime)}</span>
         )}
       </div>
       <p className="order__customer">
@@ -251,6 +398,13 @@ function OrderCard({ order: o, now, prepMinutes, busy, onMove }: { order: AdminO
         ))}
       </ul>
       {o.note && <p className="order__note">הערה להזמנה: {o.note}</p>}
+      {(o.discounts ?? []).length > 0 && (
+        <ul className="order__discounts">
+          {o.discounts!.map((d) => (
+            <li key={d.kind + d.label}>{d.kind === 'loyalty' ? '🎁' : d.kind === 'coupon' ? '🏷️' : '🔥'} {d.label} <span dir="ltr">−{formatAgorot(d.amountAgorot)}</span></li>
+          ))}
+        </ul>
+      )}
       <div className="order__actions">
         {step && (
           <button className="btn btn--grow" disabled={busy} onClick={() => onMove(step.to)}>
@@ -306,8 +460,16 @@ function History() {
             <td>{o.customerName}</td>
             <td>{o.fulfillment === 'pickup' ? 'איסוף' : 'משלוח'}</td>
             <td>{formatAgorot(o.totalAgorot)}</td>
-            <td>{ORDER_STATUS_LABELS[o.status]}</td>
-            <td><MistakeButton order={o} /></td>
+            <td>
+              {ORDER_STATUS_LABELS[o.status]}
+              {o.paymentMethod === 'card' && <span className="muted small"> · 💳 {PAYMENT_LABEL[o.payment?.status ?? ''] ?? o.payment?.status ?? ''}</span>}
+            </td>
+            <td>
+              <div className="row-actions">
+                <MistakeButton order={o} />
+                <RefundButton order={o} />
+              </div>
+            </td>
           </tr>
         ))}
       </tbody>

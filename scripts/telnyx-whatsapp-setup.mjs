@@ -6,8 +6,9 @@
 //   1) submit the templates (Meta reviews them, usually minutes–hours):
 //      node telnyx-whatsapp-setup.mjs --templates --waba <WABA ID from Telnyx> --site https://pizza-sosi.co.il
 //   2) once they're APPROVED, switch the site to Telnyx:
-//      node telnyx-whatsapp-setup.mjs --enable --project pizza-sosi --from +9725XXXXXXXX
+//      node telnyx-whatsapp-setup.mjs --enable --project pizza-sosi --from +9725XXXXXXXX [--profile <messaging profile id>]
 //
+// New wording/footer: --templates --suffix _v2 … then, once APPROVED: --enable … --suffix _v2
 // --status shows the templates' review status. Re-running is safe: existing templates are skipped.
 // The API key itself goes to Secret Manager as TELNYX_API_KEY (see docs/GO-LIVE.md); this script only uses it here.
 import { parseArgs } from 'node:util';
@@ -21,6 +22,8 @@ const { values } = parseArgs({
     site: { type: 'string' },
     project: { type: 'string' },
     from: { type: 'string' },
+    profile: { type: 'string' },
+    suffix: { type: 'string' },
   },
 });
 const key = process.env.TELNYX_API_KEY;
@@ -40,7 +43,17 @@ const TEMPLATES = [
   ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות התקשרו אלינו: 054-888-0909'],
   // After a status was pressed by mistake. {{3}} = where the order really is (e.g. "בהכנה").
   ['pizza_sosi_order_status_corrected', 'היי {{1}}, עמכם הסליחה 🙏\nהסטטוס של הזמנה #{{2}} עודכן אצלנו בטעות.\nההזמנה שלך כרגע: {{3}}.\nאנחנו עושים את המיטב שהיא לא תתעכב.', ['דנה', '1042', 'בהכנה']],
+  // Loyalty card (only when the owner turns it on). {{1}} name, {{2}} stamps, {{3}} required, {{4}} to go, {{5}} reward.
+  ['pizza_sosi_loyalty_progress', 'היי {{1}}, תודה שהזמנת מפיצה סוסי! 🍕\nבכרטיסייה שלך: {{2}} מתוך {{3}}.\nעוד {{4}} הזמנות ומגיע לך: {{5}} 🎁', ['דנה', '3', '10', '7', 'פיצה חינם'], 'לכרטיסייה שלי'],
+  ['pizza_sosi_loyalty_reward', 'היי {{1}}, מילאת את הכרטיסייה בפיצה סוסי! 🎉\nבהזמנה הבאה מגיע לך: {{2}}.\nמסמנים את ההטבה בעמוד התשלום באתר.', ['דנה', 'פיצה חינם'], 'להזמנה באתר'],
 ];
+
+// --suffix _v2: a new version of every template, with the pizzeria's phone as a footer line.
+// The old ones keep working until the site is switched (--enable … --suffix _v2) after Meta approves.
+const SUFFIX = values.suffix ?? '';
+if (SUFFIX && !/^_v\d{1,2}$/.test(SUFFIX)) fail('--suffix must look like _v2');
+const FOOTER = 'לבירורים: 054-888-0909';
+const VERSION_TEXT = { pizza_sosi_order_cancelled: 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nמצטערים על אי הנוחות.' };
 
 async function telnyx(path, body) {
   const res = await fetch(`${API}${path}`, {
@@ -68,7 +81,9 @@ if (values.templates) {
   if (!values.site?.startsWith('https://')) fail('--site https://… is required');
   const site = values.site.replace(/\/$/, '');
   const have = new Set((await listOurs()).map((t) => `${t.name}:${t.language}`));
-  for (const [name, text, example] of TEMPLATES) {
+  for (const [baseName, baseText, example, button] of TEMPLATES) {
+    const name = baseName + SUFFIX;
+    const text = (SUFFIX && VERSION_TEXT[baseName]) || baseText;
     if (have.has(`${name}:he`)) {
       console.log(`• ${name}: already exists`);
       continue;
@@ -80,7 +95,8 @@ if (values.templates) {
       language: 'he',
       components: [
         { type: 'BODY', text, example: { body_text: [example ?? ['דנה', '1042']] } },
-        { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
+        ...(SUFFIX ? [{ type: 'FOOTER', text: FOOTER }] : []),
+        { type: 'BUTTONS', buttons: [{ type: 'URL', text: button ?? 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
       ],
     });
     console.log(r.ok ? `✓ ${name}: submitted (${r.json.data?.status ?? 'PENDING'})` : `✗ ${name}: ${r.error}`);
@@ -99,8 +115,25 @@ if (values.enable) {
   const { initializeApp, applicationDefault } = await import('firebase-admin/app');
   const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
   const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId: values.project }));
+  if (values.profile && !/^[0-9a-f-]{36}$/i.test(values.profile)) fail('--profile must be the messaging profile ID (36 characters)');
+    if (SUFFIX) {
+    if (!key) fail('switching templates needs TELNYX_API_KEY, to check that they are approved first');
+    const approved = new Set((await listOurs()).filter((t) => t.status === 'APPROVED').map((t) => t.name));
+    const missing = TEMPLATES.map(([base]) => base + SUFFIX).filter((n) => !n.includes('loyalty') && !approved.has(n));
+    // The server sends the previous version of any template Meta has not approved yet, so switching early is safe.
+    if (missing.length) console.log(`! still waiting for Meta: ${missing.join(', ')} – the previous version is sent until approved`);
+  }
   await db.collection('settings').doc('whatsapp').set(
-    { enabled: true, provider: 'telnyx', from: values.from, language: 'he', updatedAt: FieldValue.serverTimestamp() },
+    {
+      enabled: true,
+      provider: 'telnyx',
+      from: values.from,
+      language: 'he',
+      // Telnyx messaging profile of the number (needed when it isn't a Telnyx number).
+      ...(values.profile ? { messagingProfileId: values.profile } : {}),
+      ...(values.suffix ? { templateSuffix: SUFFIX } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
     { merge: true },
   );
   console.log(`✓ ${values.project}: order updates now go out through Telnyx from ${values.from}`);

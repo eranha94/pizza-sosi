@@ -16,4 +16,7 @@ export const COL = {
   rateLimits: 'rateLimits',
   auditLog: 'auditLog',
   screen: 'screen',
+  deals: 'deals',
+  coupons: 'coupons',
+  loyalty: 'loyalty',
 } as const;

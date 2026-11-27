@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { isUnapprovedTemplate } from '../src/notify/whatsapp.js';
 import type { MenuItem } from '@pizza-sosi/contracts';
 import { priceCart, PricingError } from '../src/domain/pricing.js';
 import { correctionTargets, canTransition, customerCanCancel, initialStatus } from '../src/domain/orderState.js';
@@ -8,20 +9,20 @@ const pizza: MenuItem = {
   imagePath: null, order: 1, active: true, tags: [],
   addOnGroups: [
     {
-      id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std',
+      id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std', maxSelect: null,
       options: [
         { id: 'std', name: 'סטנדרט', wholeAgorot: 0, halfAgorot: null, active: true },
         { id: 'thin', name: 'דק', wholeAgorot: 0, halfAgorot: null, active: true },
       ],
     },
     {
-      id: 'g1', name: 'מיוחדות', order: 1, selection: 'multi', defaultOptionId: null,
+      id: 'g1', name: 'מיוחדות', order: 1, selection: 'multi', defaultOptionId: null, maxSelect: null,
       options: [
         { id: 'tuna', name: 'טונה', wholeAgorot: 1800, halfAgorot: 1300, active: true },
         { id: 'pine', name: 'אננס', wholeAgorot: 1800, halfAgorot: 1300, active: false },
       ],
     },
-    { id: 'g2', name: 'תוספות', order: 2, selection: 'multi', defaultOptionId: null, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
+    { id: 'g2', name: 'תוספות', order: 2, selection: 'multi', defaultOptionId: null, maxSelect: null, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
   ],
 };
 const menu = new Map([[pizza.id, pizza]]);
@@ -170,5 +171,115 @@ describe('whatsapp provider config', async () => {
     expect(t.language).toEqual({ policy: 'deterministic', code: 'he' });
     expect(t.components[0]).toEqual({ type: 'body', parameters: [{ type: 'text', text: 'דנה' }, { type: 'text', text: '42' }] });
     expect(t.components[1]).toMatchObject({ type: 'button', sub_type: 'url', index: '0' });
+  });
+});
+
+describe('busy mode', async () => {
+  const { effectivePrep, deliveryOpen, activeBusy, UpdateStoreSettingsRequest } = await import('@pizza-sosi/contracts');
+  const base = { weeklyHours: Array(7).fill({ open: '11:00', close: '23:00' }), acceptingOrders: true, prepMinutes: 25, deliveryEnabled: true } as never;
+  const now = Date.UTC(2026, 10, 25, 12);
+  it('adds the extra minutes only until it ends', () => {
+    const s = { ...(base as object), busy: { until: now + 3600_000, extraMinutes: 20, pauseDelivery: true } } as never;
+    expect(effectivePrep(s, now)).toBe(45);
+    expect(effectivePrep(s, now + 2 * 3600_000)).toBe(25);
+    expect(activeBusy(s, now + 2 * 3600_000)).toBeNull();
+  });
+  it('can pause delivery', () => {
+    expect(deliveryOpen({ deliveryEnabled: true, busy: { until: now + 1000, extraMinutes: 10, pauseDelivery: true } }, now)).toBe(false);
+    expect(deliveryOpen({ deliveryEnabled: true, busy: { until: now + 1000, extraMinutes: 10, pauseDelivery: false } }, now)).toBe(true);
+    expect(deliveryOpen({ deliveryEnabled: true, busy: null }, now)).toBe(true);
+  });
+  it('saving one store setting does not reset the others (regression)', () => {
+    expect(Object.keys(UpdateStoreSettingsRequest.parse({ prepMinutes: 30 }))).toEqual(['prepMinutes']);
+  });
+});
+
+describe('deals, coupons, loyalty', async () => {
+  const { applyDeals, couponDiscount, loyaltyDiscount, dealIsOn } = await import('@pizza-sosi/contracts');
+  const { addStamp } = await import('../src/api/loyalty.js');
+  const prices: Record<string, number> = { pizza: 6000, cola: 1200, fries: 1500 };
+  const base = (id: string) => prices[id];
+  const deal = (id: string, comps: [string, number][], price: number) => ({ id, title: id, components: comps.map(([itemId, quantity]) => ({ itemId, quantity })), priceAgorot: price, active: true, weekdays: [], validFrom: null, validTo: null });
+
+  it('applies a combo automatically, as many times as the cart allows', () => {
+    const d = deal('meal', [['pizza', 1], ['cola', 2]], 7000); // regular 84 → 70
+    expect(applyDeals([{ itemId: 'pizza', quantity: 2 }, { itemId: 'cola', quantity: 4 }], [d], base)).toEqual([{ kind: 'deal', label: 'meal ×2', amountAgorot: 2800 }]);
+    expect(applyDeals([{ itemId: 'pizza', quantity: 1 }, { itemId: 'cola', quantity: 1 }], [d], base)).toEqual([]);
+  });
+  it('picks the deal that saves more first and never uses an item twice', () => {
+    const small = deal('small', [['pizza', 1], ['cola', 1]], 6800); // saves 4
+    const big = deal('big', [['pizza', 1], ['fries', 1]], 6000); // saves 15
+    const out = applyDeals([{ itemId: 'pizza', quantity: 1 }, { itemId: 'cola', quantity: 1 }, { itemId: 'fries', quantity: 1 }], [small, big], base);
+    expect(out.map((d) => d.label)).toEqual(['big']);
+  });
+  it('ignores a "deal" that costs more than the items', () => {
+    expect(applyDeals([{ itemId: 'cola', quantity: 1 }], [deal('bad', [['cola', 1]], 2000)], base)).toEqual([]);
+  });
+  it('respects weekdays and dates', () => {
+    const d = { ...deal('thu', [['pizza', 1]], 5000), weekdays: [4], validTo: '2026-12-31' };
+    expect(dealIsOn(d, '2026-11-26', 4)).toBe(true);
+    expect(dealIsOn(d, '2026-11-25', 3)).toBe(false);
+    expect(dealIsOn(d, '2027-01-07', 4)).toBe(false);
+  });
+  it('coupon: percent, amount, minimum, never below zero', () => {
+    expect(couponDiscount({ type: 'percent', value: 10, minOrderAgorot: 0 }, 8450)).toEqual({ amountAgorot: 845 });
+    expect(couponDiscount({ type: 'amount', value: 5000, minOrderAgorot: 0 }, 3000)).toEqual({ amountAgorot: 3000 });
+    expect(couponDiscount({ type: 'amount', value: 1000, minOrderAgorot: 5000 }, 4000)).toHaveProperty('error');
+  });
+  it('loyalty: free item is the priciest of the category, capped; needs one in the cart', () => {
+    const lines = [
+      { itemId: 'p1', quantity: 1, category: 'pizzas', basePriceAgorot: 5500 },
+      { itemId: 'p2', quantity: 1, category: 'pizzas', basePriceAgorot: 7000 },
+      { itemId: 'c', quantity: 1, category: 'drinks', basePriceAgorot: 1200 },
+    ];
+    expect(loyaltyDiscount({ type: 'item', category: 'pizzas', maxAgorot: 0 }, lines, 13700)).toEqual({ amountAgorot: 7000 });
+    expect(loyaltyDiscount({ type: 'item', category: 'pizzas', maxAgorot: 6000 }, lines, 13700)).toEqual({ amountAgorot: 6000 });
+    expect(loyaltyDiscount({ type: 'item', category: 'burgers', maxAgorot: 0 }, lines, 13700)).toHaveProperty('error');
+    expect(loyaltyDiscount({ type: 'percent', percent: 20 }, lines, 10000)).toEqual({ amountAgorot: 2000 });
+  });
+  it('a full card turns into a reward and starts over', () => {
+    expect(addStamp(0, 10)).toEqual({ stamps: 1, earned: false });
+    expect(addStamp(9, 10)).toEqual({ stamps: 0, earned: true });
+  });
+});
+
+describe('WhatsApp template payload', async () => {
+  const { templatePayload } = await import('../src/notify/whatsapp.js');
+  const m = { to: '972521234567', template: 't', language: 'he', bodyParams: ['דנה', '1042'], buttonParam: 'abc' };
+  it('button index: string for Meta, number for Telnyx', () => {
+    expect((templatePayload(m).components[1] as { index: unknown }).index).toBe('0');
+    expect((templatePayload(m, true).components[1] as { index: unknown }).index).toBe(0);
+  });
+});
+
+describe('WhatsApp template version', async () => {
+  const { parseWhatsappConfig } = await import('../src/notify/whatsapp.js');
+  it('takes a template suffix like _v2 and ignores anything else', () => {
+    const base = { enabled: true, provider: 'telnyx', from: '+972537998889' };
+    expect(parseWhatsappConfig({ ...base, templateSuffix: '_v2' })).toMatchObject({ templateSuffix: '_v2' });
+    expect(parseWhatsappConfig({ ...base, templateSuffix: 'x; drop' })).not.toHaveProperty('templateSuffix');
+  });
+});
+
+describe('whatsapp template fallback', () => {
+  it('recognises an unapproved template error', () => {
+    expect(isUnapprovedTemplate(new Error('whatsapp 400 10015 Bad Request template_id is not approved'))).toBe(true);
+    expect(isUnapprovedTemplate(new Error('whatsapp 400 10004 Invalid source number'))).toBe(false);
+  });
+});
+
+describe('add-on group limits', () => {
+  const opt = (id: string) => ({ id, name: id, wholeAgorot: 0, halfAgorot: null, active: true });
+  const burger = {
+    id: 'b', name: 'בורגר', description: '', category: 'burgers', priceAgorot: 5500, imagePath: null, order: 1, active: true, tags: [],
+    addOnGroups: [{ id: 'free2', name: 'שתי תוספות בחינם', order: 1, selection: 'multi', defaultOptionId: null, maxSelect: 2, options: [opt('a'), opt('c'), opt('d')] }],
+  } as unknown as MenuItem;
+  const menu = new Map([['b', burger]]);
+  const line = (ids: string[]) => [{ itemId: 'b', quantity: 1, addOns: ids.map((id) => ({ id, coverage: 'whole' as const })), note: '' }];
+  it('allows up to the limit', () => {
+    expect(() => priceCart(line(['a', 'c']), menu, 0)).not.toThrow();
+  });
+  it('refuses more than the limit', () => {
+    expect(() => priceCart(line(['a', 'c', 'd']), menu, 0)).toThrow(PricingError);
   });
 });

@@ -39,6 +39,9 @@ const TEMPLATES = [
   ['pizza_sosi_order_cancelled', 'היי {{1}}, ההזמנה שלך #{{2}} בוטלה.\nלשאלות התקשרו אלינו: 054-888-0909'],
   // After a status was pressed by mistake. {{3}} = where the order really is (e.g. "בהכנה").
   ['pizza_sosi_order_status_corrected', 'היי {{1}}, עמכם הסליחה 🙏\nהסטטוס של הזמנה #{{2}} עודכן אצלנו בטעות.\nההזמנה שלך כרגע: {{3}}.\nאנחנו עושים את המיטב שהיא לא תתעכב.', ['דנה', '1042', 'בהכנה']],
+  // Loyalty card (only when the owner turns it on). {{1}} name, {{2}} stamps, {{3}} required, {{4}} to go, {{5}} reward.
+  ['pizza_sosi_loyalty_progress', 'היי {{1}}, תודה שהזמנת מפיצה סוסי! 🍕\nבכרטיסייה שלך: {{2}} מתוך {{3}}.\nעוד {{4}} הזמנות ומגיע לך: {{5}} 🎁', ['דנה', '3', '10', '7', 'פיצה חינם'], 'לכרטיסייה שלי'],
+  ['pizza_sosi_loyalty_reward', 'היי {{1}}, מילאת את הכרטיסייה בפיצה סוסי! 🎉\nבהזמנה הבאה מגיע לך: {{2}}.\nמסמנים את ההטבה בעמוד התשלום באתר.', ['דנה', 'פיצה חינם'], 'להזמנה באתר'],
 ];
 
 async function graph(path, body) {
@@ -58,7 +61,7 @@ if (!values['skip-templates']) {
     process.exit(1);
   }
   const have = new Map(existing.json.data.map((t) => [`${t.name}:${t.language}`, t.status]));
-  for (const [name, text, example] of TEMPLATES) {
+  for (const [name, text, example, button] of TEMPLATES) {
     if (have.has(`${name}:he`)) {
       console.log(`• ${name}: already exists (${have.get(`${name}:he`)})`);
       continue;
@@ -69,7 +72,7 @@ if (!values['skip-templates']) {
       category: 'UTILITY',
       components: [
         { type: 'BODY', text, example: { body_text: [example ?? ['דנה', '1042']] } },
-        { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
+        { type: 'BUTTONS', buttons: [{ type: 'URL', text: button ?? 'מעקב אחרי ההזמנה', url: `${site}/order/{{1}}`, example: [`${site}/order/abc123`] }] },
       ],
     });
     console.log(r.ok ? `✓ ${name}: submitted (${r.json.status})` : `✗ ${name}: ${r.json?.error?.error_user_msg ?? r.json?.error?.message}`);

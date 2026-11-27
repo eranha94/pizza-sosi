@@ -184,7 +184,7 @@ export function useScreenData(): ScreenData | null {
         poll(
           async () => {
             const d = (await getDoc(ep, 'settings/store')) ?? {};
-            const next = { ...DEFAULT_SCHEDULE, overrides: [], deliveryEnabled: false, deliveryFeeAgorot: 0, minOrderAgorot: 0, whatsappStatuses: [], deliveryZones: [], ...d } as StoreSettings;
+            const next = { ...DEFAULT_SCHEDULE, overrides: [], deliveryEnabled: false, deliveryFeeAgorot: 0, minOrderAgorot: 0, whatsappStatuses: [], deliveryZones: [], busy: null, cardPayments: 'off', ...d } as StoreSettings;
             setStore((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
           },
           STORE_MS,

@@ -25,20 +25,29 @@ export const TEMPLATE_BY_STATUS: Record<NotifyStatus, string> = {
 
 /** Apology after a status was pressed by mistake. {{1}} first name, {{2}} order number, {{3}} where the order really is. */
 export const CORRECTION_TEMPLATE = 'pizza_sosi_order_status_corrected';
+/** Loyalty card after a completed order. {{1}} name, {{2}} stamps, {{3}} required, {{4}} to go, {{5}} reward. */
+export const LOYALTY_PROGRESS_TEMPLATE = 'pizza_sosi_loyalty_progress';
+/** Card full. {{1}} name, {{2}} reward. */
+export const LOYALTY_REWARD_TEMPLATE = 'pizza_sosi_loyalty_reward';
 
 const GRAPH = 'https://graph.facebook.com/v25.0';
 const TELNYX = 'https://api.telnyx.com/v2';
 
 export type WhatsappConfig =
   | { provider: 'meta'; phoneNumberId: string; language: string }
-  | { provider: 'telnyx'; from: string; language: string };
+  | { provider: 'telnyx'; from: string; language: string; messagingProfileId?: string; templateSuffix?: string };
 
 /** Pure part (tested): which way to send, or null when WhatsApp isn't set up. */
 export function parseWhatsappConfig(d: Record<string, unknown> | undefined): WhatsappConfig | null {
   if (!d?.enabled) return null;
   const language = typeof d.language === 'string' ? d.language : 'he';
   if (d.provider === 'telnyx') {
-    return typeof d.from === 'string' && /^\+9725\d{8}$/.test(d.from) ? { provider: 'telnyx', from: d.from, language } : null;
+    if (typeof d.from !== 'string' || !/^\+9725\d{8}$/.test(d.from)) return null;
+    // A number that isn't a Telnyx number needs its messaging profile named explicitly.
+    const profile = typeof d.messagingProfileId === 'string' && /^[0-9a-f-]{36}$/i.test(d.messagingProfileId) ? d.messagingProfileId : undefined;
+    // A new version of the templates (e.g. "_v2"), switched on once Meta approved it.
+    const suffix = typeof d.templateSuffix === 'string' && /^_v\d{1,2}$/.test(d.templateSuffix) ? d.templateSuffix : undefined;
+    return { provider: 'telnyx', from: d.from, language, ...(profile ? { messagingProfileId: profile } : {}), ...(suffix ? { templateSuffix: suffix } : {}) };
   }
   return typeof d.phoneNumberId === 'string' && /^\d+$/.test(d.phoneNumberId) ? { provider: 'meta', phoneNumberId: d.phoneNumberId, language } : null;
 }
@@ -65,20 +74,38 @@ export interface TemplateMessage {
 }
 
 /** The template part of the request – identical for Meta and Telnyx (Telnyx passes it through to Meta). */
-export function templatePayload(m: TemplateMessage) {
+/** Meta takes the button index as a string ("0"); the Telnyx API wants a number (0). */
+export function templatePayload(m: TemplateMessage, numericIndex = false) {
   return {
     name: m.template,
     language: { policy: 'deterministic', code: m.language },
     components: [
       { type: 'body', parameters: m.bodyParams.map((text) => ({ type: 'text', text })) },
-      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: m.buttonParam }] },
+      { type: 'button', sub_type: 'url', index: numericIndex ? 0 : '0', parameters: [{ type: 'text', text: m.buttonParam }] },
     ],
   };
 }
 
 /** Sends one approved template message. Returns the message id. Errors read "whatsapp <http status> <provider code> …". */
+/** Meta has not approved this template (pending, rejected or not created): Telnyx error 10015 "... not approved". */
+export function isUnapprovedTemplate(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /not approved|template[^ ]* (does not exist|not found)/i.test(msg);
+}
+
 export async function sendTemplate(cfg: WhatsappConfig, m: TemplateMessage): Promise<string> {
-  return cfg.provider === 'telnyx' ? sendViaTelnyx(cfg, m) : sendViaMeta(cfg, m);
+  if (cfg.provider === 'telnyx') {
+    if (!cfg.templateSuffix) return sendViaTelnyx(cfg, m);
+    try {
+      return await sendViaTelnyx(cfg, { ...m, template: m.template + cfg.templateSuffix });
+    } catch (e) {
+      // A new template version Meta has not approved (yet): send the previous version instead of nothing.
+      if (!isUnapprovedTemplate(e)) throw e;
+      logger.warn('whatsapp template not approved, sending previous version', { template: m.template + cfg.templateSuffix });
+      return sendViaTelnyx(cfg, m);
+    }
+  }
+  return sendViaMeta(cfg, m);
 }
 
 async function sendViaMeta(cfg: Extract<WhatsappConfig, { provider: 'meta' }>, m: TemplateMessage): Promise<string> {
@@ -101,13 +128,18 @@ async function sendViaTelnyx(cfg: Extract<WhatsappConfig, { provider: 'telnyx' }
   const res = await fetch(`${TELNYX}/messages/whatsapp`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: cfg.from, to: `+${m.to}`, whatsapp_message: { type: 'template', template: templatePayload(m) } }),
+    body: JSON.stringify({
+      from: cfg.from,
+      to: `+${m.to}`,
+      ...(cfg.messagingProfileId ? { messaging_profile_id: cfg.messagingProfileId } : {}),
+      whatsapp_message: { type: 'template', template: templatePayload(m, true) },
+    }),
   });
   const json = (await res.json().catch(() => ({}))) as { data?: { id?: string }; errors?: { code?: string | number; title?: string; detail?: string }[] };
   const err = json.errors?.[0];
   if (!res.ok || !json.data?.id) {
     logger.warn('whatsapp send failed', { provider: 'telnyx', status: res.status, code: err?.code, template: m.template });
-    throw new Error(`whatsapp ${res.status} ${err?.code ?? ''} ${err?.detail ?? err?.title ?? ''}`.trim());
+    throw new Error(`whatsapp ${res.status} ${err?.code ?? ''} ${err?.title ?? ''} ${err?.detail ?? ''}`.trim());
   }
   return json.data.id;
 }

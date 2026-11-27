@@ -50,3 +50,6 @@ export function rememberOrder(o: MyOrder) {
   write(ORDERS_KEY, [o, ...loadMyOrders().filter((x) => x.id !== o.id)].slice(0, 20));
 }
 export const forgetMyOrders = () => write(ORDERS_KEY, null);
+export function dropMyOrders(ids: string[]) {
+  write(ORDERS_KEY, loadMyOrders().filter((o) => !ids.includes(o.id)));
+}

@@ -58,3 +58,21 @@ describe('closed collections', () => {
     assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'settings/admin'))));
   it('counters are not readable', () => assertFails(getDoc(doc(env.authenticatedContext('alice').firestore(), 'counters/orders'))));
 });
+
+describe('deals, coupons and the loyalty card', () => {
+  it('anyone can read deals and the loyalty rules, nobody can write them', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'deals/d1')));
+    await assertSucceeds(getDoc(doc(db, 'settings/loyalty')));
+    await assertFails(setDoc(doc(env.authenticatedContext('alice').firestore(), 'deals/d1'), { priceAgorot: 1 }));
+  });
+  it('coupon codes are hidden from customers (only the owner sees them)', async () => {
+    await assertFails(getDoc(doc(env.authenticatedContext('alice').firestore(), 'coupons/WELCOME10')));
+    await assertFails(getDocs(collection(env.authenticatedContext('s', staffClaims).firestore(), 'coupons')));
+    await assertSucceeds(getDocs(collection(env.authenticatedContext('o', { ...staffClaims, role: 'owner' }).firestore(), 'coupons')));
+  });
+  it('loyalty cards are closed, also to staff', async () => {
+    await assertFails(getDoc(doc(env.authenticatedContext('alice').firestore(), 'loyalty/0521234567')));
+    await assertFails(getDoc(doc(env.authenticatedContext('o', { ...staffClaims, role: 'owner' }).firestore(), 'loyalty/0521234567')));
+  });
+});

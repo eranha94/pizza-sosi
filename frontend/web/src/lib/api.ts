@@ -6,6 +6,8 @@ import {
   type CreateOrderResponse,
   type CancelOrderRequest,
   type OrderView,
+  type CheckCouponResponse,
+  type LoyaltyCardView,
 } from '@pizza-sosi/contracts';
 import { services, ensureSignedIn } from './firebase';
 
@@ -40,5 +42,15 @@ export function errorMessage(e: unknown): string {
 
 /** Read-only tracking for links opened on another device (e.g. from WhatsApp). */
 export function getOrderStatus(orderId: string) {
-  return call<{ orderId: string }, OrderView & { mine: boolean }>(API.getOrderStatus, { orderId });
+  return call<{ orderId: string }, OrderView & { mine: boolean; loyalty?: LoyaltyCardView | null }>(API.getOrderStatus, { orderId });
+}
+
+/** Is this coupon code valid (for this phone)? Throws with a Hebrew reason when not. */
+export function checkCoupon(code: string, phone?: string) {
+  return call<{ code: string; phone?: string }, CheckCouponResponse>(API.checkCoupon, { code, ...(phone ? { phone } : {}) });
+}
+
+/** The loyalty card for the phone typed at checkout (counts only). */
+export function getLoyalty(phone: string) {
+  return call<{ phone: string }, LoyaltyCardView | null>(API.getLoyalty, { phone });
 }

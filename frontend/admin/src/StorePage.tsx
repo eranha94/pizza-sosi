@@ -26,6 +26,8 @@ const DEFAULTS: StoreSettings = {
   minOrderAgorot: 0,
   whatsappStatuses: [...NOTIFY_STATUSES],
   deliveryZones: [],
+  busy: null,
+  cardPayments: 'off',
 } as StoreSettings;
 
 function useStoreSettings() {

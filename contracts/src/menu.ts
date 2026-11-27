@@ -26,6 +26,7 @@ export type AddOnOption = z.infer<typeof AddOnOption>;
 /**
  * A heading that groups choices.
  *  - "multi": optional toppings, any number (e.g. "מיוחדות")
+ *  - "multi" with maxSelect: up to N picks (e.g. "שתי תוספות בחינם")
  *  - "single": exactly one must be chosen (e.g. "עובי בצק": עבה/סטנדרט/דק). `defaultOptionId` is pre-selected.
  */
 export const AddOnGroup = z.object({
@@ -34,6 +35,8 @@ export const AddOnGroup = z.object({
   order: z.number().int(),
   selection: z.enum(['multi', 'single']).default('multi'),
   defaultOptionId: id.nullable().default(null),
+  /** "multi" only: at most this many picks (e.g. "שתי תוספות בחינם" → 2). null = no limit. */
+  maxSelect: z.number().int().min(1).max(40).nullable().default(null),
   options: z.array(AddOnOption).max(40),
 });
 export type AddOnGroup = z.infer<typeof AddOnGroup>;
@@ -79,7 +82,7 @@ export const ScreenSettings = z.object({
   /** Seconds each slide stays up. */
   slideSeconds: z.number().int().min(5).max(30).default(9),
   /** Dishes to feature with a big photo. Empty = automatic (recommended/new dishes that have a photo). */
-  featuredItemIds: z.array(id).max(12).default([]),
+  featuredItemIds: z.array(id).max(15).default([]),
   promos: z.array(ScreenPromo).max(8).default([]),
   /** Which categories get a full-screen price list. */
   menuCategories: z.array(CategoryId).max(CATEGORY_IDS.length).default([...CATEGORY_IDS]),
@@ -127,5 +130,12 @@ export const StoreSettings = z.object({
   whatsappStatuses: z.array(z.enum(NOTIFY_STATUSES)).max(NOTIFY_STATUSES.length).default([...NOTIFY_STATUSES]),
   /** The in-store TV screen. Missing = defaults. */
   screen: ScreenSettings.optional(),
+  /** Card payments on the site: off, test (only the owner's test phone, with ?paytest=1) or live. */
+  cardPayments: z.enum(['off', 'test', 'live']).default('off'),
+  /** Busy mode (see BusyMode in hours.ts). null = off. */
+  busy: z
+    .object({ until: z.number().int().positive(), extraMinutes: z.number().int().min(5).max(120), pauseDelivery: z.boolean() })
+    .nullable()
+    .default(null),
 });
 export type StoreSettings = z.infer<typeof StoreSettings>;

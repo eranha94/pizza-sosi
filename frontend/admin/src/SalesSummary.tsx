@@ -91,6 +91,9 @@ function stats(orders: AdminOrder[], from: string, to: string) {
   return {
     count: done.length,
     cancelled: real.length - done.length,
+    completed: done.filter((o) => o.status === 'completed').length,
+    open: done.filter((o) => o.status !== 'completed').length,
+    refundMissing: real.filter((o) => o.status === 'cancelled' && o.paymentMethod === 'card' && o.payment?.status === 'approved').length,
     revenue,
     avg: done.length ? Math.round(revenue / done.length) : 0,
     card: sum(done.filter((o) => o.paymentMethod === 'card')),
@@ -105,6 +108,84 @@ function stats(orders: AdminOrder[], from: string, to: string) {
     days: [...days],
     done,
   };
+}
+
+/** One final status per order: completed, cancelled, or still open (never closed in the board). */
+export function finalStatus(o: AdminOrder): { label: string; tone: 'done' | 'cancelled' | 'open' } {
+  if (o.status === 'completed') return { label: 'הושלמה', tone: 'done' };
+  if (o.status === 'cancelled') return { label: 'בוטלה', tone: 'cancelled' };
+  return { label: 'פתוחה – לא נסגרה', tone: 'open' };
+}
+const CARD_STATE: Record<string, string> = { approved: 'שולם', refunded: 'זוכה', refunding: 'בזיכוי', declined: 'נדחה', review: 'לבדיקה', pending: 'לא שולם' };
+/** How the order was paid, in words – the most important column for the owner. */
+export function paymentText(o: AdminOrder): { label: string; warn: boolean } {
+  if (o.paymentMethod === 'on_site') return { label: '💵 תשלום במקום', warn: false };
+  const st = o.payment?.status ?? '';
+  const card = o.payment?.cardSuffix ? ` ••${o.payment.cardSuffix}` : '';
+  const warn = (o.status === 'cancelled' && st === 'approved') || st === 'review' || st === 'declined';
+  const extra = o.status === 'cancelled' && st === 'approved' ? ' – לא זוכה!' : '';
+  return { label: `💳 אונליין${card} · ${CARD_STATE[st] ?? (st || 'לא ידוע')}${extra}`, warn };
+}
+const hhmm = (ms: number) => {
+  const p = localParts(new Date(ms));
+  return `${String(Math.floor(p.minutes / 60)).padStart(2, '0')}:${String(p.minutes % 60).padStart(2, '0')}`;
+};
+const addOnText = (a: AdminOrder['lines'][number]['addOns'][number]) =>
+  `${a.name}${a.coverage && a.coverage !== 'whole' ? ` (${COVERAGE_LABELS[a.coverage]})` : ''}${a.priceAgorot ? ` +${formatAgorot(a.priceAgorot)}` : ''}`;
+
+/** Every order of the period: one final status, how it was paid, and everything in it with prices. */
+function Transactions({ orders, multiDay }: { orders: AdminOrder[]; multiDay: boolean }) {
+  const list = [...orders].filter((o) => o.status !== 'pending_payment').sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  if (!list.length) return null;
+  return (
+    <section className="card card--wide" aria-labelledby="tx-h">
+      <h2 id="tx-h">פירוט עסקאות ({list.length})</h2>
+      <p className="muted small">לחיצה על עסקה פותחת את כל הפריטים והמחירים.</p>
+      <ul className="tx">
+        {list.map((o) => {
+          const fs = finalStatus(o);
+          const pay = paymentText(o);
+          const ms = o.createdAt?.toMillis?.() ?? 0;
+          return (
+            <li key={o.id} className={`tx__row tx__row--${fs.tone}`}>
+              <details>
+                <summary>
+                  <strong className="tx__num">#{o.number}</strong>
+                  <span className="tx__time">{multiDay ? `${shortDate(localParts(new Date(ms)).date)} ` : ''}{ms ? hhmm(ms) : ''}</span>
+                  <span className="tx__who">{o.customerName} · {o.fulfillment === 'delivery' ? '🛵 משלוח' : '🛍️ איסוף'}</span>
+                  <span className={`tx__status tx__status--${fs.tone}`}>{fs.label}</span>
+                  <span className={`tx__pay ${pay.warn ? 'tx__pay--warn' : ''}`}>{pay.label}</span>
+                  <strong className="tx__total">{formatAgorot(o.totalAgorot)}</strong>
+                </summary>
+                <table className="tx__lines">
+                  <tbody>
+                    {o.lines.map((l, i) => (
+                      <tr key={i}>
+                        <td>
+                          {l.quantity}× {l.name}
+                          {l.unitPriceAgorot !== undefined && l.quantity > 1 && <span className="muted small"> ({formatAgorot(l.unitPriceAgorot)} ליחידה)</span>}
+                          {l.addOns.length > 0 && <div className="muted small">{l.addOns.map(addOnText).join(' · ')}</div>}
+                          {l.note && <div className="muted small">הערה: {l.note}</div>}
+                        </td>
+                        <td className="tx__amt">{l.lineTotalAgorot !== undefined ? formatAgorot(l.lineTotalAgorot) : ''}</td>
+                      </tr>
+                    ))}
+                    {!!o.deliveryFeeAgorot && (
+                      <tr><td>דמי משלוח{o.address?.zoneName ? ` (${o.address.zoneName})` : ''}</td><td className="tx__amt">{formatAgorot(o.deliveryFeeAgorot)}</td></tr>
+                    )}
+                    {o.discounts?.map((d, i) => (
+                      <tr key={`d${i}`}><td>🏷️ {d.label}</td><td className="tx__amt">−{formatAgorot(d.amountAgorot)}</td></tr>
+                    ))}
+                    <tr className="tx__sum"><td>סה״כ</td><td className="tx__amt">{formatAgorot(o.totalAgorot)}</td></tr>
+                  </tbody>
+                </table>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }
 
 /** "+12%" / "−5%" next to a number, against the period before. */
@@ -154,15 +235,15 @@ function downloadCsv(orders: AdminOrder[], from: string, to: string) {
     const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
     return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
-  const head = ['מספר', 'תאריך', 'שעה', 'סטטוס', 'לקוח', 'טלפון', 'קבלה', 'אזור', 'תשלום', 'סכום (₪)', 'פריטים'];
+  const head = ['מספר', 'תאריך', 'שעה', 'סטטוס סופי', 'לקוח', 'טלפון', 'קבלה', 'אזור', 'תשלום', 'סכום (₪)', 'פריטים'];
   const rows = orders.map((o) => {
     const ms = o.createdAt?.toMillis?.() ?? 0;
     const p = localParts(new Date(ms));
     const time = `${String(Math.floor(p.minutes / 60)).padStart(2, '0')}:${String(p.minutes % 60).padStart(2, '0')}`;
     const lines = o.lines
-      .map((l) => `${l.quantity}× ${l.name}${l.addOns.length ? ` (${l.addOns.map((a) => (a.coverage && a.coverage !== 'whole' ? `${a.name} ${COVERAGE_LABELS[a.coverage]}` : a.name)).join(', ')})` : ''}`)
+      .map((l) => `${l.quantity}× ${l.name}${l.addOns.length ? ` (${l.addOns.map(addOnText).join(', ')})` : ''}${l.lineTotalAgorot !== undefined ? ` = ${formatAgorot(l.lineTotalAgorot)}` : ''}`)
       .join(' | ');
-    return [o.number, p.date, time, o.status, o.customerName, o.contact?.phone, o.fulfillment === 'delivery' ? 'משלוח' : 'איסוף', o.address?.zoneName, o.paymentMethod === 'card' ? 'אשראי' : 'במקום', (o.totalAgorot / 100).toFixed(2), lines];
+    return [o.number, p.date, time, finalStatus(o).label, o.customerName, o.contact?.phone, o.fulfillment === 'delivery' ? 'משלוח' : 'איסוף', o.address?.zoneName, paymentText(o).label.replace(/^\S+ /, ''), (o.totalAgorot / 100).toFixed(2), lines];
   });
   const csv = '﻿' + [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -210,8 +291,8 @@ export function SalesSummary() {
     <section className="summary-page" aria-labelledby="sum-h">
       <div className="page-head">
         <h1 id="sum-h">דוחות</h1>
-        {s && s.done.length > 0 && (
-          <button type="button" className="btn btn--ghost" onClick={() => downloadCsv(ready!.now, from, to)}>⬇️ הורדה לאקסל (CSV)</button>
+        {s && ready!.now.length > 0 && (
+          <button type="button" className="btn btn--ghost" onClick={() => downloadCsv(ready!.now.filter((o) => o.status !== 'pending_payment'), from, to)}>⬇️ הורדה לאקסל (CSV)</button>
         )}
       </div>
 
@@ -239,8 +320,14 @@ export function SalesSummary() {
             <div className="kpi kpi--main"><span>הכנסות</span><strong>{formatAgorot(s.revenue)}</strong><Delta now={s.revenue} before={prev.revenue} money /></div>
             <div className="kpi"><span>הזמנות</span><strong>{s.count}</strong><Delta now={s.count} before={prev.count} /></div>
             <div className="kpi"><span>ממוצע להזמנה</span><strong>{formatAgorot(s.avg)}</strong><Delta now={s.avg} before={prev.avg} money /></div>
-            <div className="kpi"><span>בוטלו</span><strong>{s.cancelled}</strong></div>
+            <div className="kpi"><span>הושלמו / בוטלו</span><strong>{s.completed} / {s.cancelled}</strong></div>
           </div>
+          {s.open > 0 && (
+            <p className="note note--warn" role="status">⚠️ {s.open} הזמנות עדיין פתוחות (לא סומנו "הושלמה" או "בוטלה"). כדאי לסגור אותן בלוח ההזמנות.</p>
+          )}
+          {s.refundMissing > 0 && (
+            <p className="note note--warn" role="status">⚠️ {s.refundMissing} הזמנות בוטלו אחרי תשלום אונליין ועדיין לא זוכו.</p>
+          )}
 
           {s.count === 0 ? (
             <p className="muted">אין הזמנות בתקופה הזאת.</p>
@@ -310,6 +397,7 @@ export function SalesSummary() {
               )}
             </div>
           )}
+          <Transactions orders={ready!.now} multiDay={days > 1} />
         </>
       )}
     </section>

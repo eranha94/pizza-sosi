@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://admin.pizza-sosi.co.il", "https://pizza-sosi-admin.web.app", "https://pizza-sosi-dev-admin.web.app", "http://localhost:5174"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

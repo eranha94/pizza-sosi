@@ -54,7 +54,7 @@ export function ScreenForm({ saved, items }: { saved: ScreenSettings; items: Men
 
   function toggleFeatured(id: string) {
     const has = s.featuredItemIds.includes(id);
-    if (!has && s.featuredItemIds.length >= 12) return;
+    if (!has && s.featuredItemIds.length >= 15) return;
     set('featuredItemIds', has ? s.featuredItemIds.filter((x) => x !== id) : [...s.featuredItemIds, id]);
   }
   const setPromo = (id: string, patch: Partial<ScreenPromo>) => set('promos', s.promos.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -170,7 +170,7 @@ export function ScreenForm({ saved, items }: { saved: ScreenSettings; items: Men
         </section>
 
         <section className="card card--wide" aria-labelledby="scr-feat">
-          <h2 id="scr-feat">מנות בתמונה גדולה ({s.featuredItemIds.length}/12)</h2>
+          <h2 id="scr-feat">מנות בתמונה גדולה ({s.featuredItemIds.length}/15)</h2>
           <p className="muted small">
             בלי בחירה המסך בוחר לבד: מנות שסומנו ״מומלץ״ או ״חדש״ ויש להן תמונה. מנה בלי תמונה מוצגת כפיצה מצוירת.
           </p>

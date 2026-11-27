@@ -10,6 +10,7 @@ import { Footer } from './Footer';
 import { announce } from '../lib/a11y';
 import { AnimatedNumber } from './AnimatedNumber';
 import { BottomBar } from './BottomBar';
+import { useLiveDeals } from '../lib/promos';
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -55,10 +56,11 @@ export function Layout() {
     };
   }, []);
 
+  const hasDeals = useLiveDeals().length > 0;
   const categories = useMemo(() => {
     const present = new Set((menu.data ?? []).map((i) => i.category));
-    return CATEGORY_IDS.filter((c) => present.has(c));
-  }, [menu.data]);
+    return [...(hasDeals ? (['deals'] as const) : []), ...CATEGORY_IDS.filter((c) => present.has(c))];
+  }, [menu.data, hasDeals]);
 
   // Keep the active category visible in the scrollable bar (phones).
   useEffect(() => {
@@ -148,7 +150,7 @@ export function Layout() {
               {categories.map((c) => (
                 <li key={c}>
                   <a href={`/#cat-${c}`} data-cat={c} aria-current={active === c && location.pathname === '/' ? 'true' : undefined} onClick={(e) => onCategory(e, c)}>
-                    {CATEGORY_LABELS[c]}
+                    {c === 'deals' ? '🔥 מבצעים' : CATEGORY_LABELS[c]}
                   </a>
                 </li>
               ))}

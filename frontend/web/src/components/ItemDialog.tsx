@@ -231,11 +231,18 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
           );
         }
         const half = g.options.find((o) => o.halfAgorot !== null);
+        const picks = g.options.filter((o) => chosen.has(o.id)).length;
+        const full = g.maxSelect !== null && picks >= g.maxSelect;
         return (
           <fieldset key={g.id} className="addons">
             <legend>
               {g.name}
               {freeInGroup(g) > 0 && <span className="free-badge">🎁 הראשונה חינם</span>}
+              {g.maxSelect !== null && (
+                <span className="addons__hint" aria-live="polite">
+                  {' '}· {g.maxSelect === 1 ? 'אחת לבחירה' : `עד ${g.maxSelect}`} ({picks}/{g.maxSelect})
+                </span>
+              )}
               {half && (
                 <span className="addons__hint">
                   {' '}· כל הפיצה {formatAgorot(half.wholeAgorot)} · חצי {formatAgorot(half.halfAgorot!)}
@@ -247,7 +254,7 @@ function ItemForm({ item, editing, onDone }: { item: MenuItem; editing: CartLine
               return (
                 <div key={o.id} className={`addon ${coverage ? 'is-on' : ''}`}>
                   <label className="addon__main">
-                    <input type="checkbox" checked={coverage !== undefined} onChange={() => toggle(o.id)} />
+                    <input type="checkbox" checked={coverage !== undefined} disabled={full && coverage === undefined} onChange={() => toggle(o.id)} />
                     <span className="addon__name">{o.name}</span>
                     {priced.free.has(o.id) && <span className="free-badge free-badge--on">חינם</span>}
                     {o.halfAgorot === null && <span className="addon__price">{priceLabel(o)}</span>}

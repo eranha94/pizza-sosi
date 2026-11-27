@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { storeStatus, formatTime, localParts, hoursFor, zonedToEpoch, WEEKDAY_NAMES, type StoreStatus as Status } from '@pizza-sosi/contracts/constants';
+import { storeStatus, formatTime, localParts, hoursFor, zonedToEpoch, effectivePrep, activeBusy, WEEKDAY_NAMES, type StoreStatus as Status, type BusyMode } from '@pizza-sosi/contracts/constants';
 import type { StoreSettings } from '@pizza-sosi/contracts';
 import { useStoreSettings, useNow } from '../lib/menu';
 
@@ -8,12 +8,12 @@ import { useStoreSettings, useNow } from '../lib/menu';
  * Tells the customer at a glance whether they can order now, until when, and how long it takes.
  */
 
-export function useStoreStatus(): { status: Status | null; prepMinutes: number } {
+export function useStoreStatus(): { status: Status | null; prepMinutes: number; busy: BusyMode | null } {
   const store = useStoreSettings();
   const now = useNow();
   // Unknown (still loading or offline): show nothing and let the server decide.
-  if (!store.data) return { status: null, prepMinutes: 25 };
-  return { status: storeStatus(store.data, now), prepMinutes: store.data.prepMinutes };
+  if (!store.data) return { status: null, prepMinutes: 25, busy: null };
+  return { status: storeStatus(store.data, now), prepMinutes: effectivePrep(store.data, now), busy: activeBusy(store.data, now) };
 }
 
 function dayWord(ms: number) {
@@ -26,7 +26,7 @@ function dayWord(ms: number) {
 }
 
 export function StoreStatusCard() {
-  const { status, prepMinutes } = useStoreStatus();
+  const { status, prepMinutes, busy } = useStoreStatus();
   const store = useStoreSettings();
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -37,8 +37,8 @@ export function StoreStatusCard() {
   let title: string;
   let line: string;
   if (status.state === 'open') {
-    title = closingSoon ? `נסגרים בעוד ${status.minutesLeft} דק׳` : 'פתוח עכשיו';
-    line = `מקבלים הזמנות עד ${formatTime(status.closesAt)} · מוכן תוך כ-${prepMinutes} דק׳`;
+    title = closingSoon ? `נסגרים בעוד ${status.minutesLeft} דק׳` : busy ? 'פתוח – יש עומס כרגע' : 'פתוח עכשיו';
+    line = `מקבלים הזמנות עד ${formatTime(status.closesAt)} · מוכן תוך כ-${prepMinutes} דק׳${busy?.pauseDelivery && store.data.deliveryEnabled ? ' · משלוחים מושהים, איסוף עצמי בלבד' : ''}`;
   } else if (status.state === 'paused') {
     title = 'לא מקבלים הזמנות כרגע';
     line = 'אפשר להתקשר אלינו: 054-8880909';
@@ -48,7 +48,7 @@ export function StoreStatusCard() {
   }
 
   return (
-    <section className={`oven-card ${isOpen ? 'is-open' : 'is-closed'} ${closingSoon ? 'is-soon' : ''} ${open ? 'is-expanded' : ''}`}>
+    <section className={`oven-card ${isOpen ? 'is-open' : 'is-closed'} ${closingSoon || (isOpen && busy) ? 'is-soon' : ''} ${open ? 'is-expanded' : ''}`}>
       <button type="button" className="oven-card__head" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)}>
         <Oven lit={isOpen} />
         <span className="oven-card__text">

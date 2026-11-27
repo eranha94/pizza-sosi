@@ -1,46 +1,42 @@
+import { CardcomProvider } from './cardcom.js';
+
+/** A payment's real state, as told by the provider (server to server). */
+export interface PaymentResult {
+  status: 'approved' | 'pending' | 'declined';
+  amountAgorot: number;
+  /** The order id we sent with the payment. */
+  orderId: string;
+  transactionId: string;
+  cardSuffix: string;
+  approvalNumber: string;
+}
+
 /**
- * Adapter for the card-payment provider (hosted payment page, PCI DSS SAQ A).
- * The provider is not chosen yet (Isracard is the acquirer). A concrete adapter
- * implements this interface; credentials come only from Secret Manager.
+ * Card payments through a hosted payment page (PCI DSS SAQ A): card data never touches our servers.
+ * Credentials come only from Secret Manager.
  */
 export interface PaymentProvider {
   readonly name: string;
-  isConfigured(): boolean;
-  /** Create a hosted payment page for the order and return its URL. Card data never touches our servers. */
+  isConfigured(): Promise<boolean>;
+  /** Create a hosted payment page for the order and return its URL. */
   createPaymentPage(input: {
     orderId: string;
     amountAgorot: number;
-    customer: { name: string; email: string; phone: string };
+    description: string;
+    customer: { name: string; email?: string | null; phone: string };
     successUrl: string;
     cancelUrl: string;
-  }): Promise<{ url: string; providerRef: string }>;
-  /** Verify a webhook's signature/authenticity. Must reject anything not from the provider. */
-  verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<{ providerRef: string } | null>;
-  /** Ask the provider directly (server to server) what the real transaction state is. */
-  getTransaction(providerRef: string): Promise<{ status: 'approved' | 'declined' | 'pending'; amountAgorot: number; orderId: string }>;
-  refund(providerRef: string, amountAgorot: number): Promise<void>;
-}
-
-class NotConfiguredProvider implements PaymentProvider {
-  readonly name = 'none';
-  isConfigured() {
-    return false;
-  }
-  async createPaymentPage(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
-  async verifyWebhook() {
-    return null;
-  }
-  async getTransaction(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
-  async refund(): Promise<never> {
-    throw new Error('payment provider not configured');
-  }
+    notifyUrl: string;
+    /** For the receipt the provider issues and emails: what was bought (sums to amountAgorot). */
+    receiptLines: { description: string; quantity: number; unitAgorot: number }[];
+  }): Promise<{ url: string; providerRef: string; bitUrl?: string }>;
+  /** Which payment a notification is about (its content is not trusted beyond that). */
+  refFromNotification(fields: Record<string, unknown>): { providerRef: string; orderId: string } | null;
+  /** Ask the provider directly what happened with this payment. */
+  getResult(providerRef: string): Promise<PaymentResult>;
+  refund(r: { transactionId: string }, amountAgorot: number, full: boolean): Promise<void>;
 }
 
 export function getPaymentProvider(): PaymentProvider {
-  // When the provider is chosen: return new XyzProvider(secrets) here.
-  return new NotConfiguredProvider();
+  return new CardcomProvider();
 }

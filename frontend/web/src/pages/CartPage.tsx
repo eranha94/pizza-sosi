@@ -9,6 +9,7 @@ import { ItemDialog } from '../components/ItemDialog';
 import { announce, notifyAdded, usePageTitle } from '../lib/a11y';
 import { flyToCart, flyVisual } from '../lib/motion';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { useCartDeals, useLoyaltyRules, rewardText } from '../lib/promos';
 
 /** Items worth suggesting next to an order: drinks first, then specials, not already in the cart. */
 function suggestions(menu: MenuItem[], lines: CartLine[]): MenuItem[] {
@@ -27,6 +28,8 @@ export default function CartPage() {
   const [open, setOpen] = useState<{ item: MenuItem; editing: CartLine | null } | null>(null);
   const bucket = useBucket().data ?? '';
   const byId = new Map(menu.map((m) => [m.id, m]));
+  const { discounts, dealsOff } = useCartDeals();
+  const loyalty = useLoyaltyRules().data;
   usePageTitle(lines.length === 0 ? 'הסל ריק' : 'הסל שלך');
 
   if (lines.length === 0) {
@@ -106,10 +109,17 @@ export default function CartPage() {
         </section>
       )}
 
+      {discounts.map((d) => (
+        <div key={d.label} className="summary summary--discount">
+          <span>🔥 מחיר מבצע: {d.label}</span>
+          <span dir="ltr">−{formatAgorot(d.amountAgorot)}</span>
+        </div>
+      ))}
       <div className="summary">
         <span>סה״כ</span>
-        <strong><AnimatedNumber value={total} format={formatAgorot} /></strong>
+        <strong><AnimatedNumber value={total - dealsOff} format={formatAgorot} /></strong>
       </div>
+      {loyalty && <p className="muted small">🎟️ כל הזמנה נחשבת בכרטיסייה: אחרי {loyalty.ordersRequired} הזמנות מגיע לך {rewardText(loyalty.reward)}.</p>}
       <p className="muted small">הסכום הסופי מאושר בעת ההזמנה.</p>
       <Link to="/checkout" className="button button--primary button--block">להמשך הזמנה</Link>
       <ItemDialog item={open?.item ?? null} editing={open?.editing ?? null} onClose={() => setOpen(null)} />

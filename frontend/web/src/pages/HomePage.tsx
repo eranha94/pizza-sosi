@@ -10,6 +10,8 @@ import { useActiveCategory } from '../store/ui';
 import { scrollToCategory } from '../components/Layout';
 import { useLocation } from 'react-router';
 import { usePageTitle } from '../lib/a11y';
+import { useLiveDeals } from '../lib/promos';
+import { DealsSection, useAddDeal } from '../components/Deals';
 
 export function HomePage() {
   const menu = useMenu();
@@ -39,11 +41,15 @@ export function HomePage() {
     return CATEGORY_IDS.filter((c) => map.has(c)).map((c) => ({ id: c, items: map.get(c)! }));
   }, [menu.data, q, tag]);
   const found = byCategory.reduce((n, c) => n + c.items.length, 0);
+  // Deals row: only when there is a deal on today, and not while searching/filtering.
+  const liveDeals = useLiveDeals();
+  const showDeals = !filtering && liveDeals.length > 0;
+  const addDeal = useAddDeal();
 
   // Header underline follows the category on screen.
   const setActive = useActiveCategory((s) => s.set);
   const location = useLocation();
-  const ids = byCategory.map((c) => c.id).join(',');
+  const ids = [...(showDeals ? ['deals'] : []), ...byCategory.map((c) => c.id)].join(',');
   useEffect(() => {
     const sections = ids ? ids.split(',').map((id) => document.getElementById(`cat-${id}`)).filter((el): el is HTMLElement => el !== null) : [];
     if (sections.length === 0) return;
@@ -117,6 +123,7 @@ export function HomePage() {
             )}
           </div>
         )}
+        {showDeals && <DealsSection deals={liveDeals} onAdd={addDeal.start} />}
         {menu.isPending && <MenuSkeleton />}
         {menu.isError && !menu.data?.length && <p className="notice notice--error">לא הצלחנו לטעון את התפריט. רעננו את הדף.</p>}
         {byCategory.map((c) => (
@@ -156,6 +163,8 @@ export function HomePage() {
         ))}
       </section>
       <ItemDialog item={selected} onClose={() => setSelected(null)} />
+      {/* Adding a deal: its pizzas (items with choices) open here one after another. */}
+      <ItemDialog key={addDeal.step ? `deal-${addDeal.step.left}` : 'deal'} item={addDeal.current} onClose={addDeal.onDialogClose} />
       <OpeningHoursSchema />
     </>
   );
