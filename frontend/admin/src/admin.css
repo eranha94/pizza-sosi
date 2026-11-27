@@ -458,3 +458,28 @@ body.kitchen .board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 900px) { body.kitchen .board { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .ktimer--late { animation: none; } }
 .input--tiny { width: 6.5em; display: inline-block; padding: 4px 6px; }
+
+/* Reports: every order with its final status and payment */
+.note--warn { background: #fff4d6; border: 1px solid #f1d27a; color: #6b4a00; border-radius: 10px; padding: 8px 12px; margin: 0; }
+.tx { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tx__row { border: 1px solid #eee5e6; border-radius: 10px; background: #fff; border-inline-start: 6px solid #2f7d45; }
+.tx__row--cancelled { border-inline-start-color: #c0392b; background: #fffafa; }
+.tx__row--open { border-inline-start-color: #e9a400; }
+.tx__row summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.tx__row summary::-webkit-details-marker { display: none; }
+.tx__row summary::after { content: '▾'; margin-inline-start: 4px; color: var(--soft); }
+.tx__row details[open] summary::after { content: '▴'; }
+.tx__num { min-width: 4.5ch; }
+.tx__time { color: var(--soft); font-variant-numeric: tabular-nums; }
+.tx__who { flex: 1 1 12ch; min-width: 0; }
+.tx__status { font-weight: 700; font-size: .85rem; border-radius: 999px; padding: 2px 10px; }
+.tx__status--done { background: #dff3e4; color: #1d6b37; }
+.tx__status--cancelled { background: #fde0dd; color: #a3221a; }
+.tx__status--open { background: #fff1c7; color: #7a5200; }
+.tx__pay { font-size: .9rem; font-weight: 600; }
+.tx__pay--warn { color: #a3221a; }
+.tx__total { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.tx__lines { width: 100%; border-collapse: collapse; margin: 0 0 8px; }
+.tx__lines td { padding: 6px 12px; border-top: 1px solid #f4ecd8; vertical-align: top; }
+.tx__amt { text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tx__sum td { font-weight: 700; }

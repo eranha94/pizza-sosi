@@ -14,7 +14,16 @@ export interface AdminOrder {
   payment?: { status?: string; cardSuffix?: string; paidAgorot?: number };
   needsReview?: boolean;
   totalAgorot: number;
-  lines: { name: string; quantity: number; addOns: { name: string; coverage?: 'whole' | 'right' | 'left' | null }[]; note: string }[];
+  lines: {
+    name: string;
+    quantity: number;
+    addOns: { name: string; coverage?: 'whole' | 'right' | 'left' | null; priceAgorot?: number }[];
+    note: string;
+    unitPriceAgorot?: number;
+    lineTotalAgorot?: number;
+  }[];
+  subtotalAgorot?: number;
+  deliveryFeeAgorot?: number;
   address?: { street: string; houseNumber: string; apartment: string; notes: string; zoneName?: string } | null;
   note?: string;
   readyAt?: number;
