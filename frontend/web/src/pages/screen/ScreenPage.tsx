@@ -117,8 +117,8 @@ function Featured({ item, bucket, className }: { item: MenuItem; bucket: string;
   const isPizza = item.category === 'pizzas' || item.category === 'specials';
   const flag = item.tags.includes('new') ? ITEM_TAG_LABELS.new : item.tags.includes('recommended') ? ITEM_TAG_LABELS.recommended : null;
   return (
-    <section className={className}>
-      <div className={`feat__plate ${isPizza && !src ? 'is-spinning' : ''}`} aria-hidden="true">
+    <section className={`${className} ${src ? 'has-photo' : ''}`}>
+      <div className={`feat__plate ${src ? 'feat__plate--photo' : isPizza ? 'is-spinning' : ''}`} aria-hidden="true">
         {src ? <img src={square ?? src} alt="" decoding="async" onError={(e) => src && e.currentTarget.src !== src && (e.currentTarget.src = src)} /> : isPizza ? <PizzaPreview toppings={toppingsFromText(`${item.name} ${item.description}`)} /> : <span className="feat__emoji">{CATEGORY_EMOJI[item.category] ?? '🍽️'}</span>}
       </div>
       <div className="feat__text">
