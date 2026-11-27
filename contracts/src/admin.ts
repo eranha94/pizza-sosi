@@ -54,6 +54,7 @@ export const UpsertMenuItemRequest = z
           order: z.number().int().min(0).max(100),
           selection: z.enum(['multi', 'single']).default('multi'),
           defaultOptionId: id.nullable().default(null),
+          maxSelect: z.number().int().min(1).max(40).nullable().default(null),
           options: z
             .array(
               z.object({

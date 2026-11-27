@@ -457,3 +457,4 @@ body.kitchen .board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kcard__more { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee5e6; }
 @media (max-width: 900px) { body.kitchen .board { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .ktimer--late { animation: none; } }
+.input--tiny { width: 6.5em; display: inline-block; padding: 4px 6px; }

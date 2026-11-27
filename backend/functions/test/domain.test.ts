@@ -9,20 +9,20 @@ const pizza: MenuItem = {
   imagePath: null, order: 1, active: true, tags: [],
   addOnGroups: [
     {
-      id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std',
+      id: 'dough', name: 'עובי בצק', order: 0, selection: 'single', defaultOptionId: 'std', maxSelect: null,
       options: [
         { id: 'std', name: 'סטנדרט', wholeAgorot: 0, halfAgorot: null, active: true },
         { id: 'thin', name: 'דק', wholeAgorot: 0, halfAgorot: null, active: true },
       ],
     },
     {
-      id: 'g1', name: 'מיוחדות', order: 1, selection: 'multi', defaultOptionId: null,
+      id: 'g1', name: 'מיוחדות', order: 1, selection: 'multi', defaultOptionId: null, maxSelect: null,
       options: [
         { id: 'tuna', name: 'טונה', wholeAgorot: 1800, halfAgorot: 1300, active: true },
         { id: 'pine', name: 'אננס', wholeAgorot: 1800, halfAgorot: 1300, active: false },
       ],
     },
-    { id: 'g2', name: 'תוספות', order: 2, selection: 'multi', defaultOptionId: null, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
+    { id: 'g2', name: 'תוספות', order: 2, selection: 'multi', defaultOptionId: null, maxSelect: null, options: [{ id: 'gouda', name: 'גאודה', wholeAgorot: 600, halfAgorot: null, active: true }] },
   ],
 };
 const menu = new Map([[pizza.id, pizza]]);
@@ -265,5 +265,21 @@ describe('whatsapp template fallback', () => {
   it('recognises an unapproved template error', () => {
     expect(isUnapprovedTemplate(new Error('whatsapp 400 10015 Bad Request template_id is not approved'))).toBe(true);
     expect(isUnapprovedTemplate(new Error('whatsapp 400 10004 Invalid source number'))).toBe(false);
+  });
+});
+
+describe('add-on group limits', () => {
+  const opt = (id: string) => ({ id, name: id, wholeAgorot: 0, halfAgorot: null, active: true });
+  const burger = {
+    id: 'b', name: 'בורגר', description: '', category: 'burgers', priceAgorot: 5500, imagePath: null, order: 1, active: true, tags: [],
+    addOnGroups: [{ id: 'free2', name: 'שתי תוספות בחינם', order: 1, selection: 'multi', defaultOptionId: null, maxSelect: 2, options: [opt('a'), opt('c'), opt('d')] }],
+  } as unknown as MenuItem;
+  const menu = new Map([['b', burger]]);
+  const line = (ids: string[]) => [{ itemId: 'b', quantity: 1, addOns: ids.map((id) => ({ id, coverage: 'whole' as const })), note: '' }];
+  it('allows up to the limit', () => {
+    expect(() => priceCart(line(['a', 'c']), menu, 0)).not.toThrow();
+  });
+  it('refuses more than the limit', () => {
+    expect(() => priceCart(line(['a', 'c', 'd']), menu, 0)).toThrow(PricingError);
   });
 });

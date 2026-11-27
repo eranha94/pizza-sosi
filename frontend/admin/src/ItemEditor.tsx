@@ -7,7 +7,7 @@ import { toRequest, type AdminMenuItem } from './MenuEditor';
 
 /* Draft model: prices as text (₪) while typing; converted to agorot on save. */
 interface DOpt { id: string; name: string; whole: string; half: string; active: boolean }
-interface DGroup { id: string; name: string; selection: 'multi' | 'single'; defaultOptionId: string | null; options: DOpt[] }
+interface DGroup { id: string; name: string; selection: 'multi' | 'single'; defaultOptionId: string | null; maxSelect: string; options: DOpt[] }
 
 const newId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20);
 const shek = (agorot: number | null | undefined) => (agorot === null || agorot === undefined ? '' : String(agorot / 100));
@@ -22,6 +22,7 @@ const toDraft = (groups: MenuItem['addOnGroups']): DGroup[] =>
       name: g.name,
       selection: g.selection ?? 'multi',
       defaultOptionId: g.defaultOptionId ?? null,
+      maxSelect: g.maxSelect ? String(g.maxSelect) : '',
       options: g.options.map((o) => ({ id: o.id, name: o.name, whole: shek(o.wholeAgorot), half: shek(o.halfAgorot), active: o.active })),
     }));
 
@@ -161,6 +162,7 @@ export function ItemEditor({
         order: gi + 1,
         selection: g.selection,
         defaultOptionId: g.selection === 'single' && g.options.some((o) => o.id === g.defaultOptionId) ? g.defaultOptionId : null,
+        maxSelect: g.selection === 'multi' && Number(g.maxSelect) >= 1 ? Math.min(40, Math.floor(Number(g.maxSelect))) : null,
         options: g.options.map((o) => ({
           id: o.id,
           name: o.name.trim(),
@@ -371,6 +373,13 @@ export function ItemEditor({
                     ))}
                   </tbody>
                 </table>
+                {g.selection === 'multi' && (
+                  <label className="small muted inline">
+                    הלקוח יכול לבחור עד{' '}
+                    <input type="number" inputMode="numeric" min={1} max={40} className="input--tiny" value={g.maxSelect} placeholder="ללא הגבלה" onChange={(e) => updateGroup(gi, { maxSelect: e.target.value })} aria-label="מקסימום בחירות בקבוצה" />
+                    {' '}(ריק = ללא הגבלה)
+                  </label>
+                )}
                 {g.selection === 'single' && (
                   <label className="small muted inline">
                     <input type="radio" name={`def-${g.id}`} checked={!g.defaultOptionId} onChange={() => updateGroup(gi, { defaultOptionId: null })} /> בלי ברירת מחדל (הלקוח חייב לבחור)
@@ -387,10 +396,10 @@ export function ItemEditor({
             ))}
 
             <div className="row">
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setDirty(true); setGroups([...groups, { id: newId(), name: '', selection: 'single', defaultOptionId: null, options: [{ id: newId(), name: '', whole: '0', half: '', active: true }] }]); }}>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setDirty(true); setGroups([...groups, { id: newId(), name: '', selection: 'single', defaultOptionId: null, maxSelect: '', options: [{ id: newId(), name: '', whole: '0', half: '', active: true }] }]); }}>
                 + בחירת חובה
               </button>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setDirty(true); setGroups([...groups, { id: newId(), name: '', selection: 'multi', defaultOptionId: null, options: [{ id: newId(), name: '', whole: '0', half: '', active: true }] }]); }}>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setDirty(true); setGroups([...groups, { id: newId(), name: '', selection: 'multi', defaultOptionId: null, maxSelect: '', options: [{ id: newId(), name: '', whole: '0', half: '', active: true }] }]); }}>
                 + קבוצת תוספות
               </button>
             </div>

@@ -26,6 +26,7 @@ export type AddOnOption = z.infer<typeof AddOnOption>;
 /**
  * A heading that groups choices.
  *  - "multi": optional toppings, any number (e.g. "מיוחדות")
+ *  - "multi" with maxSelect: up to N picks (e.g. "שתי תוספות בחינם")
  *  - "single": exactly one must be chosen (e.g. "עובי בצק": עבה/סטנדרט/דק). `defaultOptionId` is pre-selected.
  */
 export const AddOnGroup = z.object({
@@ -34,6 +35,8 @@ export const AddOnGroup = z.object({
   order: z.number().int(),
   selection: z.enum(['multi', 'single']).default('multi'),
   defaultOptionId: id.nullable().default(null),
+  /** "multi" only: at most this many picks (e.g. "שתי תוספות בחינם" → 2). null = no limit. */
+  maxSelect: z.number().int().min(1).max(40).nullable().default(null),
   options: z.array(AddOnOption).max(40),
 });
 export type AddOnGroup = z.infer<typeof AddOnGroup>;
